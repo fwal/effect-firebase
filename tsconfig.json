@@ -1,19 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
-  "files": [],
-  "references": [
-    {
-      "path": "./packages/effect-firebase"
-    },
-    {
-      "path": "./packages/effect-firebase-admin"
-    },
-    {
-      "path": "./packages/effect-firebase-client"
-    },
-    {
-      "path": "./packages/effect-firebase-mock"
-    }
-  ]
+  "files": []
 }

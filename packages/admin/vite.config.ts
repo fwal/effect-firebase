@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/packages/effect-firebase-client',
+  cacheDir: '../../node_modules/.vite/packages/admin',
   plugins: [],
   // Uncomment this if you are using workers.
   // worker: {

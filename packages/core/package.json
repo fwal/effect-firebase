@@ -1,6 +1,6 @@
 {
-  "name": "effect-firebase-mock",
-  "version": "0.0.1",
+  "name": "@effect-firebase/core",
+  "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,6 +18,9 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "dependencies": {
+    "effect": "^3.17.3"
+  },
   "nx": {
     "targets": {
       "build": {
@@ -26,16 +29,15 @@
           "{options.outputPath}"
         ],
         "options": {
-          "outputPath": "packages/effect-firebase-mock/dist",
-          "main": "packages/effect-firebase-mock/src/index.ts",
-          "tsConfig": "packages/effect-firebase-mock/tsconfig.lib.json",
+          "outputPath": "packages/core/dist",
+          "main": "packages/core/src/index.ts",
+          "tsConfig": "packages/core/tsconfig.lib.json",
           "format": [
             "esm"
           ],
-          "declarationRootDir": "packages/effect-firebase-mock/src"
+          "declarationRootDir": "packages/core/src"
         }
       }
     }
-  },
-  "dependencies": {}
+  }
 }

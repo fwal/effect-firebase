@@ -1,5 +1,5 @@
 {
-  "name": "effect-firebase-client",
+  "name": "@effect-firebase/client",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,16 +26,20 @@
           "{options.outputPath}"
         ],
         "options": {
-          "outputPath": "packages/effect-firebase-client/dist",
-          "main": "packages/effect-firebase-client/src/index.ts",
-          "tsConfig": "packages/effect-firebase-client/tsconfig.lib.json",
+          "outputPath": "packages/client/dist",
+          "main": "packages/client/src/index.ts",
+          "tsConfig": "packages/client/tsconfig.lib.json",
           "format": [
             "esm"
           ],
-          "declarationRootDir": "packages/effect-firebase-client/src"
+          "declarationRootDir": "packages/client/src"
         }
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "effect": "^3.17.3",
+    "@effect-firebase/core": "workspace:*",
+    "firebase": "^12.0.0"
+  }
 }

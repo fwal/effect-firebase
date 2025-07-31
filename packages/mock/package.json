@@ -1,6 +1,6 @@
 {
-  "name": "effect-firebase",
-  "version": "0.0.0",
+  "name": "@effect-firebase/mock",
+  "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -26,16 +26,19 @@
           "{options.outputPath}"
         ],
         "options": {
-          "outputPath": "packages/effect-firebase/dist",
-          "main": "packages/effect-firebase/src/index.ts",
-          "tsConfig": "packages/effect-firebase/tsconfig.lib.json",
+          "outputPath": "packages/mock/dist",
+          "main": "packages/mock/src/index.ts",
+          "tsConfig": "packages/mock/tsconfig.lib.json",
           "format": [
             "esm"
           ],
-          "declarationRootDir": "packages/effect-firebase/src"
+          "declarationRootDir": "packages/mock/src"
         }
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "effect": "^3.17.3",
+    "@effect-firebase/core": "workspace:*"
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "effect-firebase-admin",
+  "name": "@effect-firebase/admin",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,16 +26,20 @@
           "{options.outputPath}"
         ],
         "options": {
-          "outputPath": "packages/effect-firebase-admin/dist",
-          "main": "packages/effect-firebase-admin/src/index.ts",
-          "tsConfig": "packages/effect-firebase-admin/tsconfig.lib.json",
+          "outputPath": "packages/admin/dist",
+          "main": "packages/admin/src/index.ts",
+          "tsConfig": "packages/admin/tsconfig.lib.json",
           "format": [
             "esm"
           ],
-          "declarationRootDir": "packages/effect-firebase-admin/src"
+          "declarationRootDir": "packages/admin/src"
         }
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "effect": "^3.17.3",
+    "@effect-firebase/core": "workspace:*",
+    "firebase-admin": "^13.4.0"
+  }
 }
