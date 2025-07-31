@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always read the [README.md](mdc:README.md) to understand the overall goal, plan and status of the project and align updates according to the document. Keep it up-to-date if for example new requirements are added och status changes and inform the user.
+
+Always start with a simple implementation and then refactor to a more complex one.

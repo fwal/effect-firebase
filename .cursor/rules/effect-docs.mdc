@@ -1,0 +1,9 @@
+---
+description: Effect framework documentation
+alwaysApply: false
+---
+Overview of Effect documentation can be found here: https://effect.website/llms.txt
+The full documentation can be found here: https://effect.website/llms-full.txt
+
+When you are asked to do something, always refer to the documentation first.
+If you are asked to do something that is not in the documentation, ask the user to provide the documentation first.
