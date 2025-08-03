@@ -1,0 +1,39 @@
+{
+  "name": "@example/backend",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "example/backend/src",
+  "projectType": "application",
+  "tags": ["example"],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "main": "example/backend/src/main.ts",
+        "outputPath": "example/dist/example/backend",
+        "outputFileName": "main.js",
+        "tsConfig": "example/backend/tsconfig.app.json",
+        "platform": "node",
+        "format": ["esm"],
+        "bundle": false,
+        "generatePackageJson": true,
+        "assets": [
+          {
+            "glob": "example/backend/README.md",
+            "input": ".",
+            "output": "."
+          }
+        ]
+      },
+      "configurations": {
+        "development": {
+          "minify": false
+        },
+        "production": {
+          "minify": false
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@example/backend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./main.js",
+  "types": "./main.d.ts",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.4.0"
+  }
+}
