@@ -1,0 +1,12 @@
+{
+  "name": "@effect-firebase/schema",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "dependencies": {
+    "effect": "^3.17.3",
+    "@effect-firebase/core": "workspace:*"
+  }
+}

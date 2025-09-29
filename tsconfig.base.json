@@ -16,6 +16,13 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["development"]
+    "customConditions": ["development"],
+    "paths": {
+      "@effect-firebase/admin": ["packages/admin/src/index.ts"],
+      "@effect-firebase/client": ["packages/client/src/index.ts"],
+      "@effect-firebase/core": ["packages/core/src/index.ts"],
+      "@effect-firebase/mock": ["packages/mock/src/index.ts"],
+      "@effect-firebase/schema": ["packages/schema/src/index.ts"]
+    }
   }
 }

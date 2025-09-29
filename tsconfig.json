@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
-  "files": []
+  "files": [
+    "packages/core/src/index.ts",
+    "packages/admin/src/index.ts",
+    "packages/mock/src/index.ts"
+  ]
 }
