@@ -20,9 +20,8 @@
     "paths": {
       "@effect-firebase/admin": ["packages/admin/src/index.ts"],
       "@effect-firebase/client": ["packages/client/src/index.ts"],
-      "@effect-firebase/core": ["packages/core/src/index.ts"],
       "@effect-firebase/mock": ["packages/mock/src/index.ts"],
-      "@effect-firebase/schema": ["packages/schema/src/index.ts"]
+      "effect-firebase": ["packages/effect-firebase/src/index.ts"]
     }
   }
 }

@@ -39,6 +39,6 @@
   },
   "dependencies": {
     "effect": "^3.17.3",
-    "@effect-firebase/core": "workspace:*"
+    "effect-firebase": "workspace:*"
   }
 }

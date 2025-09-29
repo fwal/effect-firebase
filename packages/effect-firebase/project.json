@@ -1,0 +1,33 @@
+{
+  "name": "effect-firebase",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/effect-firebase/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/effect-firebase",
+        "main": "packages/effect-firebase/src/index.ts",
+        "tsConfig": "packages/effect-firebase/tsconfig.lib.json",
+        "assets": ["packages/effect-firebase/*.md"],
+        "format": ["cjs"],
+        "generatePackageJson": true
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    }
+  }
+}

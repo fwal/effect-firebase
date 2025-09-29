@@ -1,5 +1,5 @@
 import { Schema, Effect, ParseResult } from 'effect';
-import { FirestoreService } from '@effect-firebase/core';
+import { FirestoreService } from '../firestore/firestore-service.js';
 
 export const DateFromFirestore = Schema.transformOrFail(
   Schema.Unknown,

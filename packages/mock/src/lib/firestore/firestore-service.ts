@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { FirestoreService } from '@effect-firebase/core';
+import { FirestoreService } from 'effect-firebase';
 import { vi } from 'vitest';
 
 export const layer = () =>

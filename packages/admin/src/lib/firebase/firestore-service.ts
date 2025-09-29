@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { FirestoreService, UnexpectedTypeError } from '@effect-firebase/core';
+import { FirestoreService, UnexpectedTypeError } from 'effect-firebase';
 import {
   DocumentReference,
   GeoPoint,
