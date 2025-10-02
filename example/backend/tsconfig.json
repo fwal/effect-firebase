@@ -9,7 +9,10 @@
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": true,
     "paths": {
-      "@example/shared": ["../../shared/src/index.ts"]
+      "@example/shared": ["../../shared/src/index.ts"],
+      "effect-firebase": ["../../packages/effect-firebase/src/index.ts"],
+      "@effect-firebase/admin": ["../../packages/admin/src/index.ts"],
+      "@effect-firebase/mock": ["../../packages/mock/src/index.ts"]
     }
   },
   "files": [],

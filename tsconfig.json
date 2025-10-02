@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [
-    "packages/core/src/index.ts",
+    "packages/effect-firebase/src/index.ts",
     "packages/admin/src/index.ts",
     "packages/mock/src/index.ts"
   ]
