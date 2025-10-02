@@ -20,7 +20,7 @@
         "main": "packages/effect-firebase/src/index.ts",
         "tsConfig": "packages/effect-firebase/tsconfig.lib.json",
         "assets": ["packages/effect-firebase/*.md"],
-        "format": ["cjs"],
+        "format": ["esm"],
         "generatePackageJson": true
       }
     },
