@@ -18,27 +18,11 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "nx": {
-    "targets": {
-      "build": {
-        "executor": "@nx/esbuild:esbuild",
-        "outputs": [
-          "{options.outputPath}"
-        ],
-        "options": {
-          "outputPath": "packages/mock/dist",
-          "main": "packages/mock/src/index.ts",
-          "tsConfig": "packages/mock/tsconfig.lib.json",
-          "format": [
-            "esm"
-          ],
-          "declarationRootDir": "packages/mock/src"
-        }
-      }
-    }
-  },
+  "nx": {},
   "dependencies": {
-    "effect": "^3.17.3",
-    "effect-firebase": "workspace:*"
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
   }
 }

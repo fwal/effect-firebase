@@ -9,7 +9,7 @@ export default defineConfig(() => ({
   //  plugins: [ nxViteTsPaths() ],
   // },
   test: {
-    name: '@effect-firebase/client',
+    name: '@effect-firebase/admin',
     watch: false,
     globals: true,
     environment: 'node',

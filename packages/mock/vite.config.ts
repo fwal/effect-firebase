@@ -9,6 +9,7 @@ export default defineConfig(() => ({
   //  plugins: [ nxViteTsPaths() ],
   // },
   test: {
+    name: '@effect-firebase/mock',
     watch: false,
     globals: true,
     environment: 'node',

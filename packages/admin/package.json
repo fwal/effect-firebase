@@ -8,7 +8,7 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "development": "./src/index.ts",
+      "@effect-firebase/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
@@ -18,28 +18,7 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "nx": {
-    "targets": {
-      "build": {
-        "executor": "@nx/esbuild:esbuild",
-        "outputs": [
-          "{options.outputPath}"
-        ],
-        "options": {
-          "outputPath": "packages/admin/dist",
-          "main": "packages/admin/src/index.ts",
-          "tsConfig": "packages/admin/tsconfig.lib.json",
-          "format": [
-            "esm"
-          ],
-          "declarationRootDir": "packages/admin/src"
-        }
-      }
-    }
-  },
   "dependencies": {
-    "effect": "^3.17.3",
-    "effect-firebase": "workspace:*",
-    "firebase-admin": "^13.4.0"
+    "tslib": "^2.3.0"
   }
 }

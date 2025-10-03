@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../effect-firebase"
+    },
+    {
       "path": "./tsconfig.lib.json"
     },
     {

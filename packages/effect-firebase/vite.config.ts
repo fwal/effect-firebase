@@ -2,14 +2,14 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/packages/client',
+  cacheDir: '../../node_modules/.vite/packages/effect-firebase',
   plugins: [],
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [ nxViteTsPaths() ],
   // },
   test: {
-    name: '@effect-firebase/client',
+    name: 'effect-firebase',
     watch: false,
     globals: true,
     environment: 'node',
