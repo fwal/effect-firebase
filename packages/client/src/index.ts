@@ -1,1 +1,1 @@
-export * from './lib/effect-firebase-client.js';
+export * from './lib/firestore/firestore-client.js';

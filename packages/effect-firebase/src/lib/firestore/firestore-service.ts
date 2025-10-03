@@ -1,6 +1,6 @@
 import { Effect, Context, Data } from 'effect';
 
-type FirestoreServiceShape = {
+export type FirestoreServiceShape = {
   readonly get: (path: string) => Effect.Effect<any>;
 
   readonly convertToTimestamp: (date: Date) => Effect.Effect<unknown>;
