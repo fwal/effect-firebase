@@ -60,7 +60,7 @@ describe('DateFromFirestore', () => {
     })
   );
 
-  it.effect.fails('Throws an error when converting from timestamp fails', () =>
+  it.effect.fails('Fails when converting from timestamp fails', () =>
     Effect.gen(function* () {
       const convertFromTimestamp = vi.fn(() =>
         Effect.fail(
