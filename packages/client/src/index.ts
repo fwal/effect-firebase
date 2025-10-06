@@ -1,1 +1,1 @@
-export * from './lib/firestore/firestore-client.js';
+export * from './lib/firestore/firestore-service.js';
