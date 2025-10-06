@@ -23,6 +23,9 @@
     },
     {
       "path": "./example/app"
+    },
+    {
+      "path": "./tests"
     }
   ]
 }

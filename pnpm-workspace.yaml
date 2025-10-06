@@ -1,2 +1,11 @@
-packages: 
-  - "packages/*"
+packages:
+  - 'packages/*'
+  - 'tests'
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@swc/core'
+  - 'core-js'
+  - 'esbuild'
+  - 'nx'
+  - 'protobufjs'
+  - 're2'
