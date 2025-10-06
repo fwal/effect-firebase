@@ -1,4 +1,4 @@
-import { FirestoreService } from '../firestore/firestore-service.js';
+import { FirestoreService } from '../firestore-service.js';
 import { Effect, ParseResult, Schema } from 'effect';
 
 export const Reference = <T extends string>(brand: T) =>
