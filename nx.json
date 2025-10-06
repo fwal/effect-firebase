@@ -26,7 +26,8 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
-      }
+      },
+      "exclude": ["tests/*"]
     },
     {
       "plugin": "@nx/eslint/plugin",
@@ -47,6 +48,15 @@
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
       }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": ["tests/*"],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
+      }
     }
   ],
   "targetDefaults": {
@@ -55,6 +65,7 @@
     }
   },
   "release": {
+    "projects": ["!utils", "!@effect-firebase/source"],
     "version": {
       "preVersionCommand": "pnpm dlx nx run-many -t build"
     }
