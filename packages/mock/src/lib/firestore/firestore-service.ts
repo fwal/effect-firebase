@@ -1,10 +1,64 @@
 import { Effect, Layer } from 'effect';
-import { FirestoreService } from 'effect-firebase';
-import { vi } from 'vitest';
+import { FirestoreService, FirestoreServiceShape, UnexpectedTypeError } from 'effect-firebase';
+import { MockTimestamp } from './types/timestamp.js';
+import { MockGeoPoint } from './types/geopoint.js';
+import { MockDocumentReference } from './types/document-reference.js';
 
-export const layer = () =>
+export const firestoreService = (
+  overrides: Partial<FirestoreServiceShape>
+) =>
   Layer.succeed(FirestoreService, {
-    get: (path: string) => {
-      return Effect.succeed(vi.fn());
+    get: () => {
+      throw new Error('Function not implemented.');
     },
+    convertToTimestamp: (date) => {
+      return Effect.succeed(MockTimestamp.fromDate(date));
+    },
+    convertFromTimestamp: (timestamp) => {
+      if (timestamp instanceof MockTimestamp) {
+        return Effect.succeed(timestamp.toDate());
+      }
+      return Effect.fail(
+        new UnexpectedTypeError({
+          expected: 'Timestamp',
+          actual: typeof timestamp,
+        })
+      );
+    },
+    convertToGeoPoint: (latitude, longitude) => {
+      return Effect.succeed(new MockGeoPoint(latitude, longitude));
+    },
+    convertFromGeoPoint: (geoPoint) => {
+      if (geoPoint instanceof MockGeoPoint) {
+        return Effect.succeed({
+          latitude: geoPoint.latitude,
+          longitude: geoPoint.longitude,
+        });
+      }
+      return Effect.fail(
+        new UnexpectedTypeError({
+          expected: 'GeoPoint',
+          actual: typeof geoPoint,
+        })
+      );
+    },
+    convertFromReference: (reference) => {
+      if (reference instanceof MockDocumentReference) {
+        return Effect.succeed({
+          id: reference.id,
+          path: reference.path,
+        });
+      }
+      return Effect.fail(
+        new UnexpectedTypeError({
+          expected: 'DocumentReference',
+          actual: typeof reference,
+        })
+      );
+    },
+    convertToReference: (path) => {
+      const id = path.split('/').pop() ?? '';
+      return Effect.succeed(new MockDocumentReference(id, path));
+    },
+    ...overrides,
   });

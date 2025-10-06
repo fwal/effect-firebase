@@ -1,1 +1,1 @@
-export * from './lib/effect-firebase-mock.js';
+export * from './lib/firestore/firestore-service.js';
