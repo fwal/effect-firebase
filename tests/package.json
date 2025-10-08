@@ -13,5 +13,9 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "effect-firebase": "workspace:*",
+    "@effect-firebase/mock": "workspace:*"
+  }
 }

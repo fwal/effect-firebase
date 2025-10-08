@@ -2,7 +2,6 @@ import {
   HttpsFunction,
   HttpsOptions,
   Request,
-  onCall,
   onRequest,
 } from 'firebase-functions/v2/https';
 import { Response } from 'express';
@@ -12,7 +11,7 @@ import { logger } from 'firebase-functions';
 function makeRuntime() {
   const cloudLogger = Logger.replace(
     Logger.defaultLogger,
-    Logger.make(({ logLevel, message }) => {
+    Logger.make(({ message }) => {
       logger.log(message);
     })
   );
@@ -35,8 +34,6 @@ function onRequestEffect(
     response.send(result);
   });
 }
-
-function onCallEffect() {}
 
 export const functionB = onRequestEffect(
   {

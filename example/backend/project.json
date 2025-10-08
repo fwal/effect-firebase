@@ -17,7 +17,6 @@
         "platform": "node",
         "format": ["esm"],
         "bundle": true,
-        "generatePackageJson": true,
         "assets": [
           {
             "glob": "example/backend/README.md",
