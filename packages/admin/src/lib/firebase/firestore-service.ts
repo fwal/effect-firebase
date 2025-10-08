@@ -9,7 +9,7 @@ import {
 
 export const layer = () =>
   Layer.succeed(FirestoreService, {
-    get: (path: string) => {
+    get: () => {
       return Effect.succeed(getFirestore());
     },
     convertToTimestamp: (date: Date) => {

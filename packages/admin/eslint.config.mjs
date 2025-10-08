@@ -9,14 +9,14 @@ export default [
   {
     files: ['*.json'],
     languageOptions: {
-      parser: jsoncEslintParser,
+      parser: await import('jsonc-eslint-parser'),
     },
     rules: {
       '@nx/dependency-checks': [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
-          ignoredDependencies: ['@effect-firebase/core'],
+          ignoredDependencies: ['effect-firebase'],
         },
       ],
     },
