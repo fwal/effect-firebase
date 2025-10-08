@@ -1,7 +1,6 @@
 import { Effect, Schema } from 'effect';
 import { describe, it, expect } from '@effect/vitest';
-import { DateFromFirestore, 
-  UnexpectedTypeError, } from 'effect-firebase';
+import { DateFromFirestore, UnexpectedTypeError } from 'effect-firebase';
 import { firestoreService } from '@effect-firebase/mock';
 
 describe('DateFromFirestore', () => {
