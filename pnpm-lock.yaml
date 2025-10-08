@@ -171,6 +171,12 @@ importers:
 
   packages/admin:
     dependencies:
+      effect:
+        specifier: ^3.17.3
+        version: 3.17.3
+      firebase-admin:
+        specifier: ^13.4.0
+        version: 13.4.0(encoding@0.1.13)
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
