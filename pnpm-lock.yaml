@@ -180,12 +180,20 @@ importers:
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+    devDependencies:
+      effect-firebase:
+        specifier: workspace:*
+        version: link:../effect-firebase
 
   packages/client:
     dependencies:
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+    devDependencies:
+      effect-firebase:
+        specifier: workspace:*
+        version: link:../effect-firebase
 
   packages/effect-firebase:
     dependencies:
@@ -202,6 +210,9 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
     devDependencies:
+      effect-firebase:
+        specifier: workspace:*
+        version: link:../effect-firebase
       vite:
         specifier: ^7.0.0
         version: 7.1.8(@types/node@22.17.0)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0)
