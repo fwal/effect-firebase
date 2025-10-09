@@ -50,8 +50,17 @@
   ],
   "targetDefaults": { "test": { "dependsOn": ["^build"] } },
   "release": {
-    "projects": ["!utils", "!@effect-firebase/source"],
-    "version": { "preVersionCommand": "pnpm dlx nx run-many -t build" }
+    "projects": ["!utils", "!@effect-firebase/source", "!@example/*"],
+    "version": {
+      "preVersionCommand": "pnpm dlx nx run-many -t build",
+      "conventionalCommits": true
+    },
+    "changelog": {
+      "workspaceChangelog": {
+        "file": false,
+        "createRelease": "github"
+      }
+    }
   },
   "nxCloudId": "68e6b41204d3d892e997c97b"
 }
