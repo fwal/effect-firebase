@@ -1,6 +1,6 @@
 {
   "functions": {
-    "source": "example/dist/example/backend",
+    "source": "backend/dist",
     "codebase": "backend",
     "predeploy": ["nx run @example/backend:build"],
     "ignore": [
@@ -12,7 +12,7 @@
     ]
   },
   "hosting": {
-    "public": "example/dist/example/app",
+    "public": "app/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {

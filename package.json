@@ -10,9 +10,8 @@
     "dev": "nx dev",
     "serve": "nx serve",
     "start": "nx start",
-    "example:build": "nx run-many -t build --projects=tag:example",
-    "example:emulators": "firebase emulators:start --only functions,firestore,ui",
-    "example:deploy": "firebase deploy"
+    "example:emulator": "nx run @example/backend:emulator",
+    "example:hosting": "nx run @example/app:dev"
   },
   "private": true,
   "dependencies": {

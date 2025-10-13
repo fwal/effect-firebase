@@ -11,7 +11,7 @@
       "defaultConfiguration": "production",
       "options": {
         "main": "example/backend/src/main.ts",
-        "outputPath": "example/dist/example/backend",
+        "outputPath": "example/backend/dist",
         "outputFileName": "main.js",
         "tsConfig": "example/backend/tsconfig.app.json",
         "platform": "node",
@@ -33,6 +33,28 @@
         "production": {
           "minify": false
         }
+      }
+    },
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/example/backend/package.json",
+        "{workspaceRoot}/example/backend/pnpm-lock.yaml"
+      ],
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "emulator": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "prune-lockfile"],
+      "continuous": true,
+      "options": {
+        "cwd": "{workspaceRoot}/example",
+        "tty": false,
+        "command": "firebase emulators:start --only functions,firestore,ui"
       }
     }
   }
