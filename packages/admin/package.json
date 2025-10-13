@@ -1,6 +1,7 @@
 {
   "name": "@effect-firebase/admin",
   "version": "0.0.2",
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -25,5 +26,8 @@
   },
   "devDependencies": {
     "effect-firebase": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,6 +1,7 @@
 {
   "name": "@effect-firebase/mock",
   "version": "0.0.2",
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -25,5 +26,8 @@
   "devDependencies": {
     "vite": "^7.0.0",
     "effect-firebase": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

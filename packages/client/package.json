@@ -2,6 +2,7 @@
   "name": "@effect-firebase/client",
   "version": "0.0.2",
   "type": "module",
+  "private": false,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,5 +24,8 @@
   },
   "devDependencies": {
     "effect-firebase": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

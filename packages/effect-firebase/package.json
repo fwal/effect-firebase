@@ -1,6 +1,7 @@
 {
   "name": "effect-firebase",
   "version": "0.0.2",
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,5 +22,8 @@
   "dependencies": {
     "tslib": "^2.3.0",
     "effect": "^3.17.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
