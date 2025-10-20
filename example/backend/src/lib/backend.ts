@@ -1,44 +1,27 @@
-import {
-  HttpsFunction,
-  HttpsOptions,
-  Request,
-  onRequest,
-} from 'firebase-functions/v2/https';
-import { Response } from 'express';
-import { ManagedRuntime, Effect, Logger } from 'effect';
-import { logger } from 'firebase-functions';
+import { Effect, Layer } from 'effect';
+import { Admin, makeRuntime, onRequestEffect } from '@effect-firebase/admin';
+import { PostRepository } from '@example/shared';
 
-function makeRuntime() {
-  const cloudLogger = Logger.replace(
-    Logger.defaultLogger,
-    Logger.make(({ message }) => {
-      logger.log(message);
-    })
-  );
-  return ManagedRuntime.make(cloudLogger);
-}
+const runtime = makeRuntime(
+  PostRepository.Default.pipe(Layer.provide(Admin.layer))
+);
 
-async function run<A>(effect: Effect.Effect<A, unknown>) {
-  const runtime = makeRuntime();
-  const result = await runtime.runPromise(effect);
-  await runtime.dispose();
-  return result;
-}
-
-function onRequestEffect(
-  options: HttpsOptions,
-  handler: (request: Request, response: Response) => Effect.Effect<void, never>
-): HttpsFunction {
-  return onRequest(options, async (request, response) => {
-    const result = await run(handler(request, response));
-    response.send(result);
-  });
-}
-
+// Final interface for the user
 export const functionB = onRequestEffect(
   {
     region: 'europe-north1',
     cors: true,
+    runtime,
   },
-  (request, response) => Effect.succeed(response.send('Hello world!'))
+  (request, response) =>
+    Effect.gen(function* () {
+      const posts = yield* PostRepository;
+      const post = yield* posts.getPost(request.params['id']);
+      response.send(post);
+    }).pipe(
+      Effect.catchAll((error) => {
+        response.status(500).send(error.message);
+        return Effect.void;
+      })
+    )
 );

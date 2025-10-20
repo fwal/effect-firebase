@@ -1,16 +1,32 @@
 import { Effect, Layer } from 'effect';
-import { FirestoreService, UnexpectedTypeError } from 'effect-firebase';
-import { doc, DocumentReference, GeoPoint, getFirestore, Timestamp } from 'firebase/firestore';
+import {
+  FirestoreError,
+  FirestoreService,
+  packSnapshot,
+  UnexpectedTypeError,
+} from 'effect-firebase';
+import {
+  doc,
+  DocumentReference,
+  GeoPoint,
+  getFirestore,
+  Timestamp,
+  getDoc,
+} from 'firebase/firestore';
 
 export const layer = () =>
   Layer.succeed(FirestoreService, {
-    get: (path: string) => {
-      return Effect.succeed(getFirestore());
-    },
+    get: (path: string) =>
+      Effect.tryPromise({
+        try: () => getDoc(doc(getFirestore(), path)),
+        catch: FirestoreError.fromError,
+      }).pipe(Effect.map(packSnapshot)),
     convertToTimestamp: function (date: Date): Effect.Effect<unknown> {
       return Effect.succeed(Timestamp.fromDate(date));
     },
-    convertFromTimestamp: function (timestamp: unknown): Effect.Effect<Date, UnexpectedTypeError> {
+    convertFromTimestamp: function (
+      timestamp: unknown
+    ): Effect.Effect<Date, UnexpectedTypeError> {
       if (timestamp instanceof Timestamp) {
         return Effect.succeed(timestamp.toDate());
       }
@@ -21,10 +37,18 @@ export const layer = () =>
         })
       );
     },
-    convertToGeoPoint: function (latitude: number, longitude: number): Effect.Effect<unknown> {
+    convertToGeoPoint: function (
+      latitude: number,
+      longitude: number
+    ): Effect.Effect<unknown> {
       return Effect.succeed(new GeoPoint(latitude, longitude));
     },
-    convertFromGeoPoint: function (geoPoint: unknown): Effect.Effect<{ latitude: number; longitude: number; }, UnexpectedTypeError> {
+    convertFromGeoPoint: function (
+      geoPoint: unknown
+    ): Effect.Effect<
+      { latitude: number; longitude: number },
+      UnexpectedTypeError
+    > {
       if (geoPoint instanceof GeoPoint) {
         return Effect.succeed({
           latitude: geoPoint.latitude,
@@ -38,7 +62,9 @@ export const layer = () =>
         })
       );
     },
-    convertFromReference: function (reference: unknown): Effect.Effect<{ id: string; path: string; }, UnexpectedTypeError> {
+    convertFromReference: function (
+      reference: unknown
+    ): Effect.Effect<{ id: string; path: string }, UnexpectedTypeError> {
       if (reference instanceof DocumentReference) {
         return Effect.succeed({
           id: reference.id,
@@ -54,5 +80,5 @@ export const layer = () =>
     },
     convertToReference: function (path: string): Effect.Effect<unknown> {
       return Effect.succeed(doc(getFirestore(), path));
-    }
+    },
   });
