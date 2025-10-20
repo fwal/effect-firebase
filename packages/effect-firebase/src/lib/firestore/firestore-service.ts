@@ -1,8 +1,8 @@
-import { Effect, Context, Data } from 'effect';
+import { Effect, Context } from 'effect';
+import { FirestoreError, UnexpectedTypeError } from './errors.js';
+import { Snapshot } from './snapshot.js';
 
-export type FirestoreServiceShape = {
-  readonly get: (path: string) => Effect.Effect<any>;
-
+type FirestoreConverters = {
   readonly convertToTimestamp: (date: Date) => Effect.Effect<unknown>;
   readonly convertFromTimestamp: (
     timestamp: unknown
@@ -25,13 +25,12 @@ export type FirestoreServiceShape = {
   readonly convertToReference: (path: string) => Effect.Effect<unknown>;
 };
 
+type FirestoreCRUD = {
+  readonly get: (path: string) => Effect.Effect<Snapshot, FirestoreError>;
+};
+
+export type FirestoreServiceShape = FirestoreConverters & FirestoreCRUD;
+
 export class FirestoreService extends Context.Tag(
   '@effect-firebase/FirestoreService'
 )<FirestoreService, FirestoreServiceShape>() {}
-
-export class UnexpectedTypeError extends Data.TaggedError(
-  'UnexpectedTypeError'
-)<{
-  expected: 'Timestamp' | 'GeoPoint' | 'DocumentReference';
-  actual: string;
-}> {}
