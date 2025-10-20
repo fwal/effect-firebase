@@ -20,7 +20,7 @@ export const functionB = onRequestEffect(
       response.send(post);
     }).pipe(
       Effect.catchAll((error) => {
-        response.status(500).send(error.message);
+        response.status(500).send(String(error));
         return Effect.void;
       })
     )

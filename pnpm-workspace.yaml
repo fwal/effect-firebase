@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'example/*'
   - 'tests'
 onlyBuiltDependencies:
   - '@firebase/util'

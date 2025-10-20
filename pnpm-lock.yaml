@@ -169,6 +169,36 @@ importers:
         specifier: ^3.0.0
         version: 3.1.4(@types/node@20.19.9)(@vitest/ui@3.1.4)(jiti@2.4.2)(jsdom@22.1.0)(terser@5.43.1)(yaml@2.8.0)
 
+  example/backend:
+    dependencies:
+      '@effect-firebase/admin':
+        specifier: workspace:*
+        version: link:../../packages/admin
+      '@example/shared':
+        specifier: workspace:*
+        version: link:../shared
+      effect:
+        specifier: ^3.17.3
+        version: 3.17.3
+      express:
+        specifier: 4.21.2
+        version: 4.21.2
+      firebase-admin:
+        specifier: ^13.4.0
+        version: 13.4.0(encoding@0.1.13)
+      firebase-functions:
+        specifier: ^6.4.0
+        version: 6.4.0(firebase-admin@13.4.0(encoding@0.1.13))
+
+  example/shared:
+    dependencies:
+      effect:
+        specifier: ^3.17.3
+        version: 3.17.3
+      effect-firebase:
+        specifier: 0.0.2
+        version: 0.0.2
+
   packages/admin:
     dependencies:
       effect:
@@ -4465,6 +4495,9 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  effect-firebase@0.0.2:
+    resolution: {integrity: sha512-4PAxQTTHqwVthZOHy96b5Y/Wwduk3tWmF0YNYFp8jihRtohBBUBUsv+D68/JR9a0aY5Hh33j7cnY52bq7riBEw==}
 
   effect@3.17.3:
     resolution: {integrity: sha512-FbFMr6xBXPII5Od8QJnkHz+2GTmQgq+8NPQev6C2k9cf1lcUjQ4vpw1kjbMc2X0UkjIkIWe0EtNK2RV6bl34UQ==}
@@ -13849,6 +13882,11 @@ snapshots:
       safe-buffer: 5.2.1
 
   ee-first@1.1.1: {}
+
+  effect-firebase@0.0.2:
+    dependencies:
+      effect: 3.17.3
+      tslib: 2.8.1
 
   effect@3.17.3:
     dependencies:

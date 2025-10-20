@@ -11,6 +11,8 @@
   },
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "@effect-firebase/admin": "workspace:*",
+    "@example/shared": "workspace:*",
     "effect": "^3.17.3",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.4.0",

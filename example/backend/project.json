@@ -6,6 +6,7 @@
   "tags": ["example"],
   "targets": {
     "build": {
+      "dependsOn": ["^build"],
       "executor": "@nx/esbuild:esbuild",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",

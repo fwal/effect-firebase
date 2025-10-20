@@ -10,8 +10,7 @@
     "moduleResolution": "nodenext",
     "baseUrl": ".",
     "paths": {
-      "@example/*": ["example/*/src/index.ts"],
-      "@example/shared": ["example/shared/src/index.ts"]
+      "@example/shared": ["example/shared/dist/index.d.ts"]
     },
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
