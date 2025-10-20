@@ -7,17 +7,17 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "paths": {
-      "@example/shared": ["../../shared/src/index.ts"],
-      "effect-firebase": ["../../packages/effect-firebase/src/index.ts"],
-      "@effect-firebase/admin": ["../../packages/admin/src/index.ts"],
-      "@effect-firebase/mock": ["../../packages/mock/src/index.ts"]
-    }
+    "noPropertyAccessFromIndexSignature": true
   },
   "files": [],
   "include": [],
   "references": [
+    {
+      "path": "../shared"
+    },
+    {
+      "path": "../../packages/admin"
+    },
     {
       "path": "./tsconfig.app.json"
     },
