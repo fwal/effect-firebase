@@ -1,11 +1,11 @@
 import { Option, Data } from 'effect';
 
-type Ref = {
+export type Ref = {
   readonly id: string;
   readonly path: string;
 };
 
-type Data = {
+export type Data = {
   readonly [x: string]: unknown;
 };
 

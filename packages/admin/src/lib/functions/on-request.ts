@@ -7,6 +7,7 @@ import {
 } from 'firebase-functions/https';
 import { Response } from 'express';
 import { run } from './run.js';
+import { logger } from 'firebase-functions';
 
 interface RequestEffectOptions<R> extends HttpsOptions {
   runtime: ManagedRuntime.ManagedRuntime<R, never>;
@@ -26,7 +27,15 @@ export function onRequestEffect<R>(
   ) => Effect.Effect<unknown, never, R>
 ): HttpsFunction {
   return onRequest(options, async (request, response) => {
-    const result = await run(options.runtime, handler(request, response));
-    response.send(result);
+    await run(options.runtime, handler(request, response))
+      .then((result) => {
+        if (result) {
+          response.status(200).send(result);
+        }
+      })
+      .catch((error) => {
+        logger.error('Unrecoverable error', { inner: error });
+        response.status(500).send();
+      });
   });
 }

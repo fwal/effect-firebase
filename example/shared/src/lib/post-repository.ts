@@ -9,10 +9,15 @@ export class PostRepository extends Effect.Service<PostRepository>()(
       const firestore = yield* FirestoreService;
       const decoder = Schema.decodeUnknown(PostSchema);
 
-      const getPost = (id: string) =>
-        firestore.get(`posts/${id}`).pipe(Effect.map(decoder));
-
-      return { getPost };
+      return {
+        getPost: (id: string) =>
+          Effect.gen(function* () {
+            return yield* firestore
+              .get(`posts/${id}`)
+              .pipe(Effect.map(decoder))
+              .pipe(Effect.flatten);
+          }),
+      };
     }),
     dependencies: [],
   }

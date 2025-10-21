@@ -20,6 +20,9 @@
   ],
   "dependencies": {
     "effect": "^3.17.3",
-    "effect-firebase": "0.0.2"
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "effect-firebase": "workspace:*"
   }
 }

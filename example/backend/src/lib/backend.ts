@@ -3,7 +3,7 @@ import { Admin, makeRuntime, onRequestEffect } from '@effect-firebase/admin';
 import { PostRepository } from '@example/shared';
 
 const runtime = makeRuntime(
-  PostRepository.Default.pipe(Layer.provide(Admin.layer))
+  PostRepository.Default.pipe(Layer.merge(Admin.layer))
 );
 
 // Final interface for the user
@@ -17,9 +17,10 @@ export const functionB = onRequestEffect(
     Effect.gen(function* () {
       const posts = yield* PostRepository;
       const post = yield* posts.getPost(request.params['id']);
-      response.send(post);
+      return post;
     }).pipe(
       Effect.catchAll((error) => {
+        console.error(error);
         response.status(500).send(String(error));
         return Effect.void;
       })
