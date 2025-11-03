@@ -1,6 +1,7 @@
-import { Effect, Context } from 'effect';
+import { Effect, Context, Option } from 'effect';
 import { FirestoreError, UnexpectedTypeError } from './errors.js';
 import { Snapshot } from './snapshot.js';
+import { UnknownException } from 'effect/Cause';
 
 type FirestoreConverters = {
   readonly convertToTimestamp: (date: Date) => Effect.Effect<unknown>;
@@ -26,7 +27,12 @@ type FirestoreConverters = {
 };
 
 type FirestoreCRUD = {
-  readonly get: (path: string) => Effect.Effect<Snapshot, FirestoreError>;
+  readonly get: (
+    path: string
+  ) => Effect.Effect<
+    Option.Option<Snapshot>,
+    FirestoreError | UnknownException
+  >;
 };
 
 export type FirestoreServiceShape = FirestoreConverters & FirestoreCRUD;

@@ -34,7 +34,7 @@ export class FirestoreError extends Data.TaggedError('FirestoreError')<{
         message: error.message,
       });
     }
-    return this.unknown();
+    return FirestoreError.unknown();
   }
   static unknown(): FirestoreError {
     return new FirestoreError({

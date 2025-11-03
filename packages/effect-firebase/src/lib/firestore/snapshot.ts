@@ -9,7 +9,7 @@ export type Data = {
   readonly [x: string]: unknown;
 };
 
-export type Snapshot = Option.Option<readonly [Ref, Data]>;
+export type Snapshot = readonly [Ref, Data];
 
 interface SnapshotLike {
   readonly exists: boolean | (() => boolean);
@@ -17,7 +17,7 @@ interface SnapshotLike {
   readonly data: () => Data | undefined;
 }
 
-export function packSnapshot(snapshot: SnapshotLike): Snapshot {
+export function packSnapshot(snapshot: SnapshotLike): Option.Option<Snapshot> {
   const data = snapshot.data();
   if (!data) {
     return Option.none();
