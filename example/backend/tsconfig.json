@@ -19,6 +19,9 @@
       "path": "../../packages/admin"
     },
     {
+      "path": "../../packages/effect-firebase"
+    },
+    {
       "path": "./tsconfig.app.json"
     },
     {

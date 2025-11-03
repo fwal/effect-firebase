@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { FirestoreService } from 'effect-firebase';
 import { PostSchema } from './post-schema.js';
 
@@ -14,7 +14,7 @@ export class PostRepository extends Effect.Service<PostRepository>()(
           Effect.gen(function* () {
             return yield* firestore
               .get(`posts/${id}`)
-              .pipe(Effect.map(decoder))
+              .pipe(Effect.flatMap(Option.map(decoder)))
               .pipe(Effect.flatten);
           }),
       };

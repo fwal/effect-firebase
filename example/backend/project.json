@@ -6,10 +6,10 @@
   "tags": ["example"],
   "targets": {
     "build": {
-      "dependsOn": ["^build"],
       "executor": "@nx/esbuild:esbuild",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
+      "dependsOn": ["^build"],
       "options": {
         "main": "example/backend/src/main.ts",
         "outputPath": "example/backend/dist",

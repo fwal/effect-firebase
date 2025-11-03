@@ -26,6 +26,9 @@
     },
     {
       "path": "../../packages/admin/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/effect-firebase/tsconfig.lib.json"
     }
   ]
 }
