@@ -174,15 +174,9 @@ importers:
       effect:
         specifier: ^3.17.3
         version: 3.17.3
-      express:
-        specifier: 4.21.2
-        version: 4.21.2
       firebase-admin:
         specifier: ^13.4.0
         version: 13.4.0(encoding@0.1.13)
-      firebase-functions:
-        specifier: ^6.4.0
-        version: 6.4.0(firebase-admin@13.4.0(encoding@0.1.13))
     devDependencies:
       '@effect-firebase/admin':
         specifier: workspace:*
@@ -215,6 +209,9 @@ importers:
       express:
         specifier: 4.21.2
         version: 4.21.2
+      firebase:
+        specifier: ^12.0.0
+        version: 12.0.0
       firebase-admin:
         specifier: ^13.4.0
         version: 13.4.0(encoding@0.1.13)
