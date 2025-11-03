@@ -24,18 +24,15 @@ export function onRequestEffect<R>(
   handler: (
     request: Request,
     response: Response
-  ) => Effect.Effect<unknown, never, R>
+  ) => Effect.Effect<void, never, R>
 ): HttpsFunction {
   return onRequest(options, async (request, response) => {
-    await run(options.runtime, handler(request, response))
-      .then((result) => {
-        if (result) {
-          response.status(200).send(result);
-        }
-      })
-      .catch((error) => {
-        logger.error('Unrecoverable error', { inner: error });
-        response.status(500).send();
+    await run(options.runtime, handler(request, response)).catch((error) => {
+      logger.error('Unrecoverable error', {
+        inner: error,
+        stack: error instanceof Error ? error.stack : undefined,
       });
+      response.status(500).send();
+    });
   });
 }
