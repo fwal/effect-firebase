@@ -4,6 +4,5 @@
   "sourceRoot": "example/app/src",
   "projectType": "application",
   "tags": ["example"],
-  "// targets": "to see all targets run: nx show project app --web",
   "targets": {}
 }
