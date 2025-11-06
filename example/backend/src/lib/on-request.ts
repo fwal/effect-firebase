@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { onRequestEffect } from '@effect-firebase/admin';
 import { PostRepository } from '@example/shared';
 import { runtime } from './runtime.js';
-import { NoSuchElementException } from 'effect/Cause';
+import { SerializeError } from './error-handler.js';
 
 export const onExampleRequest = onRequestEffect(
   {
@@ -16,15 +16,12 @@ export const onExampleRequest = onRequestEffect(
       const post = yield* posts.getPost('123');
       response.status(200).json(post);
     }).pipe(
-      Effect.catchAll((error) => {
-        if (error instanceof NoSuchElementException) {
-          Effect.logDebug('Post not found');
-          response.status(404).json({ error: 'Post not found' });
-          return Effect.void;
-        } else {
-          response.status(500).json({ error: String(error) });
-          return Effect.void;
-        }
+      SerializeError,
+      Effect.map((result) => {
+        if (!result) return;
+        response
+          .status(result.error.tag === 'NoSuchElementException' ? 404 : 500)
+          .json(result.error);
       })
     )
 );
