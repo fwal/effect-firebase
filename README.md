@@ -10,13 +10,13 @@ The library provides schemas agnostic to the Firebase SDK meaning that you can u
 
 #### Schema
 
-| Schema    |  Firestore Type   | Status |
-| --------- | ----------------- | ------ |
-| Timestamp | Timestamp         | ✅     |
-| -         | serverTimestamp   | -      |
-| GeoPoint  | GeoPoint          | ✅     |
-| Reference | DocumentReference | ✅     |
-| -         | FieldValue        | -      |
+| Schema     |  Firestore Type   | Status |
+| ---------- | ----------------- | ------ |
+| Date       | Timestamp         | ✅     |
+| ServerDate | serverTimestamp   | ✅     |
+| GeoPoint   | GeoPoint          | ✅     |
+| Reference  | DocumentReference | ✅     |
+| -          | FieldValue        | -      |
 
 #### Model and Repository
 
@@ -30,8 +30,8 @@ _Not started_
 
 | Function          | Description | Status |
 | ----------------- | ----------- | ------ |
-| onRequest         |             | ⌛️    |
-| onCall            |             | -      |
+| onRequest         |             | ✅     |
+| onCall            |             | ✅     |
 | onDocumentCreated |             | -      |
 | onDocumentUpdated |             | -      |
 | onDocumentDeleted |             | -      |
