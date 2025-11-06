@@ -4,7 +4,8 @@ import {
   connectFunctionsEmulator,
   httpsCallable,
 } from 'firebase/functions';
-import SendRequest from './send-request';
+import { OnExampleCall } from '@example/shared';
+import SendRequest from './send-request.js';
 
 export function App() {
   const app = initializeApp({
@@ -20,9 +21,8 @@ export function App() {
         description="Call the onExampleCall function"
         showInput
         inputPlaceholder='{"id": 123}'
-        onSendRequest={(input) =>
-          httpsCallable(functions, 'onExampleCall')(input)
-        }
+        inputSchema={OnExampleCall.Input}
+        onSendRequest={httpsCallable(functions, 'onExampleCall')}
       />
     </div>
   );

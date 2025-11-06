@@ -1,21 +1,25 @@
 import { useState } from 'react';
+import { Schema } from 'effect';
 
-export interface SendRequestProps {
+export interface SendRequestProps<A, I> {
   title: string;
   description: string;
   onSendRequest: (input?: unknown) => Promise<unknown>;
   showInput?: boolean;
   inputPlaceholder?: string;
+  inputSchema?: Schema.Schema<A, I, never>;
 }
 
-export function SendRequest({
+export default function SendRequest<A, I>({
   title,
   description,
   onSendRequest,
   showInput = false,
   inputPlaceholder = '{\n  "key": "value"\n}',
-}: SendRequestProps) {
+  inputSchema,
+}: SendRequestProps<A, I>) {
   const [loading, setLoading] = useState(false);
+  const [validateInput, setValidateInput] = useState(true);
   const [response, setResponse] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [inputJson, setInputJson] = useState(inputPlaceholder);
@@ -26,8 +30,12 @@ export function SendRequest({
 
     try {
       const parsed = JSON.parse(inputJson);
+      const validated =
+        inputSchema && validateInput
+          ? Schema.decodeUnknownSync(inputSchema)(parsed)
+          : parsed;
       setInputError(null);
-      return parsed;
+      return validated;
     } catch (err) {
       setInputError(err instanceof Error ? err.message : 'Invalid JSON');
       return null;
@@ -77,9 +85,22 @@ export function SendRequest({
       {/* Input JSON Section */}
       {showInput && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Request Input (JSON)
-          </label>
+          <div className="flex items-center gap-2 justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Request Input (JSON)
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Validate Input
+              </label>
+
+              <input
+                type="checkbox"
+                checked={validateInput}
+                onChange={(e) => setValidateInput(e.target.checked)}
+              />
+            </div>
+          </div>
           <div className="relative">
             <textarea
               value={inputJson}
@@ -104,7 +125,7 @@ export function SendRequest({
           </div>
           {inputError && (
             <p className="text-sm text-red-600">
-              Please fix the JSON syntax error before sending the request.
+              Please fix the error before sending the request.
             </p>
           )}
         </div>
@@ -206,5 +227,3 @@ export function SendRequest({
     </div>
   );
 }
-
-export default SendRequest;
