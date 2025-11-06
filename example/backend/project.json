@@ -38,7 +38,7 @@
     },
     "prune-lockfile": {
       "dependsOn": ["build"],
-      "cache": true,
+      "cache": false,
       "executor": "@nx/js:prune-lockfile",
       "outputs": [
         "{workspaceRoot}/example/backend/package.json",
