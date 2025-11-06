@@ -25,3 +25,26 @@ export const Date = Schema.transformOrFail(
   }
 );
 
+export const ServerDate = Schema.transformOrFail(
+  Schema.Unknown,
+  Schema.DateFromSelf,
+  {
+    decode: (data, _, ast) =>
+      Effect.gen(function* () {
+        const firestoreService = yield* FirestoreService;
+        return yield* firestoreService
+          .convertFromTimestamp(data)
+          .pipe(
+            Effect.mapError(
+              (error) => new ParseResult.Type(ast, data, error.toString())
+            )
+          );
+      }),
+    encode: () =>
+      Effect.gen(function* () {
+        const firestoreService = yield* FirestoreService;
+        return yield* firestoreService.serverTimestamp();
+      }),
+    strict: true,
+  }
+);

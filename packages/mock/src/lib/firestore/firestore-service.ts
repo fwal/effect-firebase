@@ -1,11 +1,15 @@
 import { Effect, Layer } from 'effect';
-import { FirestoreService, FirestoreServiceShape, UnexpectedTypeError } from 'effect-firebase';
+import {
+  FirestoreService,
+  FirestoreServiceShape,
+  UnexpectedTypeError,
+} from 'effect-firebase';
 import { MockTimestamp } from './types/timestamp.js';
 import { MockGeoPoint } from './types/geopoint.js';
-import { MockDocumentReference } from './types/document-reference.js';
+import { MockReference } from './types/reference.js';
 
-export const firestoreService = (
-  overrides: Partial<FirestoreServiceShape>
+export const MockFirestoreService = (
+  overrides: Partial<FirestoreServiceShape> = {}
 ) =>
   Layer.succeed(FirestoreService, {
     get: () => {
@@ -25,6 +29,9 @@ export const firestoreService = (
         })
       );
     },
+    serverTimestamp: () => {
+      return Effect.succeed(MockTimestamp.now());
+    },
     convertToGeoPoint: (latitude, longitude) => {
       return Effect.succeed(new MockGeoPoint(latitude, longitude));
     },
@@ -43,7 +50,7 @@ export const firestoreService = (
       );
     },
     convertFromReference: (reference) => {
-      if (reference instanceof MockDocumentReference) {
+      if (reference instanceof MockReference) {
         return Effect.succeed({
           id: reference.id,
           path: reference.path,
@@ -58,7 +65,7 @@ export const firestoreService = (
     },
     convertToReference: (path) => {
       const id = path.split('/').pop() ?? '';
-      return Effect.succeed(new MockDocumentReference(id, path));
+      return Effect.succeed(new MockReference(id, path));
     },
     ...overrides,
   });

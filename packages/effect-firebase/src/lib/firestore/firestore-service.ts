@@ -8,6 +8,7 @@ type FirestoreConverters = {
   readonly convertFromTimestamp: (
     timestamp: unknown
   ) => Effect.Effect<Date, UnexpectedTypeError>;
+  readonly serverTimestamp: () => Effect.Effect<unknown>;
 
   readonly convertToGeoPoint: (
     latitude: number,

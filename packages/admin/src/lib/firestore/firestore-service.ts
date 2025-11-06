@@ -8,6 +8,7 @@ import {
 import { UnknownException } from 'effect/Cause';
 import {
   DocumentReference,
+  FieldValue,
   GeoPoint,
   getFirestore,
   Timestamp,
@@ -40,6 +41,9 @@ export const layer = Layer.succeed(
           actual: typeof timestamp,
         })
       );
+    },
+    serverTimestamp: () => {
+      return Effect.succeed(FieldValue.serverTimestamp());
     },
     convertToGeoPoint: (latitude, longitude) => {
       return Effect.succeed(new GeoPoint(latitude, longitude));

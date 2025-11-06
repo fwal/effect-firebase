@@ -12,6 +12,7 @@ import {
   getFirestore,
   Timestamp,
   getDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 export const layer = () =>
@@ -36,6 +37,9 @@ export const layer = () =>
           actual: typeof timestamp,
         })
       );
+    },
+    serverTimestamp: () => {
+      return Effect.succeed(serverTimestamp());
     },
     convertToGeoPoint: function (
       latitude: number,
