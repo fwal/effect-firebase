@@ -1,4 +1,4 @@
-export * from './lib/firestore/schema/schema.js';
+export * as FirestoreSchema from './lib/firestore/schema/schema.js';
 export * from './lib/firestore/firestore-service.js';
 export * from './lib/firestore/errors.js';
 export * from './lib/firestore/snapshot.js';

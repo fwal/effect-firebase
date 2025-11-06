@@ -1,2 +1,2 @@
-export * from './lib/post-schema.js';
-export * from './lib/post-repository.js';
+export * from './models/post-schema.js';
+export * from './models/post-repository.js';

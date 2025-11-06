@@ -1,4 +1,4 @@
-export class MockDocumentReference {
+export class MockReference {
   constructor(id: string, path: string) {
     this.id = id;
     this.path = path;

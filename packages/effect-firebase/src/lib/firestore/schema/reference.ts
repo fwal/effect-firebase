@@ -1,14 +1,14 @@
 import { FirestoreService } from '../firestore-service.js';
 import { Effect, ParseResult, Schema } from 'effect';
 
-export const Reference = <T extends string>(brand: T) =>
+export const BasicReference = <T extends string>(brand: T) =>
   Schema.Struct({
     id: Schema.String.pipe(Schema.brand(brand)),
     path: Schema.String,
   });
 
-export const ReferenceFromFirestore = <T extends string>(brand: T) =>
-  Schema.transformOrFail(Schema.Unknown, Reference(brand), {
+export const Reference = <T extends string>(brand: T) =>
+  Schema.transformOrFail(Schema.Unknown, BasicReference(brand), {
     decode: (reference, _, ast) =>
       Effect.gen(function* () {
         const firestoreService = yield* FirestoreService;
