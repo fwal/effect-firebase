@@ -1,4 +1,4 @@
-import { Effect, ManagedRuntime, Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   onCall,
   CallableFunction,
@@ -6,11 +6,11 @@ import {
   CallableRequest,
   CallableResponse,
 } from 'firebase-functions/https';
-import { run } from './run.js';
+import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 
 interface CallEffectOptions<R> extends CallableOptions {
-  runtime: ManagedRuntime.ManagedRuntime<R, never>;
+  runtime: Runtime<R>;
   inputSchema?: Schema.Schema<unknown, unknown, unknown>;
   outputSchema?: Schema.Schema<unknown, unknown, unknown>;
 }

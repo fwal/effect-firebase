@@ -1,5 +1,9 @@
 import { Effect, ManagedRuntime } from 'effect';
 
+export type Runtime<R> =
+  | ManagedRuntime.ManagedRuntime<R, never>
+  | (() => ManagedRuntime.ManagedRuntime<R, never>);
+
 /**
  * Run an effect with a runtime and dispose the runtime after the effect is complete.
  * @param runtime - The runtime to run the effect on.
@@ -7,11 +11,12 @@ import { Effect, ManagedRuntime } from 'effect';
  * @returns The result of the effect.
  */
 export async function run<A, R>(
-  runtime: ManagedRuntime.ManagedRuntime<R, never>,
+  runtime: Runtime<R>,
   effect: Effect.Effect<A, never, R>
 ): Promise<A> {
-  const result = await runtime.runPromise(effect);
-  await runtime.dispose();
+  const runner = typeof runtime === 'function' ? runtime() : runtime;
+  const result = await runner.runPromise(effect);
+  await runner.dispose();
   return result;
 }
 

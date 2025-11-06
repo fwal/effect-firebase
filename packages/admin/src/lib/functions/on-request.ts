@@ -1,4 +1,4 @@
-import { Effect, ManagedRuntime } from 'effect';
+import { Effect } from 'effect';
 import {
   onRequest,
   HttpsFunction,
@@ -6,11 +6,11 @@ import {
   Request,
 } from 'firebase-functions/https';
 import { Response } from 'express';
-import { run } from './run.js';
+import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 
 interface RequestEffectOptions<R> extends HttpsOptions {
-  runtime: ManagedRuntime.ManagedRuntime<R, never>;
+  runtime: Runtime<R>;
 }
 
 /**
