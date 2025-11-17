@@ -1,7 +1,7 @@
 import { Schema, Effect, ParseResult } from 'effect';
 import { FirestoreService } from '../firestore-service.js';
 
-export const Date = Schema.transformOrFail(
+export const DateTime = Schema.transformOrFail(
   Schema.Unknown,
   Schema.DateFromSelf,
   {
@@ -25,7 +25,7 @@ export const Date = Schema.transformOrFail(
   }
 );
 
-export const ServerDate = Schema.transformOrFail(
+export const ServerDateTime = Schema.transformOrFail(
   Schema.Unknown,
   Schema.DateFromSelf,
   {
