@@ -12,7 +12,7 @@ describe('FirestoreSchema.Date', () => {
       const convertToTimestamp = vi.fn(() => Effect.succeed(timestamp));
       const service = MockFirestoreService({ convertToTimestamp });
 
-      const result = yield* Schema.encodeUnknown(FirestoreSchema.Date)(
+      const result = yield* Schema.encodeUnknown(FirestoreSchema.DateTime)(
         date
       ).pipe(Effect.provide(service));
 
@@ -31,7 +31,7 @@ describe('FirestoreSchema.Date', () => {
       );
       const service = MockFirestoreService({ convertFromTimestamp });
 
-      const result = yield* Schema.decodeUnknown(FirestoreSchema.Date)(
+      const result = yield* Schema.decodeUnknown(FirestoreSchema.DateTime)(
         timestamp
       ).pipe(Effect.provide(service));
 
@@ -52,7 +52,7 @@ describe('FirestoreSchema.Date', () => {
       );
       const service = MockFirestoreService({ convertFromTimestamp });
 
-      yield* Schema.decodeUnknown(FirestoreSchema.Date)('NotATimestamp').pipe(
+      yield* Schema.decodeUnknown(FirestoreSchema.DateTime)('NotATimestamp').pipe(
         Effect.provide(service)
       );
     })
@@ -66,7 +66,7 @@ describe('FirestoreSchema.Date', () => {
       const service = MockFirestoreService();
 
       const schema = Schema.Struct({
-        createdAt: FirestoreSchema.Date,
+        createdAt: FirestoreSchema.DateTime,
       });
 
       const result = yield* Schema.decodeUnknown(schema)({
@@ -84,7 +84,7 @@ describe('FirestoreSchema.Date', () => {
       const service = MockFirestoreService();
 
       const schema = Schema.Struct({
-        createdAt: FirestoreSchema.Date,
+        createdAt: FirestoreSchema.DateTime,
       });
 
       const result = yield* Schema.encodeUnknown(schema)({
