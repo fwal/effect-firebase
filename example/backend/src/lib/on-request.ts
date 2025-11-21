@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { onRequestEffect } from '@effect-firebase/admin';
-import { PostRepository } from '@example/shared';
+import { postId, PostRepository } from '@example/shared';
 import { runtime } from './runtime.js';
 import { SerializeError } from './error-handler.js';
 
@@ -13,7 +13,8 @@ export const onExampleRequest = onRequestEffect(
   (_, response) =>
     Effect.gen(function* () {
       const posts = yield* PostRepository;
-      const post = yield* posts.getPost('123');
+      const id = yield* postId('123');
+      const post = yield* posts.findById(id);
       response.status(200).json(post);
     }).pipe(
       SerializeError,

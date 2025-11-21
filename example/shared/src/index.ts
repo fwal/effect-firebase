@@ -1,4 +1,4 @@
-export * from './models/post-schema.js';
+export * from './models/post.js';
 export * from './models/post-repository.js';
 export * from './functions/error-schema.js';
 export * as OnExampleCall from './functions/on-example-call.js';

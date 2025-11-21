@@ -1,24 +1,14 @@
-import { Effect, Option, Schema } from 'effect';
-import { FirestoreService } from 'effect-firebase';
-import { PostSchema } from './post-schema.js';
+import { Model } from 'effect-firebase';
+import { PostModel } from './post.js';
+import { Effect } from 'effect';
 
-export class PostRepository extends Effect.Service<PostRepository>()(
-  'example/PostRepository',
-  {
-    effect: Effect.gen(function* () {
-      const firestore = yield* FirestoreService;
-      const decoder = Schema.decodeUnknown(PostSchema);
-
-      return {
-        getPost: (id: string) =>
-          Effect.gen(function* () {
-            return yield* firestore
-              .get(`posts/${id}`)
-              .pipe(Effect.flatMap(Option.map(decoder)))
-              .pipe(Effect.flatten);
-          }),
-      };
-    }),
-    dependencies: [],
-  }
-) {}
+export const PostRepository = Model.makeRepository(PostModel, {
+  collectionPath: 'posts',
+  idField: 'id',
+  spanPrefix: 'example.PostRepository',
+}).pipe(
+  Effect.map((repository) => ({
+    ...repository,
+    // Additional methods can be added here
+  }))
+);
