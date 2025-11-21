@@ -4,12 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../packages/mock"
-    },
-    {
-      "path": "../packages/effect-firebase"
-    },
-    {
       "path": "./tsconfig.lib.json"
     },
     {
