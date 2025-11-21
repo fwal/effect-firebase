@@ -11,7 +11,8 @@
     "serve": "nx serve",
     "start": "nx start",
     "example:emulator": "nx run @example/backend:emulator",
-    "example:hosting": "nx run @example/app:dev"
+    "example:hosting": "nx run @example/app:dev",
+    "release": "nx release --skip-publish"
   },
   "private": true,
   "dependencies": {
