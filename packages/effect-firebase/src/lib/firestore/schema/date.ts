@@ -20,7 +20,7 @@ const timestampDecoder = (
 
 export const DateTime = Schema.transformOrFail(
   Schema.Unknown,
-  Schema.DateFromSelf,
+  Schema.DateTimeUtcFromSelf,
   {
     decode: timestampDecoder,
     encode: (date) =>
@@ -34,7 +34,7 @@ export const DateTime = Schema.transformOrFail(
 
 export const ServerDateTime = Schema.transformOrFail(
   Schema.Unknown,
-  Schema.DateFromSelf,
+  Schema.DateTimeUtcFromSelf,
   {
     decode: timestampDecoder,
     encode: () =>

@@ -1,4 +1,4 @@
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, DateTime } from 'effect';
 import {
   FirestoreError,
   FirestoreService,
@@ -23,14 +23,14 @@ import {
 
 export const layer = () =>
   Layer.succeed(FirestoreService, {
-    convertToTimestamp: function (date: Date): Effect.Effect<unknown> {
-      return Effect.succeed(Timestamp.fromDate(date));
+    convertToTimestamp: function (date: DateTime.Utc): Effect.Effect<unknown> {
+      return Effect.succeed(Timestamp.fromMillis(date.epochMillis));
     },
     convertFromTimestamp: function (
       timestamp: unknown
-    ): Effect.Effect<Date, UnexpectedTypeError> {
+    ): Effect.Effect<DateTime.Utc, UnexpectedTypeError> {
       if (timestamp instanceof Timestamp) {
-        return Effect.succeed(timestamp.toDate());
+        return Effect.succeed(DateTime.unsafeMake(timestamp.toMillis()));
       }
       return Effect.fail(
         new UnexpectedTypeError({

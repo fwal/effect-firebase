@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect';
+import { DateTime, Effect, Schema } from 'effect';
 import { describe, it, expect } from '@effect/vitest';
 import { FirestoreSchema, UnexpectedTypeError } from 'effect-firebase';
 import { MockFirestoreService, MockTimestamp } from '@effect-firebase/mock';
@@ -6,8 +6,8 @@ import { MockFirestoreService, MockTimestamp } from '@effect-firebase/mock';
 describe('FirestoreSchema.Date', () => {
   it.effect('Calls service to convert to timestamp when encoding', () =>
     Effect.gen(function* () {
-      const date = new Date();
-      const timestamp = MockTimestamp.fromDate(date);
+      const date = yield* DateTime.now;
+      const timestamp = MockTimestamp.mockFromDateTime(date);
 
       const convertToTimestamp = vi.fn(() => Effect.succeed(timestamp));
       const service = MockFirestoreService({ convertToTimestamp });
@@ -23,11 +23,13 @@ describe('FirestoreSchema.Date', () => {
 
   it.effect('Calls service to convert from timestamp when decoding', () =>
     Effect.gen(function* () {
-      const date = new Date();
-      const timestamp = MockTimestamp.fromDate(date);
+      const date = yield* DateTime.now;
+      const timestamp = MockTimestamp.mockFromDateTime(date);
 
       const convertFromTimestamp = vi.fn((timestamp) =>
-        Effect.succeed(timestamp.toDate())
+        Effect.succeed(
+          DateTime.toUtc(DateTime.unsafeMake(timestamp.toMillis()))
+        )
       );
       const service = MockFirestoreService({ convertFromTimestamp });
 
@@ -52,16 +54,16 @@ describe('FirestoreSchema.Date', () => {
       );
       const service = MockFirestoreService({ convertFromTimestamp });
 
-      yield* Schema.decodeUnknown(FirestoreSchema.DateTime)('NotATimestamp').pipe(
-        Effect.provide(service)
-      );
+      yield* Schema.decodeUnknown(FirestoreSchema.DateTime)(
+        'NotATimestamp'
+      ).pipe(Effect.provide(service));
     })
   );
 
   it.effect('Decodes timestamp to date', () =>
     Effect.gen(function* () {
-      const date = new Date();
-      const timestamp = MockTimestamp.fromDate(date);
+      const date = yield* DateTime.now;
+      const timestamp = MockTimestamp.mockFromDateTime(date);
 
       const service = MockFirestoreService();
 
@@ -78,8 +80,8 @@ describe('FirestoreSchema.Date', () => {
 
   it.effect('Encodes date to timestamp', () =>
     Effect.gen(function* () {
-      const date = new Date();
-      const timestamp = MockTimestamp.fromDate(date);
+      const date = yield* DateTime.now;
+      const timestamp = MockTimestamp.mockFromDateTime(date);
 
       const service = MockFirestoreService();
 
@@ -90,6 +92,7 @@ describe('FirestoreSchema.Date', () => {
       const result = yield* Schema.encodeUnknown(schema)({
         createdAt: date,
       }).pipe(Effect.provide(service));
+
       expect(result).toEqual({ createdAt: timestamp });
     })
   );

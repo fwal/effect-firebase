@@ -1,4 +1,4 @@
-import { Effect, Layer } from 'effect';
+import { DateTime, Effect, Layer } from 'effect';
 import {
   FirestoreService,
   FirestoreServiceShape,
@@ -28,11 +28,11 @@ export const MockFirestoreService = (
       throw new Error('Function not implemented.');
     },
     convertToTimestamp: (date) => {
-      return Effect.succeed(MockTimestamp.fromDate(date));
+      return Effect.succeed(MockTimestamp.fromMillis(date.epochMillis));
     },
     convertFromTimestamp: (timestamp) => {
       if (timestamp instanceof MockTimestamp) {
-        return Effect.succeed(timestamp.toDate());
+        return Effect.succeed(DateTime.unsafeMake(timestamp.toMillis()));
       }
       return Effect.fail(
         new UnexpectedTypeError({

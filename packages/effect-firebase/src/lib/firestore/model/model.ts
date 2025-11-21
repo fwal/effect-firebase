@@ -14,26 +14,26 @@ export type DateTime = VariantSchema.Field<{
   select: typeof FirestoreSchema.DateTime;
   insert: typeof FirestoreSchema.DateTime;
   update: typeof FirestoreSchema.DateTime;
-  json: typeof Schema.DateTimeUtcFromDate;
+  json: typeof Schema.DateTimeUtc;
 }>;
 
 export const DateTime: DateTime = Model.Field({
   select: FirestoreSchema.DateTime,
   insert: FirestoreSchema.DateTime,
   update: FirestoreSchema.DateTime,
-  json: Schema.DateTimeUtcFromDate,
+  json: Schema.DateTimeUtc,
 });
 
 export type DateTimeInsert = VariantSchema.Field<{
   select: typeof FirestoreSchema.DateTime;
   insert: typeof FirestoreSchema.ServerDateTime;
-  json: typeof Schema.DateTimeUtcFromDate;
+  json: typeof Schema.DateTimeUtc;
 }>;
 
 export const DateTimeInsert: DateTimeInsert = Model.Field({
   select: FirestoreSchema.DateTime,
   insert: FirestoreSchema.ServerDateTime,
-  json: Schema.DateTimeUtcFromDate,
+  json: Schema.DateTimeUtc,
 });
 
 export type DateTimeUpdate = VariantSchema.Field<{

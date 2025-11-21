@@ -1,13 +1,13 @@
-import { Effect, Context, Option } from 'effect';
+import { Effect, Context, Option, DateTime } from 'effect';
 import { FirestoreError, UnexpectedTypeError } from './errors.js';
 import { Snapshot } from './snapshot.js';
 import { UnknownException } from 'effect/Cause';
 
 type FirestoreConverters = {
-  readonly convertToTimestamp: (date: Date) => Effect.Effect<unknown>;
+  readonly convertToTimestamp: (date: DateTime.Utc) => Effect.Effect<unknown>;
   readonly convertFromTimestamp: (
     timestamp: unknown
-  ) => Effect.Effect<Date, UnexpectedTypeError>;
+  ) => Effect.Effect<DateTime.Utc, UnexpectedTypeError>;
   readonly serverTimestamp: () => Effect.Effect<unknown>;
 
   readonly convertToGeoPoint: (

@@ -1,4 +1,4 @@
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, DateTime } from 'effect';
 import {
   FirestoreError,
   FirestoreService,
@@ -60,11 +60,11 @@ export const layer = Layer.succeed(
         catch: mapError,
       }),
     convertToTimestamp: (date) => {
-      return Effect.succeed(Timestamp.fromDate(date));
+      return Effect.succeed(Timestamp.fromMillis(date.epochMillis));
     },
     convertFromTimestamp: (timestamp) => {
       if (timestamp instanceof Timestamp) {
-        return Effect.succeed(timestamp.toDate());
+        return Effect.succeed(DateTime.unsafeMake(timestamp.toMillis()));
       }
       return Effect.fail(
         new UnexpectedTypeError({
