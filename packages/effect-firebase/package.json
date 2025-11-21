@@ -21,7 +21,9 @@
   ],
   "dependencies": {
     "tslib": "^2.3.0",
-    "effect": "^3.17.3"
+    "effect": "^3.17.3",
+    "@effect/sql": "^0.48.0",
+    "@effect/experimental": "^0.57.0"
   },
   "publishConfig": {
     "access": "public"

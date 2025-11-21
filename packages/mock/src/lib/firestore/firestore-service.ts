@@ -15,6 +15,18 @@ export const MockFirestoreService = (
     get: () => {
       throw new Error('Function not implemented.');
     },
+    add: () => {
+      throw new Error('Function not implemented.');
+    },
+    set: () => {
+      throw new Error('Function not implemented.');
+    },
+    update: () => {
+      throw new Error('Function not implemented.');
+    },
+    remove: () => {
+      throw new Error('Function not implemented.');
+    },
     convertToTimestamp: (date) => {
       return Effect.succeed(MockTimestamp.fromDate(date));
     },

@@ -28,6 +28,37 @@ export const layer = Layer.succeed(
         try: () => getFirestore().doc(path).get(),
         catch: mapError,
       }).pipe(Effect.map(packSnapshot)),
+    add: (path: string, data: unknown) =>
+      Effect.tryPromise({
+        try: async () => {
+          const ref = await getFirestore()
+            .collection(path)
+            .add(data as any);
+          return { id: ref.id, path: ref.path };
+        },
+        catch: mapError,
+      }),
+    set: (path: string, data: unknown, options) =>
+      Effect.tryPromise({
+        try: () =>
+          getFirestore()
+            .doc(path)
+            .set(data as any, options || {}),
+        catch: mapError,
+      }),
+    update: (path: string, data: unknown) =>
+      Effect.tryPromise({
+        try: () =>
+          getFirestore()
+            .doc(path)
+            .update(data as any),
+        catch: mapError,
+      }),
+    remove: (path: string) =>
+      Effect.tryPromise({
+        try: () => getFirestore().doc(path).delete(),
+        catch: mapError,
+      }),
     convertToTimestamp: (date) => {
       return Effect.succeed(Timestamp.fromDate(date));
     },

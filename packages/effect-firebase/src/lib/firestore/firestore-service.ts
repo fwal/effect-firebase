@@ -34,6 +34,25 @@ type FirestoreCRUD = {
     Option.Option<Snapshot>,
     FirestoreError | UnknownException
   >;
+  readonly add: (
+    path: string,
+    data: unknown
+  ) => Effect.Effect<
+    { id: string; path: string },
+    FirestoreError | UnknownException
+  >;
+  readonly set: (
+    path: string,
+    data: unknown,
+    options?: { merge?: boolean }
+  ) => Effect.Effect<void, FirestoreError | UnknownException>;
+  readonly update: (
+    path: string,
+    data: unknown
+  ) => Effect.Effect<void, FirestoreError | UnknownException>;
+  readonly remove: (
+    path: string
+  ) => Effect.Effect<void, FirestoreError | UnknownException>;
 };
 
 export type FirestoreServiceShape = FirestoreConverters & FirestoreCRUD;
