@@ -16,13 +16,6 @@ const NotInitiallized = <T>(): T =>
 
 export const noopLayer = Layer.succeed(FirestoreService, {
   get: NotInitiallized,
-  convertToTimestamp: NotInitiallized,
-  convertFromTimestamp: NotInitiallized,
-  serverTimestamp: NotInitiallized,
-  convertToGeoPoint: NotInitiallized,
-  convertFromGeoPoint: NotInitiallized,
-  convertFromReference: NotInitiallized,
-  convertToReference: NotInitiallized,
   add: NotInitiallized,
   set: NotInitiallized,
   update: NotInitiallized,

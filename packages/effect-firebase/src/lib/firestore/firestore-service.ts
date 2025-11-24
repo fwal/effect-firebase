@@ -1,31 +1,8 @@
-import { Effect, Context, Option, DateTime } from 'effect';
-import { FirestoreError, UnexpectedTypeError } from './errors.js';
+import { Effect, Context, Option } from 'effect';
+import { FirestoreError } from './errors.js';
 import { Snapshot } from './snapshot.js';
 import { UnknownException } from 'effect/Cause';
-
-type FirestoreConverters = {
-  readonly convertToTimestamp: (date: DateTime.Utc) => Effect.Effect<unknown>;
-  readonly convertFromTimestamp: (
-    timestamp: unknown
-  ) => Effect.Effect<DateTime.Utc, UnexpectedTypeError>;
-  readonly serverTimestamp: () => Effect.Effect<unknown>;
-
-  readonly convertToGeoPoint: (
-    latitude: number,
-    longitude: number
-  ) => Effect.Effect<unknown>;
-  readonly convertFromGeoPoint: (
-    geoPoint: unknown
-  ) => Effect.Effect<
-    { latitude: number; longitude: number },
-    UnexpectedTypeError
-  >;
-
-  readonly convertFromReference: (
-    reference: unknown
-  ) => Effect.Effect<{ id: string; path: string }, UnexpectedTypeError>;
-  readonly convertToReference: (path: string) => Effect.Effect<unknown>;
-};
+import { Data } from './schema/data.js';
 
 type FirestoreCRUD = {
   readonly get: (
@@ -36,26 +13,26 @@ type FirestoreCRUD = {
   >;
   readonly add: (
     path: string,
-    data: unknown
+    data: typeof Data.Type
   ) => Effect.Effect<
     { id: string; path: string },
     FirestoreError | UnknownException
   >;
   readonly set: (
     path: string,
-    data: unknown,
+    data: typeof Data.Type,
     options?: { merge?: boolean }
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
   readonly update: (
     path: string,
-    data: unknown
+    data: typeof Data.Type
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
   readonly remove: (
     path: string
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
 };
 
-export type FirestoreServiceShape = FirestoreConverters & FirestoreCRUD;
+export type FirestoreServiceShape = FirestoreCRUD;
 
 export class FirestoreService extends Context.Tag(
   '@effect-firebase/FirestoreService'

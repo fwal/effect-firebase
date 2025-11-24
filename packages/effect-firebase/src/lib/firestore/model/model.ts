@@ -11,43 +11,43 @@ import { FirestoreError } from '../errors.js';
 // TODO: Keep an eye on the progress of Effect v4 Models as they intend to be more agnostic to the database and more flexible.
 
 export type DateTime = VariantSchema.Field<{
-  select: typeof FirestoreSchema.DateTime;
-  insert: typeof FirestoreSchema.DateTime;
-  update: typeof FirestoreSchema.DateTime;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof FirestoreSchema.TimestampDateTimeUtc;
+  update: typeof FirestoreSchema.TimestampDateTimeUtc;
   json: typeof Schema.DateTimeUtc;
 }>;
 
 export const DateTime: DateTime = Model.Field({
-  select: FirestoreSchema.DateTime,
-  insert: FirestoreSchema.DateTime,
-  update: FirestoreSchema.DateTime,
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: FirestoreSchema.TimestampDateTimeUtc,
+  update: FirestoreSchema.TimestampDateTimeUtc,
   json: Schema.DateTimeUtc,
 });
 
 export type DateTimeInsert = VariantSchema.Field<{
-  select: typeof FirestoreSchema.DateTime;
-  insert: typeof FirestoreSchema.ServerDateTime;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof FirestoreSchema.ServerTimestamp;
   json: typeof Schema.DateTimeUtc;
 }>;
 
 export const DateTimeInsert: DateTimeInsert = Model.Field({
-  select: FirestoreSchema.DateTime,
-  insert: FirestoreSchema.ServerDateTime,
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: FirestoreSchema.ServerTimestamp,
   json: Schema.DateTimeUtc,
 });
 
 export type DateTimeUpdate = VariantSchema.Field<{
-  select: typeof FirestoreSchema.DateTime;
-  insert: typeof FirestoreSchema.ServerDateTime;
-  update: typeof FirestoreSchema.ServerDateTime;
-  json: typeof Schema.DateTimeUtcFromDate;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof FirestoreSchema.ServerTimestamp;
+  update: typeof FirestoreSchema.ServerTimestamp;
+  json: typeof Schema.DateTimeUtc;
 }>;
 
 export const DateTimeUpdate: DateTimeUpdate = Model.Field({
-  select: FirestoreSchema.DateTime,
-  insert: FirestoreSchema.ServerDateTime,
-  update: FirestoreSchema.ServerDateTime,
-  json: Schema.DateTimeUtcFromDate,
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: FirestoreSchema.ServerTimestamp,
+  update: FirestoreSchema.ServerTimestamp,
+  json: Schema.DateTimeUtc,
 });
 
 export type ModelError =

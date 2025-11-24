@@ -1,137 +1,55 @@
-import { Effect, Layer, DateTime } from 'effect';
+import { Effect, Layer } from 'effect';
 import {
   FirestoreError,
   FirestoreService,
   packSnapshot,
-  UnexpectedTypeError,
 } from 'effect-firebase';
-import { UnknownException } from 'effect/Cause';
 import {
   doc,
-  DocumentReference,
-  GeoPoint,
   getFirestore,
-  Timestamp,
   getDoc,
-  serverTimestamp,
   addDoc,
   collection,
   setDoc,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
+import { converter } from './converter.js';
 
 export const layer = () =>
   Layer.succeed(FirestoreService, {
-    convertToTimestamp: function (date: DateTime.Utc): Effect.Effect<unknown> {
-      return Effect.succeed(Timestamp.fromMillis(date.epochMillis));
-    },
-    convertFromTimestamp: function (
-      timestamp: unknown
-    ): Effect.Effect<DateTime.Utc, UnexpectedTypeError> {
-      if (timestamp instanceof Timestamp) {
-        return Effect.succeed(DateTime.unsafeMake(timestamp.toMillis()));
-      }
-      return Effect.fail(
-        new UnexpectedTypeError({
-          expected: 'Timestamp',
-          actual: typeof timestamp,
-        })
-      );
-    },
-    serverTimestamp: () => {
-      return Effect.succeed(serverTimestamp());
-    },
-    convertToGeoPoint: function (
-      latitude: number,
-      longitude: number
-    ): Effect.Effect<unknown> {
-      return Effect.succeed(new GeoPoint(latitude, longitude));
-    },
-    convertFromGeoPoint: function (
-      geoPoint: unknown
-    ): Effect.Effect<
-      { latitude: number; longitude: number },
-      UnexpectedTypeError
-    > {
-      if (geoPoint instanceof GeoPoint) {
-        return Effect.succeed({
-          latitude: geoPoint.latitude,
-          longitude: geoPoint.longitude,
-        });
-      }
-      return Effect.fail(
-        new UnexpectedTypeError({
-          expected: 'GeoPoint',
-          actual: typeof geoPoint,
-        })
-      );
-    },
-    convertFromReference: function (
-      reference: unknown
-    ): Effect.Effect<{ id: string; path: string }, UnexpectedTypeError> {
-      if (reference instanceof DocumentReference) {
-        return Effect.succeed({
-          id: reference.id,
-          path: reference.path,
-        });
-      }
-      return Effect.fail(
-        new UnexpectedTypeError({
-          expected: 'DocumentReference',
-          actual: typeof reference,
-        })
-      );
-    },
-    convertToReference: function (path: string): Effect.Effect<unknown> {
-      return Effect.succeed(doc(getFirestore(), path));
-    },
-    get: (path: string) =>
+    get: (path) =>
       Effect.tryPromise({
-        try: () => getDoc(doc(getFirestore(), path)),
+        try: () => getDoc(doc(getFirestore(), path).withConverter(converter)),
         catch: FirestoreError.fromError,
       }).pipe(Effect.map(packSnapshot)),
-    add: function (
-      path: string,
-      data: unknown
-    ): Effect.Effect<
-      { id: string; path: string },
-      FirestoreError | UnknownException
-    > {
-      return Effect.tryPromise({
-        try: () => addDoc(collection(getFirestore(), path), data),
-        catch: FirestoreError.fromError,
-      }).pipe(Effect.map((ref) => ({ id: ref.id, path: ref.path })));
-    },
-    set: function (
-      path: string,
-      data: unknown,
-      options?: { merge?: boolean }
-    ): Effect.Effect<void, FirestoreError | UnknownException> {
-      return Effect.tryPromise({
+    add: (path, data) =>
+      Effect.tryPromise({
         try: () =>
-          setDoc(doc(getFirestore(), path), data as Partial<unknown>, {
+          addDoc(
+            collection(getFirestore(), path).withConverter(converter),
+            data
+          ),
+        catch: FirestoreError.fromError,
+      }).pipe(Effect.map((ref) => ({ id: ref.id, path: ref.path }))),
+    set: (path, data, options) =>
+      Effect.tryPromise({
+        try: () =>
+          setDoc(doc(getFirestore(), path).withConverter(converter), data, {
             merge: options?.merge,
           }),
         catch: FirestoreError.fromError,
-      });
-    },
-    update: function (
-      path: string,
-      data: unknown
-    ): Effect.Effect<void, FirestoreError | UnknownException> {
-      return Effect.tryPromise({
+      }),
+    update: (path, data) =>
+      Effect.tryPromise({
         try: () =>
-          updateDoc(doc(getFirestore(), path), data as Partial<unknown>),
+          updateDoc(doc(getFirestore(), path).withConverter(converter), data),
         catch: FirestoreError.fromError,
-      });
-    },
-    remove: function (
-      path: string
-    ): Effect.Effect<void, FirestoreError | UnknownException> {
-      return Effect.tryPromise({
-        try: () => deleteDoc(doc(getFirestore(), path)),
+      }),
+    remove: (path) =>
+      Effect.tryPromise({
+        try: () =>
+          deleteDoc(doc(getFirestore(), path).withConverter(converter)),
         catch: FirestoreError.fromError,
-      });
-    },
+      }),
   });
