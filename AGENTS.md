@@ -11,3 +11,8 @@
 - If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
 
 <!-- nx configuration end-->
+
+# Effect Documentation
+
+Overview of Effect documentation can be found here: https://effect.website/llms.txt
+The full documentation can be found here: https://effect.website/llms-full.txt
