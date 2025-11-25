@@ -1,5 +1,6 @@
 import { cva } from 'class-variance-authority';
-import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { AnchorHTMLAttributes, forwardRef } from 'react';
+import { createLink, type LinkComponent } from '@tanstack/react-router';
 import { cn } from '../../lib/utils';
 
 const menuItemVariants = cva(
@@ -18,17 +19,17 @@ const menuItemVariants = cva(
 );
 
 interface MenuItemProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
   icon: string;
   label: string;
   isActive?: boolean;
 }
 
-const MenuItem = forwardRef<HTMLButtonElement, MenuItemProps>(
+const BasicMenuItem = forwardRef<HTMLAnchorElement, MenuItemProps>(
   ({ icon, label, isActive, className, ...props }, ref) => {
     return (
       <li>
-        <button
+        <a
           ref={ref}
           className={cn(menuItemVariants({ isActive }), className)}
           {...props}
@@ -37,12 +38,18 @@ const MenuItem = forwardRef<HTMLButtonElement, MenuItemProps>(
             {icon}
           </span>
           <span className="font-medium">{label}</span>
-        </button>
+        </a>
       </li>
     );
   }
 );
 
-MenuItem.displayName = 'MenuItem';
+BasicMenuItem.displayName = 'BasicMenuItem';
+
+const BasicMenuItemLink = createLink(BasicMenuItem);
+
+const MenuItem: LinkComponent<typeof BasicMenuItem> = (props) => {
+  return <BasicMenuItemLink {...props} />;
+};
 
 export default MenuItem;
