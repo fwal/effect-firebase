@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { IconButton } from './core';
+import { cn } from '../lib/utils';
 
 interface SideMenuProps {
   children: React.ReactNode;
@@ -10,12 +12,11 @@ export function SideMenu({ children }: SideMenuProps) {
   return (
     <>
       {/* Mobile menu button */}
-      <button
+      <IconButton
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-gray-800 text-white md:hidden hover:bg-gray-700 transition-colors"
-      >
-        {isOpen ? '✕' : '☰'}
-      </button>
+        icon={isOpen ? '✕' : '☰'}
+        className="fixed top-4 left-4 z-50 md:hidden"
+      />
 
       {/* Overlay for mobile */}
       {isOpen && (
@@ -27,17 +28,19 @@ export function SideMenu({ children }: SideMenuProps) {
 
       {/* Side menu */}
       <aside
-        className={`
-          fixed top-0 left-0 h-full bg-gradient-to-b from-gray-900 to-gray-800 
-          text-white shadow-xl z-40 transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0 w-64
-        `}
+        className={cn(
+          'fixed top-0 left-0 h-full bg-gradient-to-b from-gray-900 to-gray-800',
+          'text-white shadow-xl z-40 transition-transform duration-300 ease-in-out w-64',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:translate-x-0'
+        )}
       >
         {/* Logo/Header */}
         <div className="p-6 border-b border-gray-700">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span role="img" aria-label="Fire">🔥</span>
+            <span role="img" aria-label="Fire">
+              🔥
+            </span>
             <span>Effect Firebase</span>
           </h1>
           <p className="text-sm text-gray-400 mt-1">Example App</p>
@@ -45,9 +48,7 @@ export function SideMenu({ children }: SideMenuProps) {
 
         {/* Navigation */}
         <nav className="p-4">
-          <ul className="space-y-2">
-            {children}
-          </ul>
+          <ul className="space-y-2">{children}</ul>
         </nav>
 
         {/* Footer */}

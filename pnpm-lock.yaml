@@ -102,6 +102,9 @@ importers:
       autoprefixer:
         specifier: 10.4.13
         version: 10.4.13(postcss@8.4.38)
+      cva:
+        specifier: npm:class-variance-authority@^0.7.1
+        version: class-variance-authority@0.7.1
       esbuild:
         specifier: ^0.19.2
         version: 0.19.12
@@ -144,6 +147,9 @@ importers:
       prettier:
         specifier: ^2.6.2
         version: 2.8.8
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.4.0
       tailwindcss:
         specifier: 3.4.3
         version: 3.4.3(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3))
@@ -174,12 +180,21 @@ importers:
 
   example/app:
     dependencies:
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       effect:
         specifier: ^3.17.3
         version: 3.17.3
       firebase:
         specifier: ^12.0.0
         version: 12.0.0
+      tailwind-merge:
+        specifier: ^2.5.5
+        version: 2.6.0
     devDependencies:
       '@example/shared':
         specifier: workspace:*
@@ -285,15 +300,6 @@ importers:
       vite:
         specifier: ^7.0.0
         version: 7.1.8(@types/node@22.17.0)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0)
-
-  tests:
-    devDependencies:
-      '@effect-firebase/mock':
-        specifier: workspace:*
-        version: link:../packages/mock
-      effect-firebase:
-        specifier: workspace:*
-        version: link:../packages/effect-firebase
 
 packages:
 
@@ -3792,6 +3798,9 @@ packages:
     resolution: {integrity: sha512-yKNcXi/Mvi5kb1uK0sahubYiyfUO2EUgOp4NcY9+8NX5Xmc+4yeNogZuLFkpLBBj7/QI9MjRUIuXrV9XOw5kVg==}
     engines: {node: '>= 0.3.0'}
 
+  class-variance-authority@0.7.1:
+    resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
+
   cli-boxes@2.2.1:
     resolution: {integrity: sha512-y4coMcylgSCdVinjiDBuR8PCC2bLjyGTwEmPb9NHR/QaNU6EUOXcTY/s6VjGMD6ENSEaeQYHCY0GNGS5jfMwPw==}
     engines: {node: '>=6'}
@@ -3840,6 +3849,10 @@ packages:
   cloudevents@8.0.3:
     resolution: {integrity: sha512-wTixKNjfLeyj9HQpESvLVVO4xgdqdvX4dTeg1IZ2SCunu/fxVzCamcIZneEyj31V82YolFCKwVeSkr8zResB0Q==}
     engines: {node: '>=16 <=22'}
+
+  clsx@2.1.1:
+    resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
+    engines: {node: '>=6'}
 
   color-convert@1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
@@ -7865,6 +7878,12 @@ packages:
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
+
+  tailwind-merge@2.6.0:
+    resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
+
+  tailwind-merge@3.4.0:
+    resolution: {integrity: sha512-uSaO4gnW+b3Y2aWoWfFpX62vn2sR3skfhbjsEnaBI81WD1wBLlHZe5sWf0AqjksNdYTbGBEd0UasQMT3SNV15g==}
 
   tailwindcss@3.4.3:
     resolution: {integrity: sha512-U7sxQk/n397Bmx4JHbJx/iSOOv5G+II3f1kpLpY2QeUv5DcPdcTsYLlusZfq1NthHS1c1cZoyFmmkex1rzke0A==}
@@ -12889,6 +12908,10 @@ snapshots:
     dependencies:
       json-parse-helpfulerror: 1.0.3
 
+  class-variance-authority@0.7.1:
+    dependencies:
+      clsx: 2.1.1
+
   cli-boxes@2.2.1: {}
 
   cli-cursor@3.1.0:
@@ -12942,6 +12965,8 @@ snapshots:
       process: 0.11.10
       util: 0.12.5
       uuid: 8.3.2
+
+  clsx@2.1.1: {}
 
   color-convert@1.9.3:
     dependencies:
@@ -17695,6 +17720,10 @@ snapshots:
       picocolors: 1.1.1
 
   symbol-tree@3.2.4: {}
+
+  tailwind-merge@2.6.0: {}
+
+  tailwind-merge@3.4.0: {}
 
   tailwindcss@3.4.3(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.17))(@types/node@20.19.9)(typescript@5.9.3)):
     dependencies:

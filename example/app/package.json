@@ -8,8 +8,11 @@
   },
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "effect": "^3.17.3",
-    "firebase": "^12.0.0"
+    "firebase": "^12.0.0",
+    "tailwind-merge": "^2.5.5"
   },
   "devDependencies": {
     "@example/shared": "workspace:*"
