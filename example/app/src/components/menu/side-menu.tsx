@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { IconButton } from './core';
-import { cn } from '../lib/utils';
+import { IconButton } from '../core';
+import { cn } from '../../lib/utils';
 
 interface SideMenuProps {
   children: React.ReactNode;

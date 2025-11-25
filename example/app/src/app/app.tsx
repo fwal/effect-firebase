@@ -5,9 +5,9 @@ import {
   httpsCallable,
 } from 'firebase/functions';
 import { OnExampleCall } from '@example/shared';
-import SendRequest from '../components/send-request.js';
-import SideMenu from '../components/side-menu.js';
-import MenuItem from '../components/menu-item.js';
+import SendRequest from '../components/requests/send-request.js';
+import SideMenu from '../components/menu/side-menu.js';
+import MenuItem from '../components/menu/menu-item.js';
 import { useState } from 'react';
 
 export function App() {

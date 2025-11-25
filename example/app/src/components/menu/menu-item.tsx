@@ -1,6 +1,6 @@
 import { cva } from 'class-variance-authority';
 import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 const menuItemVariants = cva(
   'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 w-full text-left',

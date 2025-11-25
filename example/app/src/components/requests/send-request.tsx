@@ -9,7 +9,7 @@ import {
   EmptyState,
   CodeBlock,
   Checkbox,
-} from './core';
+} from '../core';
 
 export interface SendRequestProps<A, I> {
   title: string;
