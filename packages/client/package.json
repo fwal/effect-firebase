@@ -2,6 +2,7 @@
   "name": "@effect-firebase/client",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "private": false,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
