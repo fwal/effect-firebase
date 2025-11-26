@@ -43,7 +43,7 @@ export const layer = () =>
     update: (path, data) =>
       Effect.tryPromise({
         try: () =>
-          updateDoc(doc(getFirestore(), path).withConverter(converter), data),
+          updateDoc(doc(getFirestore(), path), converter.toFirestore(data)),
         catch: FirestoreError.fromError,
       }),
     remove: (path) =>

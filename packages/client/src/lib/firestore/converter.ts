@@ -43,6 +43,7 @@ export const toFirestoreDocumentData = (data: DocumentData): DocumentData => {
       Object.entries(data).map(([k, v]) => [k, toFirestoreDocumentData(v)])
     );
   }
+
   return data;
 };
 

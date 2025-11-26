@@ -24,29 +24,49 @@ export const DateTime: DateTime = Model.Field({
   json: Schema.DateTimeUtc,
 });
 
-export type DateTimeInsert = VariantSchema.Field<{
-  select: typeof FirestoreSchema.TimestampDateTimeUtc;
-  insert: typeof FirestoreSchema.ServerTimestamp;
-  json: typeof Schema.DateTimeUtc;
-}>;
-
-export const DateTimeInsert: DateTimeInsert = Model.Field({
-  select: FirestoreSchema.TimestampDateTimeUtc,
-  insert: FirestoreSchema.ServerTimestamp,
-  json: Schema.DateTimeUtc,
-});
-
-export type DateTimeUpdate = VariantSchema.Field<{
+export type ServerDateTime = VariantSchema.Field<{
   select: typeof FirestoreSchema.TimestampDateTimeUtc;
   insert: typeof FirestoreSchema.ServerTimestamp;
   update: typeof FirestoreSchema.ServerTimestamp;
   json: typeof Schema.DateTimeUtc;
 }>;
 
+export const ServerDateTime = VariantSchema.Overrideable(
+  Schema.Union(FirestoreSchema.Timestamp, FirestoreSchema.ServerTimestamp),
+  Schema.DateTimeUtcFromSelf,
+  {
+    generate: Option.match({
+      onNone: () => Effect.succeed(new FirestoreSchema.ServerTimestamp()),
+      onSome: (dt) =>
+        Effect.succeed(FirestoreSchema.Timestamp.fromDateTime(dt)),
+    }),
+    decode: FirestoreSchema.AnyTimestampDateTimeUtc,
+  }
+);
+
+export type DateTimeInsert = VariantSchema.Field<{
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof ServerDateTime;
+  json: typeof Schema.DateTimeUtc;
+}>;
+
+export const DateTimeInsert: DateTimeInsert = Model.Field({
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: ServerDateTime,
+  json: Schema.DateTimeUtc,
+});
+
+export type DateTimeUpdate = VariantSchema.Field<{
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof ServerDateTime;
+  update: typeof ServerDateTime;
+  json: typeof Schema.DateTimeUtc;
+}>;
+
 export const DateTimeUpdate: DateTimeUpdate = Model.Field({
   select: FirestoreSchema.TimestampDateTimeUtc,
-  insert: FirestoreSchema.ServerTimestamp,
-  update: FirestoreSchema.ServerTimestamp,
+  insert: ServerDateTime,
+  update: ServerDateTime,
   json: Schema.DateTimeUtc,
 });
 
