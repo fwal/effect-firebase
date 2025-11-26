@@ -1,11 +1,12 @@
 # effect-firebase
 
-This library was generated with [Nx](https://nx.dev).
+Mappings and utilities for using [Firebase](https://firebase.google.com/) with [Effect](https://effect.dev/).
 
-## Building
+## Installation
 
-Run `nx build effect-firebase` to build the library.
+Run `pnpm add effect-firebase` to install the generic library.
 
-## Running unit tests
+Depending on your use case, you may also want to install the client or admin library.
 
-Run `nx test effect-firebase` to execute the unit tests via [Vitest](https://vitest.dev/).
+- Run `pnpm add @effect-firebase/client` to install the client library.
+- Run `pnpm add @effect-firebase/admin` to install the admin library.

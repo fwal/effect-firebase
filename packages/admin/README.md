@@ -1,11 +1,7 @@
-# effect-firebase-admin
+# @effect-firebase/admin
 
-This library was generated with [Nx](https://nx.dev).
+This is the admin library for [Effect Firebase](https://github.com/effect-firebase/effect-firebase). This is intended to be used in admin applications that need to interact with Firebase.
 
-## Building
+## Installation
 
-Run `nx build effect-firebase-admin` to build the library.
-
-## Running unit tests
-
-Run `nx test effect-firebase-admin` to execute the unit tests via [Vitest](https://vitest.dev/).
+Run `pnpm add @effect-firebase/admin` to install the library.

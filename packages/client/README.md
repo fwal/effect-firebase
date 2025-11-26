@@ -1,11 +1,7 @@
-# effect-firebase-client
+# @effect-firebase/client
 
-This library was generated with [Nx](https://nx.dev).
+This is the client library for [Effect Firebase](https://github.com/effect-firebase/effect-firebase). This is intended to be used in client applications that need to interact with Firebase.
 
-## Building
+## Installation
 
-Run `nx build effect-firebase-client` to build the library.
-
-## Running unit tests
-
-Run `nx test effect-firebase-client` to execute the unit tests via [Vitest](https://vitest.dev/).
+Run `pnpm add @effect-firebase/client` to install the library.

@@ -1,11 +1,7 @@
-# effect-firebase-mock
+# @effect-firebase/mock
 
-This library was generated with [Nx](https://nx.dev).
+This is the mock library for [Effect Firebase](https://github.com/effect-firebase/effect-firebase). This is intended to be used in testing applications that need to interact with Firebase.
 
-## Building
+## Installation
 
-Run `nx build effect-firebase-mock` to build the library.
-
-## Running unit tests
-
-Run `nx test effect-firebase-mock` to execute the unit tests via [Vitest](https://vitest.dev/).
+Run `pnpm add @effect-firebase/mock` to install the library.
