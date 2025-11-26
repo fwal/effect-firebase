@@ -4,6 +4,7 @@ import {
   connectFunctionsEmulator,
   httpsCallable,
 } from 'firebase/functions';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { OnExampleCall } from '@example/shared';
 import SendRequest from '../components/requests/send-request.js';
 import SideMenu from '../components/menu/side-menu.js';
@@ -20,6 +21,9 @@ export function App({ children }: AppProps) {
   });
   const functions = getFunctions(app, 'europe-north1');
   connectFunctionsEmulator(functions, 'localhost', 5001);
+
+  const db = getFirestore(app);
+  connectFirestoreEmulator(db, 'localhost', 8080);
 
   return (
     <div className="flex min-h-screen bg-gray-50">

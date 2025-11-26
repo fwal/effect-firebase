@@ -8,6 +8,7 @@ export const postId = Schema.decode(PostId);
 export class PostModel extends SM.Class<PostModel>('PostModel')({
   id: SM.Generated(PostId),
   createdAt: FM.DateTimeInsert,
+  updatedAt: FM.DateTimeUpdate,
   title: Schema.String,
   content: Schema.String,
 }) {}

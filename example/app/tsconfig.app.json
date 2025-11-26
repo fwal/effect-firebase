@@ -26,7 +26,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../packages/effect-firebase/tsconfig.lib.json"
+    },
+    {
       "path": "../shared/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/client/tsconfig.lib.json"
     }
   ]
 }

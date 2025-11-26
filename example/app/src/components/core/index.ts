@@ -6,3 +6,4 @@ export * from './empty-state';
 export * from './code-block';
 export * from './checkbox';
 export * from './icon-button';
+export * from './input';

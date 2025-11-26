@@ -17,6 +17,8 @@
     "firebase-functions": "^6.4.0"
   },
   "devDependencies": {
+    "@effect/experimental": "^0.57.0",
+    "@effect/sql": "^0.48.0",
     "effect-firebase": "workspace:*",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
