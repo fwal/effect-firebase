@@ -36,7 +36,6 @@ export const toFirestoreDocumentData = (data: DocumentData): DocumentData => {
     return data.map(toFirestoreDocumentData);
   }
   if (typeof data === 'object' && data !== null) {
-    // If it's already a Firebase type, leave it alone (optimization)
     return Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, toFirestoreDocumentData(v)])
     );
