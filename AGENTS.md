@@ -16,3 +16,23 @@
 
 Overview of Effect documentation can be found here: https://effect.website/llms.txt
 The full documentation can be found here: https://effect.website/llms-full.txt
+
+## Effect guidelines
+
+More detailed guidelines can be found in the effect documentation in the Code Style section.
+
+### Avoid Tacit Usage
+
+Avoid using tacit (point-free) function calls, such as Effect.map(fn), or using flow from the effect/Function module.
+
+In Effect, it’s generally safer to write functions explicitly:
+
+```ts
+Effect.map((x) => fn(x));
+```
+
+rather than in a point-free style:
+
+```ts
+Effect.map(fn);
+```
