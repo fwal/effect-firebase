@@ -2,14 +2,10 @@ import { initializeApp } from 'firebase/app';
 import {
   getFunctions,
   connectFunctionsEmulator,
-  httpsCallable,
 } from 'firebase/functions';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { OnExampleCall } from '@example/shared';
-import SendRequest from '../components/requests/send-request.js';
 import SideMenu from '../components/menu/side-menu.js';
 import MenuItem from '../components/menu/menu-item.js';
-import { useState } from 'react';
 
 interface AppProps {
   children: React.ReactNode;
