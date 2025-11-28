@@ -27,6 +27,7 @@
     "@effect/experimental": "^0.57.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   }
 }
