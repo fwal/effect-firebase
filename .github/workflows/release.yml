@@ -12,6 +12,7 @@ jobs:
   test:
     name: Publish
     runs-on: ubuntu-latest
+    environment: Production
     permissions:
       contents: read
       id-token: write
