@@ -5,7 +5,7 @@ import {
   HttpsOptions,
   Request,
 } from 'firebase-functions/https';
-import { Response } from 'express';
+import { type Response } from 'express';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 
