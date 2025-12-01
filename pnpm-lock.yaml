@@ -311,6 +311,10 @@ importers:
 
   packages/effect-firebase:
     dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
       '@effect/experimental':
         specifier: ^0.57.0
         version: 0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
@@ -320,9 +324,6 @@ importers:
       effect:
         specifier: ^3.17.3
         version: 3.17.3
-      tslib:
-        specifier: ^2.3.0
-        version: 2.8.1
 
   packages/mock:
     dependencies:
