@@ -38,11 +38,15 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Print Environment Info
         run: pnpm nx report
         shell: bash
+
+      - name: Build packages
+        run: pnpm build
 
       - name: Publish packages
         run: pnpm nx release publish
