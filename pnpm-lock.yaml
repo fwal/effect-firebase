@@ -8,15 +8,15 @@ importers:
 
   .:
     dependencies:
-      '@effect/sql':
-        specifier: ^0.48.0
-        version: 0.48.0(@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3))(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
+      '@effect/experimental':
+        specifier: ^0.57.10
+        version: 0.57.10(@effect/platform@0.93.0(effect@3.19.8))(effect@3.19.8)
       '@google-cloud/functions-framework':
         specifier: ^4.0.0
         version: 4.0.0
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       firebase:
         specifier: ^12.0.0
         version: 12.0.0
@@ -35,7 +35,7 @@ importers:
     devDependencies:
       '@effect/vitest':
         specifier: ^0.27.0
-        version: 0.27.0(effect@3.17.3)(vitest@4.0.12)
+        version: 0.27.0(effect@3.19.8)(vitest@4.0.12)
       '@eslint/js':
         specifier: ^9.8.0
         version: 9.28.0
@@ -205,8 +205,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       firebase:
         specifier: ^12.0.0
         version: 12.0.0
@@ -227,8 +227,8 @@ importers:
   example/backend:
     dependencies:
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       firebase-admin:
         specifier: ^13.4.0
         version: 13.4.0(encoding@0.1.13)
@@ -240,11 +240,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/admin
       '@effect/experimental':
-        specifier: ^0.57.0
-        version: 0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
-      '@effect/sql':
-        specifier: ^0.48.0
-        version: 0.48.0(@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3))(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
+        specifier: ^0.57.10
+        version: 0.57.10(@effect/platform@0.93.0(effect@3.19.8))(effect@3.19.8)
       '@example/shared':
         specifier: workspace:*
         version: link:../shared
@@ -254,12 +251,9 @@ importers:
 
   example/shared:
     dependencies:
-      '@effect/sql':
-        specifier: ^0.48.0
-        version: 0.48.0(@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3))(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -275,8 +269,8 @@ importers:
         version: 2.8.1
     devDependencies:
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       effect-firebase:
         specifier: workspace:*
         version: link:../effect-firebase
@@ -300,8 +294,8 @@ importers:
         version: 2.8.1
     devDependencies:
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
       effect-firebase:
         specifier: workspace:*
         version: link:../effect-firebase
@@ -316,14 +310,11 @@ importers:
         version: 2.8.1
     devDependencies:
       '@effect/experimental':
-        specifier: ^0.57.0
-        version: 0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
-      '@effect/sql':
-        specifier: ^0.48.0
-        version: 0.48.0(@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3))(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
+        specifier: ^0.57.10
+        version: 0.57.10(@effect/platform@0.93.0(effect@3.19.8))(effect@3.19.8)
       effect:
-        specifier: ^3.17.3
-        version: 3.17.3
+        specifier: ^3.19.8
+        version: 3.19.8
 
   packages/mock:
     dependencies:
@@ -975,11 +966,11 @@ packages:
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
 
-  '@effect/experimental@0.57.0':
-    resolution: {integrity: sha512-usWsl3mvknRz1Wf2IelfwXoW0ftDycubCdAAGv2D8fdUMy4GK7uGJ4dSGiQiuHKGrEPqy0n0fdCgbMPY9iL41w==}
+  '@effect/experimental@0.57.10':
+    resolution: {integrity: sha512-Susfz1Fvmb6EgwZLtB0clHyhVIiHsGxQnrys/7y66aGQwv5nvf61VVR+WV5oKriSxYQtPKKQWl8tZTptLm8GWQ==}
     peerDependencies:
-      '@effect/platform': ^0.93.0
-      effect: ^3.19.0
+      '@effect/platform': ^0.93.6
+      effect: ^3.19.8
       ioredis: ^5
       lmdb: ^3
     peerDependenciesMeta:
@@ -991,13 +982,6 @@ packages:
   '@effect/platform@0.93.0':
     resolution: {integrity: sha512-VaIv0duA+Dk2h8XYDPxCLCXGbMyd6hwuHUQt9THL1ZEqv1C3Fypg/Gi2UkzRys6TQsSnC9fJbdpMb7haPURYkQ==}
     peerDependencies:
-      effect: ^3.19.0
-
-  '@effect/sql@0.48.0':
-    resolution: {integrity: sha512-tubdizHriDwzHUnER9UsZ/0TtF6O2WJckzeYDbVSRPeMkrpdpyEzEsoKctechTm65B3Bxy6JIixGPg2FszY72A==}
-    peerDependencies:
-      '@effect/experimental': ^0.57.0
-      '@effect/platform': ^0.93.0
       effect: ^3.19.0
 
   '@effect/vitest@0.27.0':
@@ -4625,8 +4609,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  effect@3.17.3:
-    resolution: {integrity: sha512-FbFMr6xBXPII5Od8QJnkHz+2GTmQgq+8NPQev6C2k9cf1lcUjQ4vpw1kjbMc2X0UkjIkIWe0EtNK2RV6bl34UQ==}
+  effect@3.19.8:
+    resolution: {integrity: sha512-OmLw8EfH02vdmyU2fO4uY9He/wepwKI5E/JNpE2pseaWWUbaYOK9UlxIiKP20ZEqQr+S/jSqRDGmpiqD/2DeCQ==}
 
   ejs@3.1.10:
     resolution: {integrity: sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==}
@@ -9766,29 +9750,22 @@ snapshots:
       enabled: 2.0.0
       kuler: 2.0.0
 
-  '@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)':
+  '@effect/experimental@0.57.10(@effect/platform@0.93.0(effect@3.19.8))(effect@3.19.8)':
     dependencies:
-      '@effect/platform': 0.93.0(effect@3.17.3)
-      effect: 3.17.3
+      '@effect/platform': 0.93.0(effect@3.19.8)
+      effect: 3.19.8
       uuid: 11.1.0
 
-  '@effect/platform@0.93.0(effect@3.17.3)':
+  '@effect/platform@0.93.0(effect@3.19.8)':
     dependencies:
-      effect: 3.17.3
+      effect: 3.19.8
       find-my-way-ts: 0.1.6
       msgpackr: 1.11.5
       multipasta: 0.2.7
 
-  '@effect/sql@0.48.0(@effect/experimental@0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3))(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)':
+  '@effect/vitest@0.27.0(effect@3.19.8)(vitest@4.0.12)':
     dependencies:
-      '@effect/experimental': 0.57.0(@effect/platform@0.93.0(effect@3.17.3))(effect@3.17.3)
-      '@effect/platform': 0.93.0(effect@3.17.3)
-      effect: 3.17.3
-      uuid: 11.1.0
-
-  '@effect/vitest@0.27.0(effect@3.17.3)(vitest@4.0.12)':
-    dependencies:
-      effect: 3.17.3
+      effect: 3.19.8
       vitest: 4.0.12(@opentelemetry/api@1.9.0)(@types/node@20.19.9)(@vitest/ui@4.0.12)(jiti@2.4.2)(jsdom@22.1.0)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.0)
 
   '@electric-sql/pglite-tools@0.2.11(@electric-sql/pglite@0.3.6)':
@@ -14087,7 +14064,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  effect@3.17.3:
+  effect@3.19.8:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2
