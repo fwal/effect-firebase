@@ -11,13 +11,16 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "effect": "^3.17.3",
+    "effect": "^3.19.8",
     "firebase": "^12.0.0",
-    "tailwind-merge": "^2.5.5"
+    "tailwind-merge": "^2.5.5",
+    "react": "19.0.0",
+    "@nx/react": "22.1.0"
   },
   "devDependencies": {
     "@effect-firebase/client": "workspace:*",
     "@example/shared": "workspace:*",
-    "effect-firebase": "workspace:*"
+    "effect-firebase": "workspace:*",
+    "vite": "^7.0.0"
   }
 }

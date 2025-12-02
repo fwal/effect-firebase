@@ -12,15 +12,14 @@
   },
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
-    "effect": "^3.17.3",
+    "effect": "^3.19.8",
     "firebase-admin": "^13.4.0",
-    "firebase-functions": "^6.4.0"
-  },
-  "devDependencies": {
-    "@effect/experimental": "^0.57.0",
-    "@effect/sql": "^0.48.0",
-    "effect-firebase": "workspace:*",
+    "firebase-functions": "^6.4.0",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@effect/experimental": "^0.57.10",
+    "effect-firebase": "workspace:*"
   }
 }
