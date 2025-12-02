@@ -1,103 +1,17 @@
-import { Cause, Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementException, UnknownException } from 'effect/Cause';
 import { ParseError } from 'effect/ParseResult';
 import { FirestoreError } from '../errors.js';
 import { Any } from './core.js';
+import * as Fetch from './fetch.js';
 
 export type ModelError =
   | FirestoreError
   | UnknownException
   | NoSuchElementException
   | ParseError;
-
-/**
- * Find all records in the collection.
- */
-export const findAll = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
-  readonly execute: (
-    request: II
-  ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
-}) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(Schema.Array(options.Result));
-  return (
-    request: IA
-  ): Effect.Effect<ReadonlyArray<A>, E | ParseError, R | IR | AR> =>
-    Effect.flatMap(
-      Effect.flatMap(encodeRequest(request), options.execute),
-      decode
-    );
-};
-
-/**
- * Run a query with a request schema and discard the result.
- */
-const _void = <IR, II, IA, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly execute: (request: II) => Effect.Effect<unknown, E, R>;
-}) => {
-  const encode = Schema.encode(options.Request);
-  return (request: IA): Effect.Effect<void, E | ParseError, R | IR> =>
-    Effect.asVoid(Effect.flatMap(encode(request), options.execute));
-};
-
-export { _void as void };
-
-/**
- * Run a query with a request schema and a result schema and return the first result.
- */
-export const findOne = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
-  readonly execute: (
-    request: II
-  ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
-}) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(options.Result);
-  return (
-    request: IA
-  ): Effect.Effect<Option.Option<A>, E | ParseError, R | IR | AR> =>
-    Effect.flatMap(
-      Effect.flatMap(encodeRequest(request), options.execute),
-      (arr) =>
-        Array.isArray(arr) && arr.length > 0
-          ? Effect.asSome(decode(arr[0]))
-          : Effect.succeedNone
-    );
-};
-
-/**
- * Run a query with a request schema and a result schema and return the first result.
- */
-export const single = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
-  readonly execute: (
-    request: II
-  ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
-}) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(options.Result);
-  return (
-    request: IA
-  ): Effect.Effect<
-    A,
-    E | ParseError | Cause.NoSuchElementException,
-    R | IR | AR
-  > =>
-    Effect.flatMap(
-      Effect.flatMap(encodeRequest(request), options.execute),
-      (arr): Effect.Effect<A, ParseError | Cause.NoSuchElementException, AR> =>
-        Array.isArray(arr) && arr.length > 0
-          ? decode(arr[0])
-          : Effect.fail(new Cause.NoSuchElementException())
-    );
-};
 
 /**
  * Create a repository for a model.
@@ -126,30 +40,30 @@ export const makeRepository = <
       return { ...data, [options.idField]: ref.id };
     };
 
-    const insertSchema = single({
-      Request: Model.insert,
+    const addSchema = Fetch.single({
+      Request: Model.add,
       Result: idSchema,
-      execute: (data: S['insert']['Type']) =>
+      execute: (data: S['add']['Type']) =>
         firestore
           .add(options.collectionPath, data)
           .pipe(Effect.flatMap((value) => Effect.succeed([value.id]))),
     });
 
-    const insert = (
-      data: S['insert']['Type']
+    const add = (
+      data: S['add']['Type']
     ): Effect.Effect<
       Schema.Schema.Type<IdSchema>,
       ModelError,
-      S['Context'] | S['insert']['Context']
+      S['Context'] | S['add']['Context']
     > =>
-      insertSchema(data).pipe(
-        Effect.withSpan(`${options.spanPrefix}.insert`, {
+      addSchema(data).pipe(
+        Effect.withSpan(`${options.spanPrefix}.add`, {
           captureStackTrace: false,
           attributes: { data },
         })
       );
 
-    const updateSchema = _void({
+    const updateSchema = Fetch.void({
       Request: Model.update,
       execute: ({ [options.idField]: _id, ...data }: S['update']['Type']) =>
         firestore.update(`${options.collectionPath}/${_id}`, data),
@@ -163,7 +77,7 @@ export const makeRepository = <
         })
       );
 
-    const findByIdSchema = findOne({
+    const findByIdSchema = Fetch.findOne({
       Request: idSchema,
       Result: Model,
       execute: (id: string) =>
@@ -188,7 +102,7 @@ export const makeRepository = <
         })
       );
 
-    const deleteSchema = _void({
+    const deleteSchema = Fetch.void({
       Request: idSchema,
       execute: (id: string) =>
         firestore.remove(`${options.collectionPath}/${id}`),
@@ -205,7 +119,7 @@ export const makeRepository = <
       );
 
     return {
-      insert,
+      add,
       update,
       findById,
       delete: deleteById,

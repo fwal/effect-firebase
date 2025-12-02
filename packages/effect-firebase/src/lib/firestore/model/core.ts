@@ -16,30 +16,30 @@ export const {
   fieldEvolve,
   fieldFromKey,
 } = VariantSchema.make({
-  variants: ['select', 'insert', 'update', 'json', 'jsonCreate', 'jsonUpdate'],
-  defaultVariant: 'select',
+  variants: ['get', 'add', 'update', 'json', 'jsonAdd', 'jsonUpdate'],
+  defaultVariant: 'get',
 });
 
 export type Any = Schema.Schema.Any & {
   readonly fields: Schema.Struct.Fields;
-  readonly insert: Schema.Schema.Any;
+  readonly add: Schema.Schema.Any;
   readonly update: Schema.Schema.Any;
   readonly json: Schema.Schema.Any;
-  readonly jsonCreate: Schema.Schema.Any;
+  readonly jsonAdd: Schema.Schema.Any;
   readonly jsonUpdate: Schema.Schema.Any;
 };
 
 export type AnyNoContext = Schema.Schema.AnyNoContext & {
   readonly fields: Schema.Struct.Fields;
-  readonly insert: Schema.Schema.AnyNoContext;
+  readonly add: Schema.Schema.AnyNoContext;
   readonly update: Schema.Schema.AnyNoContext;
   readonly json: Schema.Schema.AnyNoContext;
-  readonly jsonCreate: Schema.Schema.AnyNoContext;
+  readonly jsonAdd: Schema.Schema.AnyNoContext;
   readonly jsonUpdate: Schema.Schema.AnyNoContext;
 };
 
-export type VariantsDatabase = 'select' | 'insert' | 'update';
-export type VariantsJson = 'json' | 'jsonCreate' | 'jsonUpdate';
+export type VariantsDatabase = 'get' | 'add' | 'update';
+export type VariantsJson = 'json' | 'jsonAdd' | 'jsonUpdate';
 
 export const fields: <A extends VariantSchema.Struct<any>>(
   self: A
@@ -50,7 +50,7 @@ export const Override: <A>(value: A) => A & Brand<'Override'> =
 export type Generated<
   S extends Schema.Schema.All | Schema.PropertySignature.All
 > = VariantSchema.Field<{
-  readonly select: S;
+  readonly get: S;
   readonly update: S;
   readonly json: S;
 }>;
@@ -66,7 +66,7 @@ export const Generated = <
   schema: S
 ): Generated<S> =>
   Field({
-    select: schema,
+    get: schema,
     update: schema,
     json: schema,
   });
@@ -74,8 +74,8 @@ export const Generated = <
 export type GeneratedByApp<
   S extends Schema.Schema.All | Schema.PropertySignature.All
 > = VariantSchema.Field<{
-  readonly select: S;
-  readonly insert: S;
+  readonly get: S;
+  readonly add: S;
   readonly update: S;
   readonly json: S;
 }>;
@@ -91,8 +91,8 @@ export const GeneratedByApp = <
   schema: S
 ): GeneratedByApp<S> =>
   Field({
-    select: schema,
-    insert: schema,
+    get: schema,
+    add: schema,
     update: schema,
     json: schema,
   });
@@ -100,8 +100,8 @@ export const GeneratedByApp = <
 export type Sensitive<
   S extends Schema.Schema.All | Schema.PropertySignature.All
 > = VariantSchema.Field<{
-  readonly select: S;
-  readonly insert: S;
+  readonly get: S;
+  readonly add: S;
   readonly update: S;
 }>;
 
@@ -115,8 +115,8 @@ export const Sensitive = <
   schema: S
 ): Sensitive<S> =>
   Field({
-    select: schema,
-    insert: schema,
+    get: schema,
+    add: schema,
     update: schema,
   });
 
@@ -127,11 +127,11 @@ export const Sensitive = <
  * For the JSON variants, it will also accept missing keys.
  */
 export type FieldOption<S extends Schema.Schema.Any> = VariantSchema.Field<{
-  readonly select: Schema.OptionFromNullOr<S>;
-  readonly insert: Schema.OptionFromNullOr<S>;
+  readonly get: Schema.OptionFromNullOr<S>;
+  readonly add: Schema.OptionFromNullOr<S>;
   readonly update: Schema.OptionFromNullOr<S>;
   readonly json: Schema.optionalWith<S, { as: 'Option' }>;
-  readonly jsonCreate: Schema.optionalWith<S, { as: 'Option'; nullable: true }>;
+  readonly jsonAdd: Schema.optionalWith<S, { as: 'Option'; nullable: true }>;
   readonly jsonUpdate: Schema.optionalWith<S, { as: 'Option'; nullable: true }>;
 }>;
 
@@ -156,10 +156,10 @@ export const FieldOption: <
         : never;
     }>
   : never = fieldEvolve({
-  select: Schema.OptionFromNullOr,
-  insert: Schema.OptionFromNullOr,
+  get: Schema.OptionFromNullOr,
+  add: Schema.OptionFromNullOr,
   update: Schema.OptionFromNullOr,
   json: Schema.optionalWith({ as: 'Option' }),
-  jsonCreate: Schema.optionalWith({ as: 'Option', nullable: true }),
+  jsonAdd: Schema.optionalWith({ as: 'Option', nullable: true }),
   jsonUpdate: Schema.optionalWith({ as: 'Option', nullable: true }),
 }) as any;
