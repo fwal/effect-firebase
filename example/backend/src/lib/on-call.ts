@@ -1,7 +1,7 @@
 import { onCallEffect } from '@effect-firebase/admin';
 import { Effect, Option, Schema, pipe } from 'effect';
 import { runtime } from './runtime.js';
-import { OnExampleCall, postId, PostRepository } from '@example/shared';
+import { OnExampleCall, PostRepository } from '@example/shared';
 import { SerializeError } from './error-handler.js';
 import { CallableRequest } from 'firebase-functions/https';
 
@@ -27,8 +27,7 @@ const parseInput = (request: CallableRequest) =>
 const fetchPost = (input: typeof OnExampleCall.Input.Type) =>
   Effect.gen(function* () {
     const posts = yield* PostRepository;
-    const id = yield* postId(input.id);
-    const post = yield* posts.findById(id);
+    const post = yield* posts.findById(input.id);
     return Option.getOrThrow(post);
   });
 

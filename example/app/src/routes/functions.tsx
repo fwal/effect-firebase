@@ -2,6 +2,7 @@ import { OnExampleCall } from '@example/shared';
 import { createFileRoute } from '@tanstack/react-router';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import SendRequest from '../components/requests/send-request';
+import { getApp } from 'firebase/app';
 
 export const Route = createFileRoute('/functions')({
   component: RouteComponent,
@@ -26,7 +27,10 @@ function RouteComponent() {
           showInput
           inputPlaceholder='{"id": 123}'
           inputSchema={OnExampleCall.Input}
-          onSendRequest={httpsCallable(getFunctions(), 'onExampleCall')}
+          onSendRequest={httpsCallable(
+            getFunctions(getApp(), 'europe-north1'),
+            'onExampleCall'
+          )}
         />
       </div>
     </>

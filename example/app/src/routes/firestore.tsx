@@ -1,6 +1,6 @@
-import { PostModel, PostRepository, PostId } from '@example/shared';
-import { layer as FirestoreLive } from '@effect-firebase/client';
+import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
 import { FirestoreSchema } from 'effect-firebase';
+import { layer as FirestoreLive } from '@effect-firebase/client';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
 import {
@@ -32,7 +32,7 @@ function RouteComponent() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -40,9 +40,9 @@ function RouteComponent() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Repository instance state
-  const [repo, setRepo] = useState<Effect.Effect.Success<typeof PostRepository> | null>(
-    null
-  );
+  const [repo, setRepo] = useState<Effect.Effect.Success<
+    typeof PostRepository
+  > | null>(null);
 
   useEffect(() => {
     // Initialize repository
@@ -88,21 +88,26 @@ function RouteComponent() {
     try {
       if (editingId) {
         const updateEffect = repo.update({
-          id: editingId as Schema.Schema.Type<typeof PostId>,
+          id: PostId.make(editingId),
+          author: AuthorId.make('1'),
           title,
           content,
-          updatedAt: undefined
+          updatedAt: undefined,
         });
         await Effect.runPromise(updateEffect as any);
         setEditingId(null);
       } else {
-        const createEffect = repo.insert({
+        const createEffect = repo.add({
           title,
           content,
+          author: AuthorId.make('1'),
           createdAt: undefined,
-          updatedAt: undefined
+          updatedAt: undefined,
         });
-        await Effect.runPromise(createEffect);
+        await Effect.runPromise(createEffect).catch((err) => {
+          console.error('Failed to create post:', err);
+          setError('Failed to create post');
+        });
       }
       setTitle('');
       setContent('');
@@ -143,7 +148,9 @@ function RouteComponent() {
   return (
     <div className="space-y-8">
       <header>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Firestore CRUD</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Firestore CRUD
+        </h2>
         <p className="text-gray-600">
           Manage posts using the shared Effect repository and Firestore
         </p>
@@ -151,9 +158,7 @@ function RouteComponent() {
 
       {/* Create Post Form */}
       <Card>
-        <CardHeader>
-          {editingId ? 'Edit Post' : 'Create New Post'}
-        </CardHeader>
+        <CardHeader>{editingId ? 'Edit Post' : 'Create New Post'}</CardHeader>
         <CardContent className="space-y-4">
           <Input
             placeholder="Post Title"
@@ -190,7 +195,7 @@ function RouteComponent() {
       {/* Posts List */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-gray-900">Recent Posts</h3>
-        
+
         {loading ? (
           <div className="flex justify-center p-8">
             <Spinner size="lg" />
@@ -232,7 +237,10 @@ function RouteComponent() {
                   {post.createdAt && (
                     <span className="ml-2">
                       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      • {new Date((post.createdAt as any).seconds * 1000).toLocaleString()}
+                      •{' '}
+                      {new Date(
+                        (post.createdAt as any).seconds * 1000
+                      ).toLocaleString()}
                     </span>
                   )}
                 </div>
