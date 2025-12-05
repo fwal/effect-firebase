@@ -4,10 +4,12 @@ import {
   AnyIdReference,
   AnyPathReference,
   Reference,
+  ReferenceAsInstance,
   ReferencePath,
-  TypedReferenceAsIdOptional,
+  ReferenceOptional,
 } from './reference.js';
 import { Class, Generated } from './core.js';
+import { Reference as SchemaReference } from '../schema/reference.js';
 
 describe('Model.AnyIdReference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -18,11 +20,14 @@ describe('Model.AnyIdReference', () => {
   }) {}
 
   describe('get variant', () => {
-    it('should decode DocumentReference to ID string', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+    it('should decode Reference to ID string', () => {
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
-        authorId: { id: 'author-123', path: 'authors/author-123' },
+        authorId: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
       expect(result.authorId).toBe('author-123');
@@ -30,10 +35,13 @@ describe('Model.AnyIdReference', () => {
   });
 
   describe('add variant', () => {
-    it('should decode DocumentReference to ID string', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.add);
+    it('should decode Reference to ID string', () => {
+      const decode = Schema.decodeSync(TestModel.add);
       const result = decode({
-        authorId: { id: 'author-123', path: 'authors/author-123' },
+        authorId: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
       expect(result.authorId).toBe('author-123');
@@ -72,11 +80,14 @@ describe('Model.AnyPathReference', () => {
   }) {}
 
   describe('get variant', () => {
-    it('should decode DocumentReference to path string', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+    it('should decode Reference to path string', () => {
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
-        authorPath: { id: 'author-123', path: 'authors/author-123' },
+        authorPath: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
       expect(result.authorPath).toBe('authors/author-123');
@@ -84,16 +95,15 @@ describe('Model.AnyPathReference', () => {
   });
 
   describe('add variant', () => {
-    it('should encode path string to DocumentReference', () => {
+    it('should encode path string to Reference class instance', () => {
       const encode = Schema.encodeSync(TestModel.add);
       const result = encode({
         authorPath: 'authors/author-123',
       });
 
-      expect(result.authorPath).toEqual({
-        id: 'author-123',
-        path: 'authors/author-123',
-      });
+      expect(result.authorPath).toBeInstanceOf(SchemaReference);
+      expect(result.authorPath.id).toBe('author-123');
+      expect(result.authorPath.path).toBe('authors/author-123');
     });
   });
 
@@ -130,11 +140,14 @@ describe('Model.Reference', () => {
   }) {}
 
   describe('get variant', () => {
-    it('should decode DocumentReference to branded ID', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+    it('should decode Reference to branded ID', () => {
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
-        author: { id: 'author-123', path: 'authors/author-123' },
+        author: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
       expect(result.author).toBe('author-123');
@@ -142,22 +155,21 @@ describe('Model.Reference', () => {
   });
 
   describe('add variant', () => {
-    it('should encode branded ID to DocumentReference with correct path', () => {
+    it('should encode branded ID to Reference class instance', () => {
       const encode = Schema.encodeSync(TestModel.add);
       const authorId = 'author-123' as typeof AuthorId.Type;
       const result = encode({
         author: authorId,
       });
 
-      expect(result.author).toEqual({
-        id: 'author-123',
-        path: 'authors/author-123',
-      });
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-123');
+      expect(result.author.path).toBe('authors/author-123');
     });
   });
 
   describe('update variant', () => {
-    it('should encode branded ID to DocumentReference', () => {
+    it('should encode branded ID to Reference class instance', () => {
       const encode = Schema.encodeSync(TestModel.update);
       const authorId = 'author-456' as typeof AuthorId.Type;
       const result = encode({
@@ -165,10 +177,9 @@ describe('Model.Reference', () => {
         author: authorId,
       });
 
-      expect(result.author).toEqual({
-        id: 'author-456',
-        path: 'authors/author-456',
-      });
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-456');
+      expect(result.author.path).toBe('authors/author-456');
     });
   });
 
@@ -210,48 +221,154 @@ describe('Model.Reference', () => {
         replyTo: commentId,
       });
 
-      expect(result.replyTo).toEqual({
-        id: 'comment-123',
-        path: 'posts/post-1/comments/comment-123',
+      expect(result.replyTo).toBeInstanceOf(SchemaReference);
+      expect(result.replyTo.id).toBe('comment-123');
+      expect(result.replyTo.path).toBe('posts/post-1/comments/comment-123');
+    });
+  });
+});
+
+describe('Model.ReferenceAsInstance', () => {
+  const PostId = Schema.String.pipe(Schema.brand('PostId'));
+  const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
+
+  class TestModel extends Class<TestModel>('TestModel')({
+    id: Generated(PostId),
+    author: ReferenceAsInstance(AuthorId, 'authors'),
+  }) {}
+
+  describe('get variant', () => {
+    it('should decode Reference to Reference instance (passthrough)', () => {
+      const decode = Schema.decodeSync(TestModel);
+      const inputRef = SchemaReference.make({
+        id: 'author-123',
+        path: 'authors/author-123',
       });
+      const result = decode({
+        id: 'post-1',
+        author: inputRef,
+      });
+
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-123');
+      expect(result.author.path).toBe('authors/author-123');
+    });
+  });
+
+  describe('add variant', () => {
+    it('should encode Reference instance to Reference instance (passthrough)', () => {
+      const encode = Schema.encodeSync(TestModel.add);
+      const authorRef = SchemaReference.make({
+        id: 'author-123',
+        path: 'authors/author-123',
+      });
+      const result = encode({
+        author: authorRef,
+      });
+
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-123');
+      expect(result.author.path).toBe('authors/author-123');
+    });
+  });
+
+  describe('update variant', () => {
+    it('should encode Reference instance to Reference instance', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const authorRef = SchemaReference.make({
+        id: 'author-456',
+        path: 'authors/author-456',
+      });
+      const result = encode({
+        id: 'post-1' as typeof PostId.Type,
+        author: authorRef,
+      });
+
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-456');
+      expect(result.author.path).toBe('authors/author-456');
+    });
+  });
+
+  describe('json variant', () => {
+    it('should decode branded ID string to Reference instance', () => {
+      const decode = Schema.decodeUnknownSync(TestModel.json);
+      const result = decode({
+        id: 'post-1',
+        author: 'author-123',
+      });
+
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author.id).toBe('author-123');
+      expect(result.author.path).toBe('authors/author-123');
+    });
+
+    it('should encode Reference instance to branded ID string', () => {
+      const encode = Schema.encodeSync(TestModel.json);
+      const authorRef = SchemaReference.make({
+        id: 'author-123',
+        path: 'authors/author-123',
+      });
+      const result = encode({
+        id: PostId.make('post-1'),
+        author: authorRef,
+      });
+
+      expect(result.author).toBe('author-123');
+    });
+  });
+
+  describe('accessing Reference properties', () => {
+    it('should provide access to both id and path', () => {
+      const decode = Schema.decodeSync(TestModel);
+      const result = decode({
+        id: 'post-1',
+        author: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
+      });
+
+      // The main use case for ReferenceAsInstance is access to both properties
+      expect(result.author.id).toBe('author-123');
+      expect(result.author.path).toBe('authors/author-123');
     });
   });
 });
 
 describe('Model.ReferencePath', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
-  const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
   class TestModel extends Class<TestModel>('TestModel')({
     id: Generated(PostId),
-    authorPath: ReferencePath(AuthorId, 'authors'),
+    authorPath: ReferencePath('authors'),
   }) {}
 
   describe('get variant', () => {
-    it('should decode DocumentReference to branded ID', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+    it('should decode Reference to path string', () => {
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
-        authorPath: { id: 'author-123', path: 'authors/author-123' },
+        authorPath: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
-      // Database variants use TypedReferenceId which extracts the ID
-      expect(result.authorPath).toBe('author-123');
+      expect(result.authorPath).toBe('authors/author-123');
     });
   });
 
   describe('add variant', () => {
-    it('should encode branded ID to DocumentReference', () => {
+    it('should encode path string to Reference class instance', () => {
       const encode = Schema.encodeSync(TestModel.add);
-      const authorId = 'author-123' as typeof AuthorId.Type;
       const result = encode({
-        authorPath: authorId,
+        authorPath: 'authors/author-123',
       });
 
-      expect(result.authorPath).toEqual({
-        id: 'author-123',
-        path: 'authors/author-123',
-      });
+      expect(result.authorPath).toBeInstanceOf(SchemaReference);
+      expect(result.authorPath.id).toBe('author-123');
+      expect(result.authorPath.path).toBe('authors/author-123');
     });
   });
 
@@ -289,21 +406,24 @@ describe('Model.ReferencePath', () => {
   });
 });
 
-describe('Model.TypedReferenceAsIdOptional', () => {
+describe('Model.ReferenceOptional', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
   class TestModel extends Class<TestModel>('TestModel')({
     id: Generated(PostId),
-    author: TypedReferenceAsIdOptional(AuthorId, 'authors'),
+    author: ReferenceOptional(AuthorId, 'authors'),
   }) {}
 
   describe('get variant', () => {
-    it('should decode DocumentReference to Option.some with ID', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+    it('should decode Reference to Option.some with ID', () => {
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
-        author: { id: 'author-123', path: 'authors/author-123' },
+        author: SchemaReference.make({
+          id: 'author-123',
+          path: 'authors/author-123',
+        }),
       });
 
       expect(Option.isSome(result.author)).toBe(true);
@@ -311,7 +431,7 @@ describe('Model.TypedReferenceAsIdOptional', () => {
     });
 
     it('should decode null to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
+      const decode = Schema.decodeSync(TestModel);
       const result = decode({
         id: 'post-1',
         author: null,
@@ -322,17 +442,16 @@ describe('Model.TypedReferenceAsIdOptional', () => {
   });
 
   describe('add variant', () => {
-    it('should encode Option.some to DocumentReference', () => {
+    it('should encode Option.some to Reference class instance', () => {
       const encode = Schema.encodeSync(TestModel.add);
       const authorId = 'author-123' as typeof AuthorId.Type;
       const result = encode({
         author: Option.some(authorId),
       });
 
-      expect(result.author).toEqual({
-        id: 'author-123',
-        path: 'authors/author-123',
-      });
+      expect(result.author).toBeInstanceOf(SchemaReference);
+      expect(result.author?.id).toBe('author-123');
+      expect(result.author?.path).toBe('authors/author-123');
     });
 
     it('should encode Option.none to null', () => {

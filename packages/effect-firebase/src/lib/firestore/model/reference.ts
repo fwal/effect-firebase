@@ -21,9 +21,9 @@ type StringBasedSchema = Schema.Schema.AnyNoContext & { readonly Type: string };
  * ```
  */
 export const AnyIdReference = Field({
-  get: FirestoreSchema.AnyDocumentReferenceId,
-  add: FirestoreSchema.AnyDocumentReferenceId,
-  update: FirestoreSchema.AnyDocumentReferenceId,
+  get: FirestoreSchema.AnyReferenceId,
+  add: FirestoreSchema.AnyReferenceId,
+  update: FirestoreSchema.AnyReferenceId,
   json: Schema.String,
   jsonAdd: Schema.String,
   jsonUpdate: Schema.String,
@@ -43,9 +43,9 @@ export const AnyIdReference = Field({
  * ```
  */
 export const AnyPathReference = Field({
-  get: FirestoreSchema.AnyDocumentReferencePath,
-  add: FirestoreSchema.AnyDocumentReferencePath,
-  update: FirestoreSchema.AnyDocumentReferencePath,
+  get: FirestoreSchema.AnyReferencePath,
+  add: FirestoreSchema.AnyReferencePath,
+  update: FirestoreSchema.AnyReferencePath,
   json: Schema.String,
   jsonAdd: Schema.String,
   jsonUpdate: Schema.String,
@@ -53,7 +53,11 @@ export const AnyPathReference = Field({
 
 /**
  * Create a typed reference field that stores DocumentReference in DB
- * and exposes the branded ID in JSON.
+ * and exposes the branded ID in the app and JSON.
+ *
+ * - App (Type): Branded ID string (e.g., AuthorId)
+ * - DB (Encoded): DocumentReference class instance
+ * - JSON: Branded ID string
  *
  * @example
  * ```ts
@@ -64,7 +68,7 @@ export const AnyPathReference = Field({
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   id: Model.Generated(PostId),
- *   // Type-safe reference - JSON will be the branded AuthorId
+ *   // App gets AuthorId, DB stores DocumentReference
  *   author: Model.Reference(AuthorId, 'authors'),
  * }) {}
  * ```
@@ -73,10 +77,7 @@ export const Reference = <Id extends StringBasedSchema>(
   idSchema: Id,
   collectionPath: string
 ) => {
-  const typedRefSchema = FirestoreSchema.DocumentReferenceId(
-    idSchema,
-    collectionPath
-  );
+  const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 
   return Field({
     get: typedRefSchema,
@@ -89,8 +90,14 @@ export const Reference = <Id extends StringBasedSchema>(
 };
 
 /**
- * Create a typed reference field that stores DocumentReference in DB
- * and exposes the full path in JSON.
+ * Create a reference field where the app works with DocumentReference instances.
+ *
+ * - App (Type): DocumentReference class instance
+ * - DB (Encoded): DocumentReference class instance
+ * - JSON: Branded ID string
+ *
+ * Use this when you need the full DocumentReference in your app layer
+ * (e.g., to access both id and path).
  *
  * @example
  * ```ts
@@ -101,19 +108,66 @@ export const Reference = <Id extends StringBasedSchema>(
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   id: Model.Generated(PostId),
- *   // Reference - JSON will be the full path string
- *   author: Model.ReferencePath(AuthorId, 'authors'),
+ *   // App gets DocumentReference, JSON is AuthorId
+ *   author: Model.ReferenceAsInstance(AuthorId, 'authors'),
  * }) {}
+ *
+ * // In your app:
+ * const post = await postRepo.findById(postId);
+ * console.log(post.author.id);   // 'author123'
+ * console.log(post.author.path); // 'authors/author123'
  * ```
  */
-export const ReferencePath = <Id extends StringBasedSchema>(
+export const ReferenceAsInstance = <Id extends StringBasedSchema>(
   idSchema: Id,
   collectionPath: string
 ) => {
-  const typedRefSchema = FirestoreSchema.DocumentReferenceId(
+  type IdType = Schema.Schema.Type<Id>;
+
+  // DB: DocumentReference ↔ DocumentReference (passthrough)
+  const dbSchema = FirestoreSchema.ReferenceInstance;
+
+  // JSON: branded ID ↔ DocumentReference
+  // Encoded = branded ID, Type = DocumentReference
+  const jsonSchema = Schema.transform(
     idSchema,
-    collectionPath
+    FirestoreSchema.ReferenceInstance,
+    {
+      strict: true,
+      decode: (id) =>
+        FirestoreSchema.Reference.makeFromPath(`${collectionPath}/${id}`),
+      encode: (ref) => ref.id as IdType,
+    }
   );
+
+  return Field({
+    get: dbSchema,
+    add: dbSchema,
+    update: dbSchema,
+    json: jsonSchema,
+    jsonAdd: jsonSchema,
+    jsonUpdate: jsonSchema,
+  });
+};
+
+/**
+ * Create a typed reference field that stores DocumentReference in DB
+ * and exposes the full path in JSON.
+ *
+ * @example
+ * ```ts
+ * import { Schema } from 'effect';
+ * import { Model } from 'effect-firebase';
+ *
+ * class PostModel extends Model.Class<PostModel>('PostModel')({
+ *   id: Model.Generated(PostId),
+ *   // Reference - JSON will be the full path string
+ *   authorPath: Model.ReferencePath('authors'),
+ * }) {}
+ * ```
+ */
+export const ReferencePath = (collectionPath: string) => {
+  const dbRefSchema = FirestoreSchema.ReferencePath(collectionPath);
   const pathSchema = Schema.String.pipe(
     Schema.filter((path) => path.startsWith(`${collectionPath}/`), {
       message: () => `Path must start with "${collectionPath}/"`,
@@ -121,9 +175,9 @@ export const ReferencePath = <Id extends StringBasedSchema>(
   );
 
   return Field({
-    get: typedRefSchema,
-    add: typedRefSchema,
-    update: typedRefSchema,
+    get: dbRefSchema,
+    add: dbRefSchema,
+    update: dbRefSchema,
     json: pathSchema,
     jsonAdd: pathSchema,
     jsonUpdate: pathSchema,
@@ -138,18 +192,15 @@ export const ReferencePath = <Id extends StringBasedSchema>(
  * ```ts
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   // Optional author reference
- *   author: Model.TypedReferenceAsIdOptional(AuthorId, 'authors'),
+ *   author: Model.ReferenceOptional(AuthorId, 'authors'),
  * }) {}
  * ```
  */
-export const TypedReferenceAsIdOptional = <Id extends StringBasedSchema>(
+export const ReferenceOptional = <Id extends StringBasedSchema>(
   idSchema: Id,
   collectionPath: string
 ) => {
-  const typedRefSchema = FirestoreSchema.DocumentReferenceId(
-    idSchema,
-    collectionPath
-  );
+  const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 
   return Field({
     get: Schema.OptionFromNullOr(typedRefSchema),

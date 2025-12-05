@@ -28,7 +28,7 @@ export const toFirestoreDocumentData = (data: DocumentData): DocumentData => {
   if (data instanceof FirestoreSchema.GeoPoint) {
     return new GeoPoint(data.latitude, data.longitude);
   }
-  if (data instanceof FirestoreSchema.DocumentReference) {
+  if (data instanceof FirestoreSchema.Reference) {
     return doc(getFirestore(), data.path);
   }
   if (data instanceof FirestoreSchema.ServerTimestamp) {
@@ -58,10 +58,7 @@ export const fromFirestoreDocumentData = (data: DocumentData): DocumentData => {
     });
   }
   if (data instanceof DocumentReference) {
-    return new FirestoreSchema.DocumentReference({
-      id: data.id,
-      path: data.path,
-    });
+    return FirestoreSchema.Reference.makeFromPath(data.path);
   }
   if (Array.isArray(data)) {
     return data.map(fromFirestoreDocumentData);
