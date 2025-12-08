@@ -64,9 +64,7 @@ function RouteComponent() {
 
     // Subscribe to posts using Effect Stream
     const program = Stream.runForEach(
-      repo.streamQuery([
-        new Query.OrderBy({ field: 'createdAt', direction: 'desc' }),
-      ]),
+      repo.streamLatest(),
       (postsArray) =>
         Effect.sync(() => {
           setPosts([...postsArray]);
