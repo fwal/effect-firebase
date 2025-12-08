@@ -27,7 +27,7 @@ const parseInput = (request: CallableRequest) =>
 const fetchPost = (input: typeof OnExampleCall.Input.Type) =>
   Effect.gen(function* () {
     const posts = yield* PostRepository;
-    const post = yield* posts.findById(input.id);
+    const post = yield* posts.getById(input.id);
     return Option.getOrThrow(post);
   });
 

@@ -14,7 +14,7 @@ export const onExampleRequest = onRequestEffect(
     Effect.gen(function* () {
       const posts = yield* PostRepository;
       const id = PostId.make('123');
-      const post = yield* posts.findById(id);
+      const post = yield* posts.getById(id);
       response.status(200).json(post);
     }).pipe(
       SerializeError,
