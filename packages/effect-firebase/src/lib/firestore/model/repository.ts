@@ -79,7 +79,7 @@ export const makeRepository = <
         })
       );
 
-    const findByIdSchema = Fetch.findOne({
+    const getByIdSchema = Fetch.findOne({
       Request: idSchema,
       Result: Model,
       execute: (id: string) =>
@@ -90,14 +90,14 @@ export const makeRepository = <
           ),
     });
 
-    const findById = (
+    const getById = (
       id: Schema.Schema.Type<IdSchema>
     ): Effect.Effect<
       Option.Option<S['Type']>,
       ModelError,
       S['Context'] | Schema.Schema.Context<S['fields'][Id]>
     > =>
-      findByIdSchema(id).pipe(
+      getByIdSchema(id).pipe(
         Effect.withSpan(`${options.spanPrefix}.findById`, {
           captureStackTrace: false,
           attributes: { id },
@@ -141,53 +141,95 @@ export const makeRepository = <
         })
       );
 
-    const streamById = (
+    const getByIdStreamSchema = Fetch.streamOne({
+      Request: idSchema,
+      Result: Model,
+      execute: (id: string) =>
+        firestore
+          .streamDoc(`${options.collectionPath}/${id}`)
+          .pipe(Stream.map(Option.map((value) => structFromSnapshot(value)))),
+    });
+
+    const getByIdStream = (
       id: Schema.Schema.Type<IdSchema>
     ): Stream.Stream<
       Option.Option<S['Type']>,
       ModelError,
       S['Context'] | Schema.Schema.Context<S['fields'][Id]>
     > =>
-      firestore.streamDoc(`${options.collectionPath}/${id}`).pipe(
-        Stream.mapEffect((snapshot) =>
-          Option.match(snapshot, {
-            onNone: () => Effect.succeedNone,
-            onSome: (snap) => {
-              const struct = structFromSnapshot(snap);
-              return Schema.decodeUnknown(Model)(struct).pipe(
-                Effect.map(Option.some)
-              );
-            },
-          })
-        ),
+      getByIdStreamSchema(id).pipe(
         Stream.tap(() =>
           Effect.logTrace(`${options.spanPrefix}.streamById`, { id })
         )
       );
 
-    const streamQuery = (
+    const queryStreamSchema = Fetch.streamAll({
+      Request: Schema.Array(Schema.Any),
+      Result: Model,
+      execute: (constraints: ReadonlyArray<unknown>) =>
+        firestore
+          .streamQuery(
+            options.collectionPath,
+            constraints as ReadonlyArray<QueryConstraint>
+          )
+          .pipe(Stream.map((snapshots) => snapshots.map(structFromSnapshot))),
+    });
+
+    const queryStream = (
       constraints: Query<S>
     ): Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
-      firestore
-        .streamQuery(
-          options.collectionPath,
-          constraints as ReadonlyArray<QueryConstraint>
-        )
-        .pipe(
-          Stream.mapEffect((snapshots) => {
-            const structs = snapshots.map(structFromSnapshot);
-            return Schema.decodeUnknown(Schema.Array(Model))(structs);
-          }),
-          Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
-        );
+      queryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
+        Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
+      );
 
     return {
+      /**
+       * Add a document model.
+       * @param data - The data to add the document model with.
+       * @returns The ID of the added document model.
+       */
       add,
+
+      /**
+       * Update a document model.
+       * @param data - The data to update the document model with.
+       * @returns A unit value.
+       */
       update,
-      findById,
+
+      /**
+       * Get a document model by ID.
+       * @param id - The ID of the document model to get.
+       * @returns The document model.
+       */
+      getById,
+
+      /**
+       * Stream a document model by ID.
+       * @param id - The ID of the document model to stream.
+       * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the model and any updates to it.
+       */
+      getByIdStream,
+
+      /**
+       * Delete a document model by ID.
+       * @param id - The ID of the document model to delete.
+       * @returns A unit value.
+       */
       delete: deleteById,
+
+      /**
+       * Query the database.
+       * @param constraints - The constraints to apply to the query.
+       * @returns A list of the results of the query.
+       */
       query,
-      streamById,
-      streamQuery,
+
+      /**
+       * Stream the results of a query.
+       * @param constraints - The constraints to apply to the query.
+       * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the results of the query.
+       */
+      queryStream,
     };
   });

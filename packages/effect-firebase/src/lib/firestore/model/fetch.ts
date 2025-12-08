@@ -1,4 +1,4 @@
-import { Cause, Effect, Option, Schema } from 'effect';
+import { Cause, Effect, Option, Schema, Stream } from 'effect';
 import { ParseError } from 'effect/ParseResult';
 
 /**
@@ -62,6 +62,7 @@ export const findOne = <IR, II, IA, AR, AI, A, R, E>(options: {
 
 /**
  * Run a query with a request schema and a result schema and return the first result.
+ * @throws NoSuchElementException if the result is empty.
  */
 export const single = <IR, II, IA, AR, AI, A, R, E>(options: {
   readonly Request: Schema.Schema<IA, II, IR>;
@@ -85,5 +86,52 @@ export const single = <IR, II, IA, AR, AI, A, R, E>(options: {
         Array.isArray(arr) && arr.length > 0
           ? decode(arr[0])
           : Effect.fail(new Cause.NoSuchElementException())
+    );
+};
+
+/**
+ * Stream a single optional result.
+ */
+export const streamOne = <IR, II, IA, AR, AI, A, R, E>(options: {
+  readonly Request: Schema.Schema<IA, II, IR>;
+  readonly Result: Schema.Schema<A, AI, AR>;
+  readonly execute: (
+    request: II
+  ) => Stream.Stream<Option.Option<unknown>, E, R>;
+}) => {
+  const encodeRequest = Schema.encode(options.Request);
+  const decode = Schema.decodeUnknown(options.Result);
+  return (
+    request: IA
+  ): Stream.Stream<Option.Option<A>, E | ParseError, R | IR | AR> =>
+    Stream.flatMap(Stream.fromEffect(encodeRequest(request)), (encoded) =>
+      options.execute(encoded).pipe(
+        Stream.mapEffect((opt) =>
+          Option.match(opt, {
+            onNone: () => Effect.succeedNone,
+            onSome: (value) => decode(value).pipe(Effect.map(Option.some)),
+          })
+        )
+      )
+    );
+};
+
+/**
+ * Stream all results from a query.
+ */
+export const streamAll = <IR, II, IA, AR, AI, A, R, E>(options: {
+  readonly Request: Schema.Schema<IA, II, IR>;
+  readonly Result: Schema.Schema<A, AI, AR>;
+  readonly execute: (
+    request: II
+  ) => Stream.Stream<ReadonlyArray<unknown>, E, R>;
+}) => {
+  const encodeRequest = Schema.encode(options.Request);
+  const decode = Schema.decodeUnknown(Schema.Array(options.Result));
+  return (
+    request: IA
+  ): Stream.Stream<ReadonlyArray<A>, E | ParseError, R | IR | AR> =>
+    Stream.flatMap(Stream.fromEffect(encodeRequest(request)), (encoded) =>
+      options.execute(encoded).pipe(Stream.mapEffect((arr) => decode(arr)))
     );
 };
