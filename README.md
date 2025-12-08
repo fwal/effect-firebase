@@ -371,13 +371,11 @@ nx test effect-firebase
 The repository includes a full example application demonstrating all features:
 
 ```bash
-# Start the example app
-cd example/app
-pnpm dev
+# Terminal 1: Start Firebase emulators
+pnpm example:emulator
 
-# Start Firebase emulators
-cd example
-firebase emulators:start
+# Terminal 2: Start the example app
+pnpm example:hosting
 ```
 
 ## Contributing
