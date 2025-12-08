@@ -60,12 +60,13 @@ import { Model } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
+const AuthorRef = Model.Reference(AuthorId, 'authors');
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
   id: Model.Generated(PostId),
   createdAt: Model.DateTimeInsert,
   updatedAt: Model.DateTimeUpdate,
-  author: Model.Reference(AuthorId, 'authors'),
+  author: AuthorRef,
   title: Schema.String,
   content: Schema.String,
   status: Schema.Literal('draft', 'published'),
@@ -145,7 +146,7 @@ export const createPost = onCallEffect({ runtime }, (request) =>
     const postId = yield* repo.add({
       title,
       content,
-      author: request.auth!.uid as AuthorId,
+      author: AuthorId.make(request.auth!.uid),
       status: 'draft',
       likes: 0,
     });
@@ -167,7 +168,7 @@ const test = Effect.gen(function* () {
   const postId = yield* repo.add({
     title: 'Test Post',
     content: 'Test Content',
-    author: 'test-author' as AuthorId,
+    author: AuthorId.make('test-author'),
     status: 'draft',
     likes: 0,
   });
