@@ -1,15 +1,8 @@
 import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
-import { FirestoreSchema } from 'effect-firebase';
+import { Query } from 'effect-firebase';
 import { layer as FirestoreLive } from '@effect-firebase/client';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
-import {
-  collection,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-} from 'firebase/firestore';
+import { Effect, Schema, Stream, Fiber, DateTime } from 'effect';
 import { useEffect, useState } from 'react';
 import {
   Button,
@@ -27,6 +20,16 @@ export const Route = createFileRoute('/firestore')({
 });
 
 type Post = typeof PostModel.Type;
+
+const formatDateTime = (date: DateTime.DateTime) => {
+  return DateTime.formatLocal(date, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 function RouteComponent() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -46,7 +49,7 @@ function RouteComponent() {
 
   useEffect(() => {
     // Initialize repository
-    const makeRepo = PostRepository.pipe(Effect.provide(FirestoreLive()));
+    const makeRepo = PostRepository.pipe(Effect.provide(FirestoreLive));
 
     Effect.runPromise(makeRepo)
       .then((r) => setRepo(r))
@@ -57,29 +60,36 @@ function RouteComponent() {
   }, []);
 
   useEffect(() => {
-    // Subscribe to posts
-    const db = getFirestore();
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    if (!repo) return;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const postsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Post[];
-        setPosts(postsData);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Error fetching posts:', err);
-        setError(err.message);
-        setLoading(false);
-      }
+    // Subscribe to posts using Effect Stream
+    const program = Stream.runForEach(
+      repo.streamQuery([
+        new Query.OrderBy({ field: 'createdAt', direction: 'desc' }),
+      ]),
+      (postsArray) =>
+        Effect.sync(() => {
+          setPosts([...postsArray]);
+          setLoading(false);
+        })
+    ).pipe(
+      Effect.catchAll((err) =>
+        Effect.sync(() => {
+          console.error('Error streaming posts:', err);
+          setError(String(err));
+          setLoading(false);
+        })
+      )
     );
 
-    return () => unsubscribe();
-  }, []);
+    // Run the stream and get the fiber for cleanup
+    const fiber = Effect.runFork(program);
+
+    // Cleanup: interrupt the stream when component unmounts
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [repo]);
 
   const handleCreate = async () => {
     if (!repo || !title || !content) return;
@@ -236,11 +246,7 @@ function RouteComponent() {
                   ID: {post.id}
                   {post.createdAt && (
                     <span className="ml-2">
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      •{' '}
-                      {new Date(
-                        (post.createdAt as any).seconds * 1000
-                      ).toLocaleString()}
+                      • {formatDateTime(post.createdAt)}
                     </span>
                   )}
                 </div>

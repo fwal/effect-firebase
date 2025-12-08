@@ -48,6 +48,10 @@
         "buildTarget": "build"
       }
     },
+    "copy-workspace-modules": {
+      "executor": "@nx/js:copy-workspace-modules",
+      "dependsOn": ["build", "prune-lockfile"]
+    },
     "emulator": {
       "executor": "nx:run-commands",
       "dependsOn": ["build", "prune-lockfile"],
@@ -56,6 +60,16 @@
         "cwd": "{workspaceRoot}/example",
         "tty": false,
         "command": "firebase emulators:start --only functions,firestore,ui"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "prune-lockfile", "copy-workspace-modules"],
+      "continuous": true,
+      "options": {
+        "cwd": "{workspaceRoot}/example",
+        "tty": false,
+        "command": "firebase deploy --only functions"
       }
     }
   }

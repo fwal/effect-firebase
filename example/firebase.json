@@ -2,7 +2,7 @@
   "functions": {
     "source": "backend/dist",
     "codebase": "backend",
-    "predeploy": ["nx run @example/backend:prune-lockfile"],
+
     "ignore": [
       "node_modules",
       ".git",
