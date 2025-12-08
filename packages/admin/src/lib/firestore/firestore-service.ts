@@ -18,6 +18,9 @@ const mapError = (error: unknown) =>
     ? FirestoreError.fromError(error)
     : new UnknownException(error as Error);
 
+/**
+ * Live Firestore service using the admin SDK.
+ */
 export const layer = Layer.succeed(
   FirestoreService,
   FirestoreService.of({

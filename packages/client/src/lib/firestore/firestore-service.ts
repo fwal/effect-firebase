@@ -20,6 +20,9 @@ const dataOptions = (options?: FirestoreDataOptions) => ({
   serverTimestamps: options?.serverTimestamps ?? 'estimate',
 });
 
+/**
+ * Live Firestore Service using the client SDK.
+ */
 export const layer = Layer.succeed(FirestoreService, {
   get: (path, options) =>
     Effect.tryPromise({

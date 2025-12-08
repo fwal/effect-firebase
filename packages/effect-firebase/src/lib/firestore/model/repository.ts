@@ -16,7 +16,36 @@ export type ModelError =
   | ParseError;
 
 /**
- * Create a repository for a model.
+ * Create a repository for a document model.
+ * @param Model - The model to create a repository for.
+ * @param options - The options for the repository.
+ * @returns The repository.
+ *
+ * @example
+ * ```ts
+ * import { Model } from 'effect-firebase';
+ * import { PostModel } from './post.js';
+ *
+ * const PostRepository = Model.makeRepository(PostModel, {
+ *   collectionPath: 'posts',
+ *   idField: 'id',
+ *   spanPrefix: 'example.PostRepository',
+ * });
+ * ```
+ *
+ * @example
+ * ```ts
+ * import { PostRepository } from './post-repository.js';
+ *
+ * const post = yield* PostRepository.getById('123');
+ * ```
+ *
+ * @example
+ * ```ts
+ * import { PostRepository } from './post-repository.js';
+ *
+ * const posts = yield* PostRepository.query(Query.orderBy('createdAt', 'desc'));
+ * ```
  */
 export const makeRepository = <
   S extends Any,

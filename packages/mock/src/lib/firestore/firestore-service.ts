@@ -1,6 +1,11 @@
 import { Layer } from 'effect';
 import { FirestoreService, FirestoreServiceShape } from 'effect-firebase';
 
+/**
+ * Mock Firestore Service for testing purposes.
+ * @param overrides - The overrides for the Firestore service.
+ * @returns The mocked Firestore service.
+ */
 export const MockFirestoreService = (
   overrides: Partial<FirestoreServiceShape> = {}
 ) =>
