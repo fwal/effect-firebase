@@ -44,7 +44,7 @@ export type DateTimeInsert = VariantSchema.Field<{
 }>;
 
 /**
- * A field that represents a date time value that is inserted into the database.
+ * A field that represents the date and time when the model was created.
  */
 export const DateTimeInsert: DateTimeInsert = Field({
   get: FirestoreSchema.TimestampDateTimeUtc,
@@ -60,7 +60,7 @@ export type DateTimeUpdate = VariantSchema.Field<{
 }>;
 
 /**
- * A field that represents a date time value that is updated in the database.
+ * A field that represents the date and time when the model was last updated.
  */
 export const DateTimeUpdate: DateTimeUpdate = Field({
   get: FirestoreSchema.TimestampDateTimeUtc,

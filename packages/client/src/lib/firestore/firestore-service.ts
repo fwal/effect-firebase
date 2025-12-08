@@ -1,10 +1,6 @@
-import { Effect, Layer, Array as Arr, Option } from 'effect';
-import {
-  FirestoreError,
-  FirestoreService,
-  packSnapshot,
-} from 'effect-firebase';
-import type { Snapshot } from 'effect-firebase';
+import { Effect, Layer, Array as Arr, Option, Stream } from 'effect';
+import { FirestoreError, FirestoreService } from 'effect-firebase';
+import type { FirestoreDataOptions, Snapshot } from 'effect-firebase';
 import {
   doc,
   getFirestore,
@@ -15,16 +11,30 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { converter, fromFirestoreDocumentData } from './converter.js';
 import { buildQuery } from './query-builder.js';
 
+const dataOptions = (options?: FirestoreDataOptions) => ({
+  serverTimestamps: options?.serverTimestamps ?? 'estimate',
+});
+
 export const layer = Layer.succeed(FirestoreService, {
-  get: (path) =>
+  get: (path, options) =>
     Effect.tryPromise({
-      try: () => getDoc(doc(getFirestore(), path).withConverter(converter)),
+      try: () => getDoc(doc(getFirestore(), path)),
       catch: FirestoreError.fromError,
-    }).pipe(Effect.map(packSnapshot)),
+    }).pipe(
+      Effect.map((snapshot) => {
+        const data = snapshot.data(dataOptions(options));
+        if (!data) return Option.none();
+        return Option.some([
+          { id: snapshot.id, path: snapshot.ref.path },
+          fromFirestoreDocumentData(data),
+        ]);
+      })
+    ),
   add: (path, data) =>
     Effect.tryPromise({
       try: () =>
@@ -66,4 +76,61 @@ export const layer = Layer.succeed(FirestoreService, {
       },
       catch: FirestoreError.fromError,
     }),
+  streamDoc: (path, options) =>
+    Stream.asyncScoped<Option.Option<Snapshot>, FirestoreError>((emit) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const docRef = doc(getFirestore(), path);
+          return onSnapshot(
+            docRef,
+            (snapshot) => {
+              const data = snapshot.data(dataOptions(options));
+              if (!data) {
+                emit.single(Option.none());
+              } else {
+                emit.single(
+                  Option.some([
+                    { id: snapshot.id, path: snapshot.ref.path },
+                    fromFirestoreDocumentData(data),
+                  ])
+                );
+              }
+            },
+            (error) => {
+              emit.fail(FirestoreError.fromError(error));
+            }
+          );
+        }),
+        (unsubscribe) => Effect.sync(() => unsubscribe())
+      )
+    ),
+  streamQuery: (collectionPath, constraints, options) =>
+    Stream.asyncScoped<ReadonlyArray<Snapshot>, FirestoreError>((emit) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const q = buildQuery(collectionPath, constraints);
+          return onSnapshot(
+            q,
+            (snapshot) => {
+              const snapshots = Arr.filterMap(
+                snapshot.docs,
+                (doc): Option.Option<Snapshot> => {
+                  const data = doc.data(dataOptions(options));
+                  if (!data) return Option.none();
+                  return Option.some([
+                    { id: doc.id, path: doc.ref.path },
+                    fromFirestoreDocumentData(data),
+                  ]);
+                }
+              );
+              emit.single(snapshots);
+            },
+            (error) => {
+              emit.fail(FirestoreError.fromError(error));
+            }
+          );
+        }),
+        (unsubscribe) => Effect.sync(() => unsubscribe())
+      )
+    ),
 });

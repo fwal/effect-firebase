@@ -1,4 +1,4 @@
-import { Effect, Context, Option } from 'effect';
+import { Effect, Context, Option, Stream } from 'effect';
 import { FirestoreError } from './errors.js';
 import { Snapshot } from './snapshot.js';
 import { UnknownException } from 'effect/Cause';
@@ -7,7 +7,8 @@ import type { QueryConstraint } from './query/constraints.js';
 
 type FirestoreCRUD = {
   readonly get: (
-    path: string
+    path: string,
+    options?: FirestoreDataOptions
   ) => Effect.Effect<
     Option.Option<Snapshot>,
     FirestoreError | UnknownException
@@ -43,7 +44,32 @@ type FirestoreQuery = {
   >;
 };
 
-export type FirestoreServiceShape = FirestoreCRUD & FirestoreQuery;
+type FirestoreStreaming = {
+  readonly streamDoc: (
+    path: string,
+    options?: FirestoreDataOptions
+  ) => Stream.Stream<Option.Option<Snapshot>, FirestoreError>;
+  readonly streamQuery: (
+    collectionPath: string,
+    constraints: ReadonlyArray<QueryConstraint>,
+    options?: FirestoreDataOptions
+  ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
+};
+
+export interface FirestoreDataOptions {
+  /**
+   * Controls how intermediate server timestamps are handled on the client when writing data.
+   * - 'estimate': Use the local client's estimated timestamp.
+   * - 'previous': Use the previous server timestamp.
+   * - 'none': Use `null` until server has responded with a timestamp.
+   * @default 'estimate'
+   */
+  readonly serverTimestamps?: 'estimate' | 'previous' | 'none';
+}
+
+export type FirestoreServiceShape = FirestoreCRUD &
+  FirestoreQuery &
+  FirestoreStreaming;
 
 export class FirestoreService extends Context.Tag(
   '@effect-firebase/FirestoreService'

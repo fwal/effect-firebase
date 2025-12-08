@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema, Stream } from 'effect';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementException, UnknownException } from 'effect/Cause';
@@ -141,11 +141,53 @@ export const makeRepository = <
         })
       );
 
+    const streamById = (
+      id: Schema.Schema.Type<IdSchema>
+    ): Stream.Stream<
+      Option.Option<S['Type']>,
+      ModelError,
+      S['Context'] | Schema.Schema.Context<S['fields'][Id]>
+    > =>
+      firestore.streamDoc(`${options.collectionPath}/${id}`).pipe(
+        Stream.mapEffect((snapshot) =>
+          Option.match(snapshot, {
+            onNone: () => Effect.succeedNone,
+            onSome: (snap) => {
+              const struct = structFromSnapshot(snap);
+              return Schema.decodeUnknown(Model)(struct).pipe(
+                Effect.map(Option.some)
+              );
+            },
+          })
+        ),
+        Stream.tap(() =>
+          Effect.logTrace(`${options.spanPrefix}.streamById`, { id })
+        )
+      );
+
+    const streamQuery = (
+      constraints: Query<S>
+    ): Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
+      firestore
+        .streamQuery(
+          options.collectionPath,
+          constraints as ReadonlyArray<QueryConstraint>
+        )
+        .pipe(
+          Stream.mapEffect((snapshots) => {
+            const structs = snapshots.map(structFromSnapshot);
+            return Schema.decodeUnknown(Schema.Array(Model))(structs);
+          }),
+          Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
+        );
+
     return {
       add,
       update,
       findById,
       delete: deleteById,
       query,
+      streamById,
+      streamQuery,
     };
   });

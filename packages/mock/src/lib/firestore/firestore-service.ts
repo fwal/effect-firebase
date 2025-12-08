@@ -6,19 +6,28 @@ export const MockFirestoreService = (
 ) =>
   Layer.succeed(FirestoreService, {
     get: () => {
-      throw new Error('Function not implemented.');
+      throw new Error('MockFirestoreService.get not implemented.');
     },
     add: () => {
-      throw new Error('Function not implemented.');
+      throw new Error('MockFirestoreService.add not implemented.');
     },
     set: () => {
-      throw new Error('Function not implemented.');
+      throw new Error('MockFirestoreService.set not implemented.');
     },
     update: () => {
-      throw new Error('Function not implemented.');
+      throw new Error('MockFirestoreService.update not implemented.');
     },
     remove: () => {
-      throw new Error('Function not implemented.');
+      throw new Error('MockFirestoreService.remove not implemented.');
+    },
+    query: () => {
+      throw new Error('MockFirestoreService.query not implemented.');
+    },
+    streamDoc: () => {
+      throw new Error('MockFirestoreService.streamDoc not implemented.');
+    },
+    streamQuery: () => {
+      throw new Error('MockFirestoreService.streamQuery not implemented.');
     },
     ...overrides,
   });

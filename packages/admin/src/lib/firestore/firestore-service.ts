@@ -1,8 +1,8 @@
-import { Effect, Layer, Array as Arr, Option } from 'effect';
+import { Effect, Layer, Array as Arr, Option, Stream } from 'effect';
 import {
   FirestoreError,
   FirestoreService,
-  packSnapshot,
+  makeSnapshotPacker,
 } from 'effect-firebase';
 import type { Snapshot } from 'effect-firebase';
 import { UnknownException } from 'effect/Cause';
@@ -10,6 +10,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { FirebaseError } from 'firebase/app';
 import { converter, fromFirestoreDocumentData } from './converter.js';
 import { buildQuery } from './query-builder.js';
+
+const packSnapshot = makeSnapshotPacker(fromFirestoreDocumentData);
 
 const mapError = (error: unknown) =>
   error instanceof FirebaseError
@@ -19,11 +21,11 @@ const mapError = (error: unknown) =>
 export const layer = Layer.succeed(
   FirestoreService,
   FirestoreService.of({
-    get: (path) =>
+    get: (path, options) =>
       Effect.tryPromise({
         try: () => getFirestore().doc(path).get(),
         catch: mapError,
-      }).pipe(Effect.map(packSnapshot)),
+      }).pipe(Effect.map((snapshot) => packSnapshot(snapshot, options))),
     add: (path, data) =>
       Effect.tryPromise({
         try: async () => {
@@ -62,17 +64,60 @@ export const layer = Layer.succeed(
           const snapshot = await query.get();
           return Arr.filterMap(
             snapshot.docs,
-            (doc): Option.Option<Snapshot> => {
-              const data = doc.data();
-              if (!data) return Option.none();
-              return Option.some([
-                { id: doc.id, path: doc.ref.path },
-                fromFirestoreDocumentData(data),
-              ]);
-            }
+            (doc): Option.Option<Snapshot> => packSnapshot(doc)
           );
         },
         catch: mapError,
       }),
+    streamDoc: (path, options) =>
+      Stream.asyncScoped<Option.Option<Snapshot>, FirestoreError>((emit) =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            const docRef = getFirestore().doc(path);
+            return docRef.onSnapshot(
+              (snapshot) => {
+                emit.single(packSnapshot(snapshot, options));
+              },
+              (error) => {
+                const mappedError = mapError(error);
+                if (mappedError._tag === 'FirestoreError') {
+                  emit.fail(mappedError);
+                } else {
+                  // Convert UnknownException to FirestoreError
+                  emit.fail(FirestoreError.fromError(error as Error));
+                }
+              }
+            );
+          }),
+          (unsubscribe) => Effect.sync(() => unsubscribe())
+        )
+      ),
+    streamQuery: (collectionPath, constraints, options) =>
+      Stream.asyncScoped<ReadonlyArray<Snapshot>, FirestoreError>((emit) =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            const query = buildQuery(collectionPath, constraints);
+            return query.onSnapshot(
+              (snapshot) => {
+                const snapshots = Arr.filterMap(
+                  snapshot.docs,
+                  (doc): Option.Option<Snapshot> => packSnapshot(doc, options)
+                );
+                emit.single(snapshots);
+              },
+              (error) => {
+                const mappedError = mapError(error);
+                if (mappedError._tag === 'FirestoreError') {
+                  emit.fail(mappedError);
+                } else {
+                  // Convert UnknownException to FirestoreError
+                  emit.fail(FirestoreError.fromError(error as Error));
+                }
+              }
+            );
+          }),
+          (unsubscribe) => Effect.sync(() => unsubscribe())
+        )
+      ),
   })
 );
