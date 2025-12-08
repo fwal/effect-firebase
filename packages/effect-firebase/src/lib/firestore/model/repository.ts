@@ -6,6 +6,8 @@ import { ParseError } from 'effect/ParseResult';
 import { FirestoreError } from '../errors.js';
 import { Any } from './core.js';
 import * as Fetch from './fetch.js';
+import type { Query } from '../query/query.js';
+import type { QueryConstraint } from '../query/constraints.js';
 
 export type ModelError =
   | FirestoreError
@@ -118,10 +120,32 @@ export const makeRepository = <
         })
       );
 
+    const querySchema = Fetch.findAll({
+      Request: Schema.Array(Schema.Any),
+      Result: Model,
+      execute: (constraints: ReadonlyArray<unknown>) =>
+        firestore
+          .query(
+            options.collectionPath,
+            constraints as ReadonlyArray<QueryConstraint>
+          )
+          .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot))),
+    });
+
+    const query = (
+      constraints: Query<S>
+    ): Effect.Effect<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
+      querySchema(constraints as ReadonlyArray<unknown>).pipe(
+        Effect.withSpan(`${options.spanPrefix}.query`, {
+          captureStackTrace: false,
+        })
+      );
+
     return {
       add,
       update,
       findById,
       delete: deleteById,
+      query,
     };
   });

@@ -3,6 +3,7 @@ import { FirestoreError } from './errors.js';
 import { Snapshot } from './snapshot.js';
 import { UnknownException } from 'effect/Cause';
 import { Data } from './schema/data.js';
+import type { QueryConstraint } from './query/constraints.js';
 
 type FirestoreCRUD = {
   readonly get: (
@@ -32,7 +33,17 @@ type FirestoreCRUD = {
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
 };
 
-export type FirestoreServiceShape = FirestoreCRUD;
+type FirestoreQuery = {
+  readonly query: (
+    collectionPath: string,
+    constraints: ReadonlyArray<QueryConstraint>
+  ) => Effect.Effect<
+    ReadonlyArray<Snapshot>,
+    FirestoreError | UnknownException
+  >;
+};
+
+export type FirestoreServiceShape = FirestoreCRUD & FirestoreQuery;
 
 export class FirestoreService extends Context.Tag(
   '@effect-firebase/FirestoreService'

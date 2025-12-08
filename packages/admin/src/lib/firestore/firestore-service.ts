@@ -1,13 +1,15 @@
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Array as Arr, Option } from 'effect';
 import {
   FirestoreError,
   FirestoreService,
   packSnapshot,
 } from 'effect-firebase';
+import type { Snapshot } from 'effect-firebase';
 import { UnknownException } from 'effect/Cause';
 import { getFirestore } from 'firebase-admin/firestore';
 import { FirebaseError } from 'firebase/app';
-import { converter } from './converter.js';
+import { converter, fromFirestoreDocumentData } from './converter.js';
+import { buildQuery } from './query-builder.js';
 
 const mapError = (error: unknown) =>
   error instanceof FirebaseError
@@ -51,6 +53,25 @@ export const layer = Layer.succeed(
     remove: (path) =>
       Effect.tryPromise({
         try: () => getFirestore().doc(path).withConverter(converter).delete(),
+        catch: mapError,
+      }),
+    query: (collectionPath, constraints) =>
+      Effect.tryPromise({
+        try: async () => {
+          const query = buildQuery(collectionPath, constraints);
+          const snapshot = await query.get();
+          return Arr.filterMap(
+            snapshot.docs,
+            (doc): Option.Option<Snapshot> => {
+              const data = doc.data();
+              if (!data) return Option.none();
+              return Option.some([
+                { id: doc.id, path: doc.ref.path },
+                fromFirestoreDocumentData(data),
+              ]);
+            }
+          );
+        },
         catch: mapError,
       }),
   })

@@ -20,4 +20,5 @@ export const noopLayer = Layer.succeed(FirestoreService, {
   set: NotInitiallized,
   update: NotInitiallized,
   remove: NotInitiallized,
+  query: NotInitiallized,
 });
