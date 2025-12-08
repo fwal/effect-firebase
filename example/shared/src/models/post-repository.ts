@@ -10,7 +10,7 @@ export const PostRepository = Model.makeRepository(PostModel, {
   Effect.map((repository) => ({
     ...repository,
     // Additional methods can be added here
-    streamLatest: () =>
-      repository.streamQuery(Query.orderBy('createdAt', 'desc')),
+    latestPosts: () =>
+      repository.queryStream(Query.orderBy('createdAt', 'desc')),
   }))
 );

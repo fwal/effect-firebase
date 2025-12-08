@@ -1,5 +1,4 @@
 import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
-import { Query } from 'effect-firebase';
 import { layer as FirestoreLive } from '@effect-firebase/client';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema, Stream, Fiber, DateTime } from 'effect';
@@ -63,13 +62,11 @@ function RouteComponent() {
     if (!repo) return;
 
     // Subscribe to posts using Effect Stream
-    const program = Stream.runForEach(
-      repo.streamLatest(),
-      (postsArray) =>
-        Effect.sync(() => {
-          setPosts([...postsArray]);
-          setLoading(false);
-        })
+    const program = Stream.runForEach(repo.latestPosts(), (postsArray) =>
+      Effect.sync(() => {
+        setPosts([...postsArray]);
+        setLoading(false);
+      })
     ).pipe(
       Effect.catchAll((err) =>
         Effect.sync(() => {
