@@ -11,6 +11,7 @@ import { CloudFunction } from 'firebase-functions/v2';
 import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
+import { decodeDocumentData } from './decode-document-data.js';
 
 interface DocumentCreatedEffectOptions<
   R,
@@ -47,12 +48,11 @@ export function onDocumentCreatedEffect<
 
   return onDocumentCreated(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const rawData = event.data?.data();
-      const dataWithId = options.idField
-        ? { ...rawData, [options.idField]: event.data?.id }
-        : rawData;
-      const data = yield* Schema.decodeUnknown(schema)(dataWithId).pipe(
-        Effect.orDie
+      const data = yield* decodeDocumentData(
+        event.data?.data(),
+        event.data?.id,
+        schema,
+        options.idField
       );
       return yield* handler(data as Schema.Schema.Type<S>, event);
     });
@@ -97,12 +97,11 @@ export function onDocumentCreatedWithAuthContextEffect<
 
   return onDocumentCreatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const rawData = event.data?.data();
-      const dataWithId = options.idField
-        ? { ...rawData, [options.idField]: event.data?.id }
-        : rawData;
-      const data = yield* Schema.decodeUnknown(schema)(dataWithId).pipe(
-        Effect.orDie
+      const data = yield* decodeDocumentData(
+        event.data?.data(),
+        event.data?.id,
+        schema,
+        options.idField
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);
     });

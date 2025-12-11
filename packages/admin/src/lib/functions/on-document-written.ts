@@ -12,6 +12,7 @@ import { CloudFunction } from 'firebase-functions/v2';
 import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
+import { decodeDocumentData } from './decode-document-data.js';
 
 interface DocumentWrittenEffectOptions<
   R,
@@ -61,22 +62,23 @@ export function onDocumentWrittenEffect<
   return onDocumentWritten(options, async (event) => {
     const effect = Effect.gen(function* () {
       const docId = event.data?.after.id ?? event.data?.before.id;
-      const withId = (data: Record<string, unknown>) =>
-        options.idField ? { ...data, [options.idField]: docId } : data;
-      const decode = (data: Record<string, unknown>) =>
-        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
-      const beforeData = event.data?.before.data() as
-        | Record<string, unknown>
-        | undefined;
-      const afterData = event.data?.after.data() as
-        | Record<string, unknown>
-        | undefined;
+      const beforeData = event.data?.before.data();
+      const afterData = event.data?.after.data();
 
       const before = beforeData
-        ? Option.some(yield* decode(beforeData))
+        ? Option.some(
+            yield* decodeDocumentData(
+              beforeData,
+              docId,
+              schema,
+              options.idField
+            )
+          )
         : Option.none();
       const after = afterData
-        ? Option.some(yield* decode(afterData))
+        ? Option.some(
+            yield* decodeDocumentData(afterData, docId, schema, options.idField)
+          )
         : Option.none();
 
       return yield* handler(
@@ -129,22 +131,23 @@ export function onDocumentWrittenWithAuthContextEffect<
   return onDocumentWrittenWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
       const docId = event.data?.after.id ?? event.data?.before.id;
-      const withId = (data: Record<string, unknown>) =>
-        options.idField ? { ...data, [options.idField]: docId } : data;
-      const decode = (data: Record<string, unknown>) =>
-        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
-      const beforeData = event.data?.before.data() as
-        | Record<string, unknown>
-        | undefined;
-      const afterData = event.data?.after.data() as
-        | Record<string, unknown>
-        | undefined;
+      const beforeData = event.data?.before.data();
+      const afterData = event.data?.after.data();
 
       const before = beforeData
-        ? Option.some(yield* decode(beforeData))
+        ? Option.some(
+            yield* decodeDocumentData(
+              beforeData,
+              docId,
+              schema,
+              options.idField
+            )
+          )
         : Option.none();
       const after = afterData
-        ? Option.some(yield* decode(afterData))
+        ? Option.some(
+            yield* decodeDocumentData(afterData, docId, schema, options.idField)
+          )
         : Option.none();
 
       return yield* handler(event, {

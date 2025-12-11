@@ -12,6 +12,7 @@ import { CloudFunction } from 'firebase-functions/v2';
 import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
+import { decodeDocumentData } from './decode-document-data.js';
 
 interface DocumentUpdatedEffectOptions<
   R,
@@ -59,18 +60,21 @@ export function onDocumentUpdatedEffect<
 
   return onDocumentUpdated(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const withId = (data: Record<string, unknown>) =>
+      const docId = event.data?.before.id;
+
+      const before = decodeDocumentData(
+        event.data?.before.data(),
+        docId,
+        schema,
         options.idField
-          ? { ...data, [options.idField]: event.data?.before.id }
-          : data;
-      const decode = (data: Record<string, unknown>) =>
-        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
-      const before = yield* decode(
-        event.data?.before.data() as Record<string, unknown>
       );
-      const after = yield* decode(
-        event.data?.after.data() as Record<string, unknown>
+      const after = yield* decodeDocumentData(
+        event.data?.after.data(),
+        docId,
+        schema,
+        options.idField
       );
+
       return yield* handler(
         {
           before,
@@ -123,17 +127,18 @@ export function onDocumentUpdatedWithAuthContextEffect<
 
   return onDocumentUpdatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const withId = (data: Record<string, unknown>) =>
+      const docId = event.data?.before.id;
+      const before = yield* decodeDocumentData(
+        event.data?.before.data(),
+        docId,
+        schema,
         options.idField
-          ? { ...data, [options.idField]: event.data?.before.id }
-          : data;
-      const decode = (data: Record<string, unknown>) =>
-        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
-      const before = yield* decode(
-        event.data?.before.data() as Record<string, unknown>
       );
-      const after = yield* decode(
-        event.data?.after.data() as Record<string, unknown>
+      const after = yield* decodeDocumentData(
+        event.data?.after.data(),
+        docId,
+        schema,
+        options.idField
       );
       return yield* handler(event, {
         before,
