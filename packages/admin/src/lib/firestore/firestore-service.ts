@@ -7,16 +7,15 @@ import {
 import type { Snapshot } from 'effect-firebase';
 import { UnknownException } from 'effect/Cause';
 import { getFirestore } from 'firebase-admin/firestore';
-import { FirebaseError } from 'firebase/app';
 import { converter, fromFirestoreDocumentData } from './converter.js';
 import { buildQuery } from './query-builder.js';
 
 const packSnapshot = makeSnapshotPacker(fromFirestoreDocumentData);
 
 const mapError = (error: unknown) =>
-  error instanceof FirebaseError
+  error instanceof Error
     ? FirestoreError.fromError(error)
-    : new UnknownException(error as Error);
+    : new UnknownException(error);
 
 /**
  * Live Firestore service using the admin SDK.
