@@ -16,10 +16,12 @@ import { logger } from 'firebase-functions';
 interface DocumentUpdatedEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | Schema.Schema.Context<S>>;
   schema?: S;
+  idField?: IdField;
 }
 
 /**
@@ -39,15 +41,16 @@ export interface TypedChange<A> {
 export function onDocumentUpdatedEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentUpdatedEffectOptions<R, Document, S>,
+  options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
   handler: (
+    data: TypedChange<Schema.Schema.Type<S>>,
     event: FirestoreEvent<
       Change<QueryDocumentSnapshot> | undefined,
       ParamsOf<Document>
-    >,
-    data: TypedChange<Schema.Schema.Type<S>>
+    >
   ) => Effect.Effect<void, never, R>
 ): CloudFunction<
   FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, ParamsOf<Document>>
@@ -56,14 +59,25 @@ export function onDocumentUpdatedEffect<
 
   return onDocumentUpdated(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const decode = (data: unknown) =>
-        Schema.decodeUnknown(schema)(data).pipe(Effect.orDie);
-      const before = yield* decode(event.data?.before.data());
-      const after = yield* decode(event.data?.after.data());
-      return yield* handler(event, {
-        before,
-        after,
-      } as TypedChange<Schema.Schema.Type<S>>);
+      const withId = (data: Record<string, unknown>) =>
+        options.idField
+          ? { ...data, [options.idField]: event.data?.before.id }
+          : data;
+      const decode = (data: Record<string, unknown>) =>
+        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
+      const before = yield* decode(
+        event.data?.before.data() as Record<string, unknown>
+      );
+      const after = yield* decode(
+        event.data?.after.data() as Record<string, unknown>
+      );
+      return yield* handler(
+        {
+          before,
+          after,
+        } as TypedChange<Schema.Schema.Type<S>>,
+        event
+      );
     });
 
     await run(
@@ -88,9 +102,10 @@ export function onDocumentUpdatedEffect<
 export function onDocumentUpdatedWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentUpdatedEffectOptions<R, Document, S>,
+  options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
   handler: (
     event: FirestoreAuthEvent<
       Change<QueryDocumentSnapshot> | undefined,
@@ -108,10 +123,18 @@ export function onDocumentUpdatedWithAuthContextEffect<
 
   return onDocumentUpdatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const decode = (data: unknown) =>
-        Schema.decodeUnknown(schema)(data).pipe(Effect.orDie);
-      const before = yield* decode(event.data?.before.data());
-      const after = yield* decode(event.data?.after.data());
+      const withId = (data: Record<string, unknown>) =>
+        options.idField
+          ? { ...data, [options.idField]: event.data?.before.id }
+          : data;
+      const decode = (data: Record<string, unknown>) =>
+        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
+      const before = yield* decode(
+        event.data?.before.data() as Record<string, unknown>
+      );
+      const after = yield* decode(
+        event.data?.after.data() as Record<string, unknown>
+      );
       return yield* handler(event, {
         before,
         after,

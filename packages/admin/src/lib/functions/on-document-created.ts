@@ -15,10 +15,12 @@ import { logger } from 'firebase-functions';
 interface DocumentCreatedEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | Schema.Schema.Context<S>>;
   schema?: S;
+  idField?: IdField;
 }
 
 /**
@@ -30,15 +32,13 @@ interface DocumentCreatedEffectOptions<
 export function onDocumentCreatedEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentCreatedEffectOptions<R, Document, S>,
+  options: DocumentCreatedEffectOptions<R, Document, S, IdField>,
   handler: (
-    event: FirestoreEvent<
-      QueryDocumentSnapshot | undefined,
-      ParamsOf<Document>
-    >,
-    data: Schema.Schema.Type<S>
+    data: Schema.Schema.Type<S>,
+    event: FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>
   ) => Effect.Effect<void, never, R>
 ): CloudFunction<
   FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>
@@ -48,10 +48,13 @@ export function onDocumentCreatedEffect<
   return onDocumentCreated(options, async (event) => {
     const effect = Effect.gen(function* () {
       const rawData = event.data?.data();
-      const data = yield* Schema.decodeUnknown(schema)(rawData).pipe(
+      const dataWithId = options.idField
+        ? { ...rawData, [options.idField]: event.data?.id }
+        : rawData;
+      const data = yield* Schema.decodeUnknown(schema)(dataWithId).pipe(
         Effect.orDie
       );
-      return yield* handler(event, data as Schema.Schema.Type<S>);
+      return yield* handler(data as Schema.Schema.Type<S>, event);
     });
 
     await run(
@@ -76,9 +79,10 @@ export function onDocumentCreatedEffect<
 export function onDocumentCreatedWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentCreatedEffectOptions<R, Document, S>,
+  options: DocumentCreatedEffectOptions<R, Document, S, IdField>,
   handler: (
     event: FirestoreAuthEvent<
       QueryDocumentSnapshot | undefined,
@@ -94,7 +98,10 @@ export function onDocumentCreatedWithAuthContextEffect<
   return onDocumentCreatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
       const rawData = event.data?.data();
-      const data = yield* Schema.decodeUnknown(schema)(rawData).pipe(
+      const dataWithId = options.idField
+        ? { ...rawData, [options.idField]: event.data?.id }
+        : rawData;
+      const data = yield* Schema.decodeUnknown(schema)(dataWithId).pipe(
         Effect.orDie
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);

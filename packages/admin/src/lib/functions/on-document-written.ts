@@ -16,10 +16,12 @@ import { logger } from 'firebase-functions';
 interface DocumentWrittenEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | Schema.Schema.Context<S>>;
   schema?: S;
+  idField?: IdField;
 }
 
 /**
@@ -40,15 +42,16 @@ export interface TypedWrittenChange<A> {
 export function onDocumentWrittenEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentWrittenEffectOptions<R, Document, S>,
+  options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
   handler: (
+    data: TypedWrittenChange<Schema.Schema.Type<S>>,
     event: FirestoreEvent<
       Change<DocumentSnapshot> | undefined,
       ParamsOf<Document>
-    >,
-    data: TypedWrittenChange<Schema.Schema.Type<S>>
+    >
   ) => Effect.Effect<void, never, R>
 ): CloudFunction<
   FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>
@@ -57,10 +60,17 @@ export function onDocumentWrittenEffect<
 
   return onDocumentWritten(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const decode = (data: unknown) =>
-        Schema.decodeUnknown(schema)(data).pipe(Effect.orDie);
-      const beforeData = event.data?.before.data();
-      const afterData = event.data?.after.data();
+      const docId = event.data?.after.id ?? event.data?.before.id;
+      const withId = (data: Record<string, unknown>) =>
+        options.idField ? { ...data, [options.idField]: docId } : data;
+      const decode = (data: Record<string, unknown>) =>
+        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
+      const beforeData = event.data?.before.data() as
+        | Record<string, unknown>
+        | undefined;
+      const afterData = event.data?.after.data() as
+        | Record<string, unknown>
+        | undefined;
 
       const before = beforeData
         ? Option.some(yield* decode(beforeData))
@@ -69,10 +79,13 @@ export function onDocumentWrittenEffect<
         ? Option.some(yield* decode(afterData))
         : Option.none();
 
-      return yield* handler(event, {
-        before,
-        after,
-      } as TypedWrittenChange<Schema.Schema.Type<S>>);
+      return yield* handler(
+        {
+          before,
+          after,
+        } as TypedWrittenChange<Schema.Schema.Type<S>>,
+        event
+      );
     });
 
     await run(
@@ -97,9 +110,10 @@ export function onDocumentWrittenEffect<
 export function onDocumentWrittenWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>
+  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
-  options: DocumentWrittenEffectOptions<R, Document, S>,
+  options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
   handler: (
     event: FirestoreAuthEvent<
       Change<DocumentSnapshot> | undefined,
@@ -114,10 +128,17 @@ export function onDocumentWrittenWithAuthContextEffect<
 
   return onDocumentWrittenWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
-      const decode = (data: unknown) =>
-        Schema.decodeUnknown(schema)(data).pipe(Effect.orDie);
-      const beforeData = event.data?.before.data();
-      const afterData = event.data?.after.data();
+      const docId = event.data?.after.id ?? event.data?.before.id;
+      const withId = (data: Record<string, unknown>) =>
+        options.idField ? { ...data, [options.idField]: docId } : data;
+      const decode = (data: Record<string, unknown>) =>
+        Schema.decodeUnknown(schema)(withId(data)).pipe(Effect.orDie);
+      const beforeData = event.data?.before.data() as
+        | Record<string, unknown>
+        | undefined;
+      const afterData = event.data?.after.data() as
+        | Record<string, unknown>
+        | undefined;
 
       const before = beforeData
         ? Option.some(yield* decode(beforeData))
