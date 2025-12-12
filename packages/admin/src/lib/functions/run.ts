@@ -16,7 +16,6 @@ export async function run<A, R>(
 ): Promise<A> {
   const runner = typeof runtime === 'function' ? runtime() : runtime;
   const result = await runner.runPromise(effect);
-  await runner.dispose();
   return result;
 }
 
