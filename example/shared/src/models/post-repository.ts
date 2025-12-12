@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 
 export const PostRepository = Model.makeRepository(PostModel, {
   collectionPath: 'posts',
-  idField: 'id',
+  idField: PostModel.idField,
   spanPrefix: 'example.PostRepository',
 }).pipe(
   Effect.map((repository) => ({

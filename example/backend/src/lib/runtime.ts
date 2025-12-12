@@ -1,3 +1,3 @@
-import { Admin, makeRuntime } from '@effect-firebase/admin';
+import { FunctionsRuntime } from '@effect-firebase/admin';
 
-export const runtime = () => makeRuntime(Admin.layer);
+export const runtime = FunctionsRuntime.Default();

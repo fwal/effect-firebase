@@ -65,7 +65,6 @@
     "deploy": {
       "executor": "nx:run-commands",
       "dependsOn": ["build", "prune-lockfile", "copy-workspace-modules"],
-      "continuous": true,
       "options": {
         "cwd": "{workspaceRoot}/example",
         "tty": false,
