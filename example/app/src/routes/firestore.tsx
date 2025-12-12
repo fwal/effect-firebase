@@ -92,14 +92,11 @@ function RouteComponent() {
     setSubmitting(true);
     try {
       if (editingId) {
-        const updateEffect = repo.update({
-          id: PostId.make(editingId),
-          author: AuthorId.make('1'),
+        const updateEffect = repo.update(PostId.make(editingId), {
           title,
           content,
-          updatedAt: undefined,
         });
-        await Effect.runPromise(updateEffect as any);
+        await Effect.runPromise(updateEffect as Effect.Effect<void>);
         setEditingId(null);
       } else {
         const createEffect = repo.add({
