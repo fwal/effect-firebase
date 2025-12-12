@@ -94,17 +94,33 @@ export const makeRepository = <
         })
       );
 
+    // Create schema for update: required id + partial data fields (all optional)
+    const PartialDataSchema = (
+      Model.update as Schema.Struct<Schema.Struct.Fields>
+    ).pipe(Schema.omit(options.idField as string), Schema.partial);
+
+    const updateFieldsSchema = Schema.extend(
+      Schema.Struct({ [options.idField]: idSchema }),
+      PartialDataSchema
+    );
+
     const updateSchema = Fetch.void({
-      Request: Model.update,
-      execute: ({ [options.idField]: _id, ...data }: S['update']['Type']) =>
-        firestore.update(`${options.collectionPath}/${_id}`, data),
+      Request: updateFieldsSchema,
+      execute: ({ [options.idField]: id, ...data }) =>
+        firestore.update(`${options.collectionPath}/${id}`, data),
     });
 
-    const update = (data: S['update']['Type']) =>
-      updateSchema(data).pipe(
+    const update = (
+      id: Schema.Schema.Type<IdSchema>,
+      data: Partial<Omit<S['update']['Type'], Id>>
+    ): Effect.Effect<void, ModelError, S['Context'] | S['update']['Context']> =>
+      updateSchema({
+        [options.idField]: id,
+        ...data,
+      }).pipe(
         Effect.withSpan(`${options.spanPrefix}.update`, {
           captureStackTrace: false,
-          attributes: { data },
+          attributes: { id, data },
         })
       );
 
@@ -221,7 +237,8 @@ export const makeRepository = <
 
       /**
        * Update a document model.
-       * @param data - The data to update the document model with.
+       * @param id - The ID of the document model to update.
+       * @param data - The partial data to update the document model with. All fields are optional.
        * @returns A unit value.
        */
       update,
