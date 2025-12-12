@@ -26,7 +26,7 @@ export const layer = Layer.succeed(
     get: (path, options) =>
       Effect.tryPromise({
         try: () => getFirestore().doc(path).get(),
-        catch: mapError,
+        catch: (error) => mapError(error),
       }).pipe(Effect.map((snapshot) => packSnapshot(snapshot, options))),
     add: (path, data) =>
       Effect.tryPromise({
@@ -37,7 +37,7 @@ export const layer = Layer.succeed(
             .add(data);
           return { id: ref.id, path: ref.path };
         },
-        catch: mapError,
+        catch: (error) => mapError(error),
       }),
     set: (path, data, options) =>
       Effect.tryPromise({
@@ -46,18 +46,17 @@ export const layer = Layer.succeed(
             .doc(path)
             .withConverter(converter)
             .set(data, options || {}),
-        catch: mapError,
+        catch: (error) => mapError(error),
       }),
     update: (path, data) =>
       Effect.tryPromise({
-        try: () =>
-          getFirestore().doc(path).withConverter(converter).update(data),
-        catch: mapError,
+        try: () => getFirestore().doc(path).update(converter.toFirestore(data)),
+        catch: (error) => mapError(error),
       }),
     remove: (path) =>
       Effect.tryPromise({
         try: () => getFirestore().doc(path).withConverter(converter).delete(),
-        catch: mapError,
+        catch: (error) => mapError(error),
       }),
     query: (collectionPath, constraints) =>
       Effect.tryPromise({
@@ -69,7 +68,7 @@ export const layer = Layer.succeed(
             (doc): Option.Option<Snapshot> => packSnapshot(doc)
           );
         },
-        catch: mapError,
+        catch: (error) => mapError(error),
       }),
     streamDoc: (path, options) =>
       Stream.asyncScoped<Option.Option<Snapshot>, FirestoreError>((emit) =>

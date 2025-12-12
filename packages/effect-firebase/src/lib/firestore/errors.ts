@@ -11,36 +11,23 @@ export class NotFoundError extends Data.TaggedError('NotFoundError')<{
   path: string;
 }> {}
 
+interface MaybeError {
+  code?: unknown;
+  name?: unknown;
+  message?: unknown;
+}
+
 export class FirestoreError extends Data.TaggedError('FirestoreError')<{
   code: string;
   name: string;
   message: string;
 }> {
   static fromError(error: unknown): FirestoreError {
-    if (
-      error instanceof Object &&
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      typeof error.code === 'string' &&
-      'name' in error &&
-      typeof error.name === 'string' &&
-      'message' in error &&
-      typeof error.message === 'string'
-    ) {
-      return new FirestoreError({
-        code: error.code,
-        name: error.name,
-        message: error.message,
-      });
-    }
-    return FirestoreError.unknown();
-  }
-  static unknown(): FirestoreError {
+    const maybeError = error as MaybeError;
     return new FirestoreError({
-      code: 'unknown',
-      name: 'UnknownError',
-      message: 'Unknown error',
+      code: maybeError.code?.toString() ?? 'unknown',
+      name: maybeError.name?.toString() ?? 'UnknownError',
+      message: maybeError.message?.toString() ?? String(error),
     });
   }
 }

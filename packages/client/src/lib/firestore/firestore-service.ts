@@ -27,7 +27,7 @@ export const layer = Layer.succeed(FirestoreService, {
   get: (path, options) =>
     Effect.tryPromise({
       try: () => getDoc(doc(getFirestore(), path)),
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }).pipe(
       Effect.map((snapshot) => {
         const data = snapshot.data(dataOptions(options));
@@ -42,7 +42,7 @@ export const layer = Layer.succeed(FirestoreService, {
     Effect.tryPromise({
       try: () =>
         addDoc(collection(getFirestore(), path).withConverter(converter), data),
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }).pipe(Effect.map((ref) => ({ id: ref.id, path: ref.path }))),
   set: (path, data, options) =>
     Effect.tryPromise({
@@ -50,18 +50,18 @@ export const layer = Layer.succeed(FirestoreService, {
         setDoc(doc(getFirestore(), path).withConverter(converter), data, {
           merge: options?.merge,
         }),
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }),
   update: (path, data) =>
     Effect.tryPromise({
       try: () =>
         updateDoc(doc(getFirestore(), path), converter.toFirestore(data)),
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }),
   remove: (path) =>
     Effect.tryPromise({
       try: () => deleteDoc(doc(getFirestore(), path).withConverter(converter)),
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }),
   query: (collectionPath, constraints) =>
     Effect.tryPromise({
@@ -77,7 +77,7 @@ export const layer = Layer.succeed(FirestoreService, {
           ]);
         });
       },
-      catch: FirestoreError.fromError,
+      catch: (error) => FirestoreError.fromError(error),
     }),
   streamDoc: (path, options) =>
     Stream.asyncScoped<Option.Option<Snapshot>, FirestoreError>((emit) =>
