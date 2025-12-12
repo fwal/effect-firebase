@@ -28,7 +28,7 @@ export function onRequestEffect<R>(
 ): HttpsFunction {
   return onRequest(options, async (request, response) => {
     await run(options.runtime, handler(request, response)).catch((error) => {
-      logger.error('Unrecoverable error', {
+      logger.error('Defect in onRequest', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });

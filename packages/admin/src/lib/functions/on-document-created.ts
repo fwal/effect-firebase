@@ -61,7 +61,7 @@ export function onDocumentCreatedEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
     ).catch((error) => {
-      logger.error('Unrecoverable error in onDocumentCreated', {
+      logger.error('Defect in onDocumentCreated', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -110,7 +110,7 @@ export function onDocumentCreatedWithAuthContextEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
     ).catch((error) => {
-      logger.error('Unrecoverable error in onDocumentCreatedWithAuthContext', {
+      logger.error('Defect in onDocumentCreatedWithAuthContext', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });

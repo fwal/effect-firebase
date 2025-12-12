@@ -61,7 +61,7 @@ export function onDocumentDeletedEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
     ).catch((error) => {
-      logger.error('Unrecoverable error in onDocumentDeleted', {
+      logger.error('Defect in onDocumentDeleted', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -110,7 +110,7 @@ export function onDocumentDeletedWithAuthContextEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
     ).catch((error) => {
-      logger.error('Unrecoverable error in onDocumentDeletedWithAuthContext', {
+      logger.error('Defect in onDocumentDeletedWithAuthContext', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });

@@ -31,7 +31,7 @@ export function onCallEffect<R, T>(
   return onCall(options, async (request, response) => {
     return await run(options.runtime, handler(request, response)).catch(
       (error) => {
-        logger.error('Unrecoverable error', {
+        logger.error('Defect in onCall', {
           inner: error,
           stack: error instanceof Error ? error.stack : undefined,
         });
