@@ -15,8 +15,7 @@ export async function run<A, R>(
   effect: Effect.Effect<A, never, R>
 ): Promise<A> {
   const runner = typeof runtime === 'function' ? runtime() : runtime;
-  const result = await runner.runPromise(effect);
-  return result;
+  return await runner.runPromise(effect);
 }
 
 /**
