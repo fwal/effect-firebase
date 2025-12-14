@@ -8,9 +8,9 @@
   "types": "./main.d.ts",
   "engines": {
     "node": "22",
-    "pnpm": "10.14.0"
+    "pnpm": "10.25.0"
   },
-  "packageManager": "pnpm@10.14.0",
+  "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "effect": "^3.19.8",
     "firebase-admin": "^13.4.0",
