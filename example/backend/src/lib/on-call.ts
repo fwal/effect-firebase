@@ -2,7 +2,6 @@ import { onCallEffect } from '@effect-firebase/admin';
 import { Effect, Option } from 'effect';
 import { runtime } from './runtime.js';
 import { OnExampleCall, PostRepository } from '@example/shared';
-import { SerializeError } from './error-handler.js';
 
 /**
  * Example using onCallEffect with schemas.
