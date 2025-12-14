@@ -105,6 +105,7 @@ function RouteComponent() {
           author: AuthorId.make('1'),
           createdAt: undefined,
           updatedAt: undefined,
+          checked: false,
         });
         await Effect.runPromise(createEffect).catch((err) => {
           console.error('Failed to create post:', err);
@@ -241,6 +242,7 @@ function RouteComponent() {
                       • {formatDateTime(post.createdAt)}
                     </span>
                   )}
+                  {post.checked && <span className="ml-2">• Checked</span>}
                 </div>
               </CardContent>
             </Card>

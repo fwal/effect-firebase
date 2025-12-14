@@ -1,34 +1,25 @@
 import { onCallEffect } from '@effect-firebase/admin';
-import { Effect, Option, Schema, pipe } from 'effect';
+import { Effect, Option } from 'effect';
 import { runtime } from './runtime.js';
 import { OnExampleCall, PostRepository } from '@example/shared';
 import { SerializeError } from './error-handler.js';
-import { CallableRequest } from 'firebase-functions/https';
 
+/**
+ * Example using onCallEffect with schemas.
+ * This is the simple approach - schemas handle decoding/encoding automatically.
+ */
 export const onExampleCall = onCallEffect(
   {
     region: 'europe-north1',
     cors: true,
     runtime,
+    inputSchema: OnExampleCall.Input,
+    outputSchema: OnExampleCall.Output,
   },
-  (request) =>
-    pipe(
-      request,
-      parseInput,
-      Effect.andThen(fetchPost),
-      Effect.andThen(serializeOutput),
-      SerializeError
-    )
+  (input) =>
+    Effect.gen(function* () {
+      const posts = yield* PostRepository;
+      const post = yield* posts.getById(input.id);
+      return Option.getOrThrow(post);
+    })
 );
-
-const parseInput = (request: CallableRequest) =>
-  Schema.decodeUnknown(OnExampleCall.Input)(request.data);
-
-const fetchPost = (input: typeof OnExampleCall.Input.Type) =>
-  Effect.gen(function* () {
-    const posts = yield* PostRepository;
-    const post = yield* posts.getById(input.id);
-    return Option.getOrThrow(post);
-  });
-
-const serializeOutput = Schema.encodeUnknown(OnExampleCall.Output);

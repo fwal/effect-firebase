@@ -1,9 +1,9 @@
-import { onDocumentUpdatedEffect } from '@effect-firebase/admin';
+import { onDocumentCreatedEffect } from '@effect-firebase/admin';
 import { Effect } from 'effect';
-import { PostModel } from '@example/shared';
+import { PostModel, PostRepository } from '@example/shared';
 import { runtime } from './runtime.js';
 
-export const onPostUpdated = onDocumentUpdatedEffect(
+export const onPostCreated = onDocumentCreatedEffect(
   {
     region: 'europe-north1',
     runtime: runtime,
@@ -11,9 +11,10 @@ export const onPostUpdated = onDocumentUpdatedEffect(
     schema: PostModel,
     idField: PostModel.idField,
   },
-  ({ after }) =>
+  (post) =>
     Effect.gen(function* () {
-      const post = after;
-      yield* Effect.log(`Post updated: ${post.id}`);
-    }).pipe(Effect.withLogSpan('runtime'))
+      yield* Effect.log(`Post updated, setting check for: ${post.id}`);
+      const repo = yield* PostRepository;
+      yield* repo.update(post.id, { checked: true });
+    }).pipe(Effect.withLogSpan('runtime'), Effect.catchAll(Effect.logError))
 );

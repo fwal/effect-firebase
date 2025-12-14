@@ -12,6 +12,7 @@ export class PostModel extends Model.Class<PostModel>('PostModel')({
   author: AuthorRef,
   title: Schema.String,
   content: Schema.String,
+  checked: Schema.Boolean,
 }) {
   static idField = 'id' as const;
 }
