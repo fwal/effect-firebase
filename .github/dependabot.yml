@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+
+    # Ignore dependencies managed by Nx - use nx migrate or vscode extension to update
+    ignore:
+      - dependency-name: 'nx'
+      - dependency-name: '@nx/*'
+      - dependency-name: 'eslint'
+      - dependency-name: '@eslint/*'
+      - dependency-name: 'typescript-eslint'
+      - dependency-name: '@typescript-eslint/*'
+      - dependency-name: 'vite'
+
+    groups:
+      # Combine all minor and patch updates in one PR
+      bump:
+        update-types:
+          - patch
+          - minor
+
+    # Update github actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      actions:
+        patterns:
+          - '*'
