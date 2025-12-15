@@ -1,28 +1,25 @@
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { onRequestEffect } from '@effect-firebase/admin';
-import { PostId, PostRepository } from '@example/shared';
+import { OnExampleRequest, PostId, PostRepository } from '@example/shared';
 import { runtime } from './runtime.js';
-import { SerializeError } from './error-handler.js';
 
+/**
+ * Example using onRequestEffect with schemas.
+ * Body is parsed and response is encoded automatically.
+ */
 export const onExampleRequest = onRequestEffect(
   {
     region: 'europe-north1',
     cors: true,
     runtime,
+    bodySchema: OnExampleRequest.Input,
+    responseSchema: OnExampleRequest.Output,
   },
-  (_, response) =>
+  (body) =>
     Effect.gen(function* () {
       const posts = yield* PostRepository;
-      const id = PostId.make('123');
+      const id = PostId.make(body.id);
       const post = yield* posts.getById(id);
-      response.status(200).json(post);
-    }).pipe(
-      SerializeError,
-      Effect.map((result) => {
-        if (!result) return;
-        response
-          .status(result.error.tag === 'NoSuchElementException' ? 404 : 500)
-          .json(result.error);
-      })
-    )
+      return Option.getOrThrow(post);
+    })
 );
