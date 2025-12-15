@@ -29,12 +29,12 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^3.19.8",
-    "@effect/experimental": "^0.57.10"
+    "effect": "^3.19.12",
+    "@effect/experimental": "^0.57.11"
   },
   "peerDependencies": {
-    "effect": "^3.19.8",
-    "@effect/experimental": "^0.57.10"
+    "effect": "^3.19.12",
+    "@effect/experimental": "^0.57.11"
   },
   "publishConfig": {
     "access": "public",
