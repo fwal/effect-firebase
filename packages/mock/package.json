@@ -31,11 +31,11 @@
     "vite": "^7.0.0"
   },
   "devDependencies": {
-    "effect": "^3.19.8",
+    "effect": "^3.19.13",
     "effect-firebase": "workspace:*"
   },
   "peerDependencies": {
-    "effect": "^3.19.8",
+    "effect": "^3.19.13",
     "effect-firebase": "workspace:*"
   },
   "publishConfig": {
