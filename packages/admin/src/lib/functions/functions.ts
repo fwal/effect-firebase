@@ -6,3 +6,4 @@ export * from './on-document-created.js';
 export * from './on-document-updated.js';
 export * from './on-document-deleted.js';
 export * from './on-document-written.js';
+export * from './on-message-published.js';
