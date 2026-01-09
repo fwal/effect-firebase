@@ -115,7 +115,7 @@ const program = Effect.gen(function* () {
   const postId = yield* repo.add({
     title: 'Hello Effect Firebase',
     content: 'Building type-safe apps',
-    author: 'author-123' as AuthorId,
+    author: AuthorId.make('author-123'),
     status: 'published',
     likes: 0,
   });
