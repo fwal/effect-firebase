@@ -11,10 +11,10 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "effect": "^3.19.8",
-    "firebase": "^12.0.0",
+    "effect": "^3.19.15",
+    "firebase": "^12.8.0",
     "tailwind-merge": "^2.5.5",
-    "react": "19.0.0",
+    "react": "19.2.3",
     "@nx/react": "22.1.0"
   },
   "devDependencies": {
