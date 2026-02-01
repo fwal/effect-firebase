@@ -14,7 +14,7 @@
   "dependencies": {
     "effect": "^3.19.8",
     "firebase-admin": "^13.4.0",
-    "firebase-functions": "^6.4.0",
+    "firebase-functions": "^7.0.1",
     "@google-cloud/functions-framework": "^4.0.0",
     "effect-firebase": "workspace:*",
     "@effect-firebase/admin": "workspace:*",
