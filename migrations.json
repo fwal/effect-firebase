@@ -24,6 +24,25 @@
       "subject": "chore: Bump effect and firebase"
     },
     "targetVersion": "latest",
-    "confirmedPackageUpdates": true
+    "confirmedPackageUpdates": true,
+    "runningMigrations": [
+      "update-22-2-0"
+    ],
+    "completedMigrations": {
+      "update-22-2-0": {
+        "type": "successful",
+        "name": "update-22-2-0",
+        "changedFiles": [
+          {
+            "path": "tools/ai-migrations/MIGRATE_VITEST_4.md",
+            "type": "CREATE"
+          }
+        ],
+        "ref": "3bf91c9767d3aebc05856dc032805f260526d43e",
+        "nextSteps": [
+          "We created 'tools/ai-migrations/MIGRATE_VITEST_4.md' with instructions for an AI Agent to help migrate your Vitest projects to Vitest 4."
+        ]
+      }
+    }
   }
 }
