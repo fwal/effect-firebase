@@ -12,15 +12,15 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
-    "effect": "^3.19.8",
-    "firebase-admin": "^13.4.0",
-    "firebase-functions": "^6.4.0",
-    "@google-cloud/functions-framework": "^4.0.0",
+    "effect": "^3.19.15",
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.5",
+    "@google-cloud/functions-framework": "^5.0.0",
     "effect-firebase": "workspace:*",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
   },
   "devDependencies": {
-    "@effect/experimental": "^0.57.10"
+    "@effect/experimental": "^0.58.0"
   }
 }
