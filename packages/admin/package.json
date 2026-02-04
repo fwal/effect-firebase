@@ -29,7 +29,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.16",
     "effect-firebase": "workspace:*",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
@@ -37,7 +37,7 @@
     "express": "4.21.2"
   },
   "peerDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.16",
     "effect-firebase": "workspace:*",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
