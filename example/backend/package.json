@@ -12,10 +12,10 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
-    "effect": "^3.19.15",
-    "firebase-admin": "^13.6.0",
+    "effect": "^3.19.16",
+    "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.0.5",
-    "@google-cloud/functions-framework": "^5.0.0",
+    "@google-cloud/functions-framework": "^5.0.1",
     "effect-firebase": "workspace:*",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
