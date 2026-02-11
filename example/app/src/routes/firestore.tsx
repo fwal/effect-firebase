@@ -1,5 +1,5 @@
 import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
-import { layer as FirestoreLive } from '@effect-firebase/client';
+import { Firestore } from '@effect-firebase/client';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema, Stream, Fiber, DateTime } from 'effect';
 import { useEffect, useState } from 'react';
@@ -48,7 +48,7 @@ function RouteComponent() {
 
   useEffect(() => {
     // Initialize repository
-    const makeRepo = PostRepository.pipe(Effect.provide(FirestoreLive));
+    const makeRepo = PostRepository.pipe(Effect.provide(Firestore.layer));
 
     Effect.runPromise(makeRepo)
       .then((r) => setRepo(r))
