@@ -1,5 +1,6 @@
 import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
 import { Firestore } from '@effect-firebase/client';
+import { getApp } from 'firebase/app';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema, Stream, Fiber, DateTime } from 'effect';
 import { useEffect, useState } from 'react';
@@ -48,7 +49,9 @@ function RouteComponent() {
 
   useEffect(() => {
     // Initialize repository
-    const makeRepo = PostRepository.pipe(Effect.provide(Firestore.layer));
+    const makeRepo = PostRepository.pipe(
+      Effect.provide(Firestore.layerFromApp(getApp()))
+    );
 
     Effect.runPromise(makeRepo)
       .then((r) => setRepo(r))
@@ -141,7 +144,7 @@ function RouteComponent() {
 
     try {
       const deleteEffect = repo.delete(id as Schema.Schema.Type<typeof PostId>);
-      await Effect.runPromise(deleteEffect as any);
+      await Effect.runPromise(deleteEffect as Effect.Effect<void>);
     } catch (err) {
       console.error('Failed to delete post:', err);
       setError('Failed to delete post');

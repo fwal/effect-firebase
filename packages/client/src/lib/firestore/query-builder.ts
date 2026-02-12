@@ -1,5 +1,4 @@
 import {
-  getFirestore,
   collection,
   query,
   where,
@@ -17,6 +16,7 @@ import {
   QueryFilterConstraint,
   QueryCompositeFilterConstraint,
   DocumentData,
+  Firestore,
 } from 'firebase/firestore';
 import type { QueryConstraint } from 'effect-firebase';
 import { toFirestoreDocumentData } from './converter.js';
@@ -24,13 +24,14 @@ import { toFirestoreDocumentData } from './converter.js';
 /**
  * Helper to convert unknown value to DocumentData for Firestore.
  */
-const convertValue = (value: unknown): unknown =>
-  toFirestoreDocumentData(value as DocumentData);
+const convertValue = (db: Firestore, value: unknown): unknown =>
+  toFirestoreDocumentData(db, value as DocumentData);
 
 /**
  * Convert a single query constraint to Firebase Client SDK query constraint.
  */
 const toFirebaseConstraint = (
+  db: Firestore,
   constraint: QueryConstraint
 ): FirebaseQueryConstraint | QueryCompositeFilterConstraint => {
   switch (constraint._tag) {
@@ -38,7 +39,7 @@ const toFirebaseConstraint = (
       return where(
         constraint.field,
         constraint.op,
-        convertValue(constraint.value)
+        convertValue(db, constraint.value)
       );
     case 'OrderBy':
       return orderBy(constraint.field, constraint.direction);
@@ -47,17 +48,29 @@ const toFirebaseConstraint = (
     case 'LimitToLast':
       return limitToLast(constraint.count);
     case 'StartAt':
-      return startAt(...constraint.values.map(convertValue));
+      return startAt(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'StartAfter':
-      return startAfter(...constraint.values.map(convertValue));
+      return startAfter(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'EndAt':
-      return endAt(...constraint.values.map(convertValue));
+      return endAt(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'EndBefore':
-      return endBefore(...constraint.values.map(convertValue));
+      return endBefore(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'And':
-      return and(...constraint.constraints.map(toFilterConstraint));
+      return and(
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+      );
     case 'Or':
-      return or(...constraint.constraints.map(toFilterConstraint));
+      return or(
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+      );
   }
 };
 
@@ -65,6 +78,7 @@ const toFirebaseConstraint = (
  * Convert a constraint to a filter constraint (for use in and/or).
  */
 const toFilterConstraint = (
+  db: Firestore,
   constraint: QueryConstraint
 ): QueryFilterConstraint => {
   switch (constraint._tag) {
@@ -72,12 +86,16 @@ const toFilterConstraint = (
       return where(
         constraint.field,
         constraint.op,
-        convertValue(constraint.value)
+        convertValue(db, constraint.value)
       );
     case 'And':
-      return and(...constraint.constraints.map(toFilterConstraint));
+      return and(
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+      );
     case 'Or':
-      return or(...constraint.constraints.map(toFilterConstraint));
+      return or(
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+      );
     default:
       throw new Error(
         `Cannot use ${constraint._tag} inside AND/OR composite filters`
@@ -89,11 +107,14 @@ const toFilterConstraint = (
  * Build a Firebase Client SDK query from a collection path and constraints.
  */
 export const buildQuery = (
+  db: Firestore,
   collectionPath: string,
   constraints: ReadonlyArray<QueryConstraint>
 ): Query => {
-  const collectionRef = collection(getFirestore(), collectionPath);
-  const firebaseConstraints = constraints.map(toFirebaseConstraint);
+  const collectionRef = collection(db, collectionPath);
+  const firebaseConstraints = constraints.map((constraint) =>
+    toFirebaseConstraint(db, constraint)
+  );
   // Cast is safe - QueryCompositeFilterConstraint can be used in query()
   return query(
     collectionRef,

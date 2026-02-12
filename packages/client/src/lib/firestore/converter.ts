@@ -3,15 +3,18 @@ import {
   DocumentData,
   DocumentReference,
   FieldValue,
+  Firestore,
   FirestoreDataConverter,
   GeoPoint,
-  getFirestore,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
 import { FirestoreSchema } from 'effect-firebase';
 
-export const toFirestoreDocumentData = (data: DocumentData): DocumentData => {
+export const toFirestoreDocumentData = (
+  db: Firestore,
+  data: DocumentData
+): DocumentData => {
   if (
     data === null ||
     data instanceof Timestamp ||
@@ -29,18 +32,18 @@ export const toFirestoreDocumentData = (data: DocumentData): DocumentData => {
     return new GeoPoint(data.latitude, data.longitude);
   }
   if (data instanceof FirestoreSchema.Reference) {
-    return doc(getFirestore(), data.path);
+    return doc(db, data.path);
   }
   if (data instanceof FirestoreSchema.ServerTimestamp) {
     return serverTimestamp();
   }
   if (Array.isArray(data)) {
-    return data.map(toFirestoreDocumentData);
+    return data.map((item) => toFirestoreDocumentData(db, item));
   }
   if (typeof data === 'object' && data !== null) {
     // If it's already a Firebase type, leave it alone (optimization)
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, toFirestoreDocumentData(v)])
+      Object.entries(data).map(([k, v]) => [k, toFirestoreDocumentData(db, v)])
     );
   }
 
@@ -71,7 +74,9 @@ export const fromFirestoreDocumentData = (data: DocumentData): DocumentData => {
   return data;
 };
 
-export const converter: FirestoreDataConverter<DocumentData, DocumentData> = {
-  toFirestore: (modelObject) => toFirestoreDocumentData(modelObject),
+export const makeConverter = (
+  db: Firestore
+): FirestoreDataConverter<DocumentData, DocumentData> => ({
+  toFirestore: (modelObject) => toFirestoreDocumentData(db, modelObject),
   fromFirestore: (snapshot) => fromFirestoreDocumentData(snapshot.data()),
-};
+});
