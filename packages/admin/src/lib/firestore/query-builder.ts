@@ -1,9 +1,9 @@
 import {
-  getFirestore,
   Query,
   CollectionReference,
   Filter,
   DocumentData,
+  Firestore,
 } from 'firebase-admin/firestore';
 import type { QueryConstraint } from 'effect-firebase';
 import { toFirestoreDocumentData } from './converter.js';
@@ -11,19 +11,23 @@ import { toFirestoreDocumentData } from './converter.js';
 /**
  * Helper to convert unknown value to DocumentData for Firestore.
  */
-const convertValue = (value: unknown): unknown =>
-  toFirestoreDocumentData(value as DocumentData);
+const convertValue = (db: Firestore, value: unknown): unknown =>
+  toFirestoreDocumentData(db, value as DocumentData);
 
 /**
  * Convert a single query constraint to Firebase Admin SDK query constraint.
  */
-const applyConstraint = (query: Query, constraint: QueryConstraint): Query => {
+const applyConstraint = (
+  db: Firestore,
+  query: Query,
+  constraint: QueryConstraint
+): Query => {
   switch (constraint._tag) {
     case 'Where':
       return query.where(
         constraint.field,
         constraint.op,
-        convertValue(constraint.value)
+        convertValue(db, constraint.value)
       );
     case 'OrderBy':
       return query.orderBy(constraint.field, constraint.direction);
@@ -32,17 +36,25 @@ const applyConstraint = (query: Query, constraint: QueryConstraint): Query => {
     case 'LimitToLast':
       return query.limitToLast(constraint.count);
     case 'StartAt':
-      return query.startAt(...constraint.values.map(convertValue));
+      return query.startAt(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'StartAfter':
-      return query.startAfter(...constraint.values.map(convertValue));
+      return query.startAfter(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'EndAt':
-      return query.endAt(...constraint.values.map(convertValue));
+      return query.endAt(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'EndBefore':
-      return query.endBefore(...constraint.values.map(convertValue));
+      return query.endBefore(
+        ...constraint.values.map((value) => convertValue(db, value))
+      );
     case 'And':
-      return query.where(buildCompositeFilter(constraint));
+      return query.where(buildCompositeFilter(db, constraint));
     case 'Or':
-      return query.where(buildCompositeFilter(constraint));
+      return query.where(buildCompositeFilter(db, constraint));
   }
 };
 
@@ -50,9 +62,12 @@ const applyConstraint = (query: Query, constraint: QueryConstraint): Query => {
  * Build a composite filter (AND/OR) from constraint.
  */
 const buildCompositeFilter = (
+  db: Firestore,
   constraint: QueryConstraint & { _tag: 'And' | 'Or' }
 ): Filter => {
-  const filters = constraint.constraints.map(buildFilter);
+  const filters = constraint.constraints.map((childConstraint) =>
+    buildFilter(db, childConstraint)
+  );
 
   if (constraint._tag === 'Or') {
     return Filter.or(...filters);
@@ -63,18 +78,26 @@ const buildCompositeFilter = (
 /**
  * Build a filter from a single constraint.
  */
-const buildFilter = (constraint: QueryConstraint): Filter => {
+const buildFilter = (db: Firestore, constraint: QueryConstraint): Filter => {
   switch (constraint._tag) {
     case 'Where':
       return Filter.where(
         constraint.field,
         constraint.op,
-        convertValue(constraint.value)
+        convertValue(db, constraint.value)
       );
     case 'And':
-      return Filter.and(...constraint.constraints.map(buildFilter));
+      return Filter.and(
+        ...constraint.constraints.map((childConstraint) =>
+          buildFilter(db, childConstraint)
+        )
+      );
     case 'Or':
-      return Filter.or(...constraint.constraints.map(buildFilter));
+      return Filter.or(
+        ...constraint.constraints.map((childConstraint) =>
+          buildFilter(db, childConstraint)
+        )
+      );
     default:
       // Non-filter constraints (OrderBy, Limit, etc.) shouldn't appear in composite filters
       throw new Error(
@@ -95,11 +118,11 @@ const isCompositeFilter = (
  * Build a Firebase Admin SDK query from a collection path and constraints.
  */
 export const buildQuery = (
+  db: Firestore,
   collectionPath: string,
   constraints: ReadonlyArray<QueryConstraint>
 ): Query => {
-  const collectionRef: CollectionReference =
-    getFirestore().collection(collectionPath);
+  const collectionRef: CollectionReference = db.collection(collectionPath);
 
   // Separate composite filters from other constraints
   const compositeFilters = constraints.filter(isCompositeFilter);
@@ -109,12 +132,12 @@ export const buildQuery = (
 
   // Apply composite filters first (there should be at most one top-level composite)
   for (const filter of compositeFilters) {
-    query = query.where(buildCompositeFilter(filter));
+    query = query.where(buildCompositeFilter(db, filter));
   }
 
   // Apply other constraints
   for (const constraint of otherConstraints) {
-    query = applyConstraint(query, constraint);
+    query = applyConstraint(db, query, constraint);
   }
 
   return query;
