@@ -105,8 +105,13 @@ export const PostRepository = Model.makeRepository(PostModel, {
 
 ```typescript
 import { Effect } from 'effect';
+import { initializeApp } from 'firebase/app';
 import { Client } from '@effect-firebase/client';
 import { PostRepository } from './repositories/post-repository';
+
+const app = initializeApp({
+  projectId: 'your-project-id',
+});
 
 const program = Effect.gen(function* () {
   const repo = yield* PostRepository;
@@ -124,7 +129,7 @@ const program = Effect.gen(function* () {
   const posts = yield* repo.query(Query.where('status', '==', 'published'));
 
   return { postId, posts };
-}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layer));
+}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layerFromApp(app)));
 
 Effect.runPromise(program).then(console.log);
 ```
@@ -132,11 +137,14 @@ Effect.runPromise(program).then(console.log);
 **Cloud Function:**
 
 ```typescript
-import { Effect } from 'effect';
-import { Admin, onCallEffect, makeRuntime } from '@effect-firebase/admin';
+import { Effect, Layer } from 'effect';
+import { initializeApp } from 'firebase-admin/app';
+import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 import { PostRepository } from './repositories/post-repository';
 
-const runtime = makeRuntime(Layer.mergeAll(Admin.layer, PostRepository));
+const runtime = FunctionsRuntime.make(
+  Layer.mergeAll(Admin.layerFromApp(initializeApp()), PostRepository)
+);
 
 export const createPost = onCallEffect({ runtime }, (request) =>
   Effect.gen(function* () {
@@ -323,13 +331,6 @@ const program = Effect.gen(function* () {
   return { user, posts };
 });
 ```
-
-## Requirements
-
-- **Effect**: ^3.19.8
-- **@effect/experimental**: ^0.57.10
-- **TypeScript**: 5.x
-- **Firebase**: Admin SDK ^13.4.0 or Client SDK ^12.0.0
 
 ## Development
 

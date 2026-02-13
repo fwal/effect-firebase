@@ -20,9 +20,14 @@ npm install firebase
 
 ```typescript
 import { Effect } from 'effect';
+import { initializeApp } from 'firebase/app';
 import { Client } from '@effect-firebase/client';
 import { PostRepository } from './repositories/post-repository';
 import { Query } from 'effect-firebase';
+
+const app = initializeApp({
+  projectId: 'your-project-id',
+});
 
 // Create your application with the Client layer
 const program = Effect.gen(function* () {
@@ -40,7 +45,7 @@ const program = Effect.gen(function* () {
   return posts;
 }).pipe(
   Effect.provide(PostRepository),
-  Effect.provide(Client.layer) // Provides FirestoreService
+  Effect.provide(Client.layerFromApp(app)) // Provides FirestoreService
 );
 
 // Run the effect
@@ -51,13 +56,8 @@ Effect.runPromise(program).then(console.log);
 
 ### Client
 
-- `Client.layer` - Layer providing FirestoreService for the Firebase Client SDK
-
-## Requirements
-
-- effect ^3.19.8
-- effect-firebase ^0.4.0
-- firebase ^12.0.0
+- `Client.layer` - Layer providing FirestoreService for the Firebase Client SDK (requires `App` in the environment)
+- `Client.layerFromApp(app)` - Convenience layer with Firebase Client app already provided
 
 ## Documentation
 

@@ -27,11 +27,11 @@ npm install firebase-admin firebase-functions
 
 ```typescript
 import { Effect } from 'effect';
-import { onRequestEffect, makeRuntime } from '@effect-firebase/admin';
-import { Admin } from '@effect-firebase/admin';
+import { initializeApp } from 'firebase-admin/app';
+import { Admin, FunctionsRuntime, onRequestEffect } from '@effect-firebase/admin';
 
 // Create the runtime with your layers
-const runtime = makeRuntime(Admin.layer);
+const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
 
 // Define the function
 export const myHttpFunction = onRequestEffect(
@@ -50,10 +50,10 @@ export const myHttpFunction = onRequestEffect(
 
 ```typescript
 import { Effect, Schema } from 'effect';
-import { onCallEffect, makeRuntime } from '@effect-firebase/admin';
-import { Admin } from '@effect-firebase/admin';
+import { initializeApp } from 'firebase-admin/app';
+import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 
-const runtime = makeRuntime(Admin.layer);
+const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
 
 // Define request/response schemas
 const CreatePostRequest = Schema.Struct({
@@ -95,6 +95,8 @@ The Admin layer automatically provides Cloud Logging integration:
 
 ```typescript
 import { Effect } from 'effect';
+import { initializeApp } from 'firebase-admin/app';
+import { Admin } from '@effect-firebase/admin';
 
 Effect.gen(function* () {
   // Logs automatically go to Cloud Logging
@@ -108,7 +110,7 @@ Effect.gen(function* () {
     action: 'create_post',
     metadata: { postId: 'abc' },
   });
-}).pipe(Effect.provide(Admin.layer));
+}).pipe(Effect.provide(Admin.layerFromApp(initializeApp())));
 ```
 
 ## Configuration
@@ -140,7 +142,8 @@ export const myFunction = onCallEffect(
 
 ### Admin
 
-- `Admin.layer` - Layer providing FirestoreService and CloudLogger
+- `Admin.layer` - Layer providing FirestoreService and CloudLogger (requires `App` in the environment)
+- `Admin.layerFromApp(app)` - Convenience layer with Firebase Admin app already provided
 
 ### Functions
 
@@ -150,14 +153,8 @@ export const myFunction = onCallEffect(
 - `onDocumentUpdatedEffect` - Document updated trigger
 - `onDocumentDeletedEffect` - Document deleted trigger
 - `onDocumentWrittenEffect` - Document written (any change) trigger
-- `makeRuntime` - Create an Effect runtime for functions
-
-## Requirements
-
-- effect ^3.19.8
-- effect-firebase ^0.4.0
-- firebase-admin ^13.4.0
-- firebase-functions ^6.4.0
+- `FunctionsRuntime.make(layer)` - Create an Effect runtime from a layer
+- `FunctionsRuntime.Default(app)` - Create a runtime from the provided Firebase Admin app
 
 ## Documentation
 

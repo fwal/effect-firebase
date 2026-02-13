@@ -630,11 +630,6 @@ it('should return correctly typed data', async () => {
 
 The mock implementation provides all methods from FirestoreService with the same signatures as the real implementations.
 
-## Requirements
-
-- effect ^3.19.8
-- effect-firebase ^0.4.0
-
 ## Documentation
 
 For core concepts, schemas, models, and queries, see the [effect-firebase documentation](../effect-firebase/README.md).

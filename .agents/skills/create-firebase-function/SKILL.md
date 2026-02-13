@@ -17,20 +17,22 @@ Create a shared runtime for all functions:
 
 ```typescript
 // src/runtime.ts
+import { initializeApp } from 'firebase-admin/app';
 import { FunctionsRuntime, Admin } from '@effect-firebase/admin';
 
-export const runtime = FunctionsRuntime.make(Admin.layer);
+export const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
 ```
 
 For custom layers (e.g., with repositories):
 
 ```typescript
+import { initializeApp } from 'firebase-admin/app';
 import { FunctionsRuntime, Admin } from '@effect-firebase/admin';
 import { Layer } from 'effect';
 import { PostRepository } from './repositories/post.js';
 
 const AppLayer = Layer.mergeAll(
-  Admin.layer,
+  Admin.layerFromApp(initializeApp()),
   PostRepository.Default
 );
 

@@ -471,12 +471,6 @@ See [@effect-firebase/client](../client/README.md) for Firebase Client SDK integ
 - `FirestoreSchema.Reference` - Document reference
 - `FirestoreSchema.ReferenceId` - Branded ID with reference path
 
-## Requirements
-
-- Effect ^3.19.8
-- @effect/experimental ^0.57.10
-- TypeScript 5.x
-
 ## License
 
 MIT
