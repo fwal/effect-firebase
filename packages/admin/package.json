@@ -29,18 +29,18 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.17",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0",
-    "firebase-admin": "^13.6.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.0.5",
     "express": "4.21.2"
   },
   "peerDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.17",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0",
-    "firebase-admin": "^13.6.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.0.5",
     "express": "4.21.2"
   },

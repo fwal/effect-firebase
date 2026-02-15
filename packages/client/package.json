@@ -29,14 +29,14 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.17",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0"
+    "firebase": "^12.9.0"
   },
   "peerDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.17",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0"
+    "firebase": "^12.9.0"
   },
   "publishConfig": {
     "access": "public",
