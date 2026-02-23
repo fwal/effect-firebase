@@ -6,7 +6,6 @@ import { ParseError } from 'effect/ParseResult';
 import { FirestoreError } from '../errors.js';
 import { Any } from './core.js';
 import * as Fetch from './fetch.js';
-import type { Query } from '../query/query.js';
 import type { QueryConstraint } from '../query/constraints.js';
 
 export type ModelError =
@@ -14,6 +13,94 @@ export type ModelError =
   | UnknownException
   | NoSuchElementException
   | ParseError;
+
+export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
+  readonly _schema?: S;
+};
+
+export type Repository<
+  S extends Any,
+  Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
+  IdSchema extends S['fields'][Id] extends Schema.Schema.Any
+    ? S['fields'][Id]
+    : never
+> = {
+  /**
+   * Add a document model.
+   * @param data - The data to add the document model with.
+   * @returns The ID of the added document model.
+   */
+  readonly add: (
+    data: S['add']['Type']
+  ) => Effect.Effect<
+    Schema.Schema.Type<IdSchema>,
+    ModelError,
+    S['Context'] | S['add']['Context']
+  >;
+
+  /**
+   * Update a document model.
+   * @param id - The ID of the document model to update.
+   * @param data - The partial data to update the document model with. All fields are optional.
+   * @returns A unit value.
+   */
+  readonly update: (
+    id: Schema.Schema.Type<IdSchema>,
+    data: Partial<Omit<S['update']['Type'], Id>>
+  ) => Effect.Effect<void, ModelError, S['Context'] | S['update']['Context']>;
+
+  /**
+   * Get a document model by ID.
+   * @param id - The ID of the document model to get.
+   * @returns The document model.
+   */
+  readonly getById: (
+    id: Schema.Schema.Type<IdSchema>
+  ) => Effect.Effect<
+    Option.Option<S['Type']>,
+    ModelError,
+    S['Context'] | Schema.Schema.Context<S['fields'][Id]>
+  >;
+
+  /**
+   * Stream a document model by ID.
+   * @param id - The ID of the document model to stream.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the model and any updates to it.
+   */
+  readonly getByIdStream: (
+    id: Schema.Schema.Type<IdSchema>
+  ) => Stream.Stream<
+    Option.Option<S['Type']>,
+    ModelError,
+    S['Context'] | Schema.Schema.Context<S['fields'][Id]>
+  >;
+  /**
+   * Delete a document model by ID.
+   * @param id - The ID of the document model to delete.
+   * @returns A unit value.
+   */
+  readonly delete: (
+    id: Schema.Schema.Type<IdSchema>
+  ) => Effect.Effect<void, ModelError, S['Context']>;
+
+  /**
+   * Query the database.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A list of the results of the query.
+   */
+  readonly query: (
+    constraints: RepositoryQuery<S>
+  ) => Effect.Effect<ReadonlyArray<S['Type']>, ModelError, S['Context']>;
+
+  /**
+   * Stream the results of a query.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the results of the query.
+   */
+  readonly queryStream: (
+    constraints: RepositoryQuery<S>
+  ) => Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']>;
+};
 
 /**
  * Create a repository for a document model.
@@ -60,7 +147,7 @@ export const makeRepository = <
     readonly idField: Id;
     readonly spanPrefix: string;
   }
-) =>
+): Effect.Effect<Repository<S, Id, IdSchema>, never, FirestoreService> =>
   Effect.gen(function* () {
     const firestore = yield* FirestoreService;
 
@@ -178,7 +265,7 @@ export const makeRepository = <
     });
 
     const query = (
-      constraints: Query<S>
+      constraints: RepositoryQuery<S>
     ): Effect.Effect<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
       querySchema(constraints as ReadonlyArray<unknown>).pipe(
         Effect.withSpan(`${options.spanPrefix}.query`, {
@@ -221,61 +308,19 @@ export const makeRepository = <
     });
 
     const queryStream = (
-      constraints: Query<S>
+      constraints: RepositoryQuery<S>
     ): Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
       queryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
         Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
       );
 
     return {
-      /**
-       * Add a document model.
-       * @param data - The data to add the document model with.
-       * @returns The ID of the added document model.
-       */
       add,
-
-      /**
-       * Update a document model.
-       * @param id - The ID of the document model to update.
-       * @param data - The partial data to update the document model with. All fields are optional.
-       * @returns A unit value.
-       */
       update,
-
-      /**
-       * Get a document model by ID.
-       * @param id - The ID of the document model to get.
-       * @returns The document model.
-       */
       getById,
-
-      /**
-       * Stream a document model by ID.
-       * @param id - The ID of the document model to stream.
-       * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the model and any updates to it.
-       */
       getByIdStream,
-
-      /**
-       * Delete a document model by ID.
-       * @param id - The ID of the document model to delete.
-       * @returns A unit value.
-       */
       delete: deleteById,
-
-      /**
-       * Query the database.
-       * @param constraints - The constraints to apply to the query.
-       * @returns A list of the results of the query.
-       */
       query,
-
-      /**
-       * Stream the results of a query.
-       * @param constraints - The constraints to apply to the query.
-       * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the results of the query.
-       */
       queryStream,
     };
   });
