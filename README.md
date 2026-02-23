@@ -129,7 +129,10 @@ const program = Effect.gen(function* () {
   const posts = yield* repo.query(Query.where('status', '==', 'published'));
 
   return { postId, posts };
-}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layerFromApp(app)));
+}).pipe(
+  Effect.provide(PostRepository),
+  Effect.provide(Client.layerFromApp(app))
+);
 
 Effect.runPromise(program).then(console.log);
 ```
@@ -225,6 +228,8 @@ Platform-agnostic schemas for Firestore types:
 - `onDocumentUpdated` - Firestore trigger
 - `onDocumentDeleted` - Firestore trigger
 - `onDocumentWritten` - Firestore trigger
+- `onMessagePublished` - Pub/Sub trigger
+- `onTaskDispatched` - Cloud Tasks trigger
 
 ### Planned Features
 

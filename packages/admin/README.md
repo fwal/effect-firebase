@@ -12,6 +12,7 @@ Firebase Admin SDK integration for Effect Firebase. This package provides the Fi
 - 📝 **Cloud Logging** - Automatic logging integration
 - 🎯 **Type-Safe Function Handlers** - Schema validation for function inputs/outputs
 - 🔄 **Firestore Triggers** - Document lifecycle event handlers
+- 📮 **Cloud Tasks Triggers** - Typed task queue handlers with optional payload decoding
 - 🚀 **Effect Native** - Built on Effect's powerful composition and error handling
 
 ## Installation
@@ -28,7 +29,11 @@ npm install firebase-admin firebase-functions
 ```typescript
 import { Effect } from 'effect';
 import { initializeApp } from 'firebase-admin/app';
-import { Admin, FunctionsRuntime, onRequestEffect } from '@effect-firebase/admin';
+import {
+  Admin,
+  FunctionsRuntime,
+  onRequestEffect,
+} from '@effect-firebase/admin';
 
 // Create the runtime with your layers
 const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
@@ -86,6 +91,41 @@ export const createPost = onCallEffect(
 
       return { postId };
     }).pipe(Effect.provide(PostRepository))
+);
+```
+
+### Cloud Tasks Functions (onTaskDispatched)
+
+```typescript
+import { Effect, Schema } from 'effect';
+import { initializeApp } from 'firebase-admin/app';
+import {
+  Admin,
+  FunctionsRuntime,
+  onTaskDispatchedEffect,
+} from '@effect-firebase/admin';
+
+const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
+
+const ProcessEmailTask = Schema.Struct({
+  email: Schema.String,
+  template: Schema.String,
+});
+
+export const processEmail = onTaskDispatchedEffect(
+  {
+    runtime,
+    retryConfig: { maxAttempts: 5 },
+    rateLimits: { maxConcurrentDispatches: 10 },
+    dataSchema: ProcessEmailTask,
+  },
+  (task, request) =>
+    Effect.gen(function* () {
+      yield* Effect.log('Processing task', {
+        email: task.email,
+        queue: request.queueName,
+      });
+    })
 );
 ```
 
@@ -153,6 +193,8 @@ export const myFunction = onCallEffect(
 - `onDocumentUpdatedEffect` - Document updated trigger
 - `onDocumentDeletedEffect` - Document deleted trigger
 - `onDocumentWrittenEffect` - Document written (any change) trigger
+- `onMessagePublishedEffect` - Pub/Sub message published trigger
+- `onTaskDispatchedEffect` - Cloud Tasks dispatch trigger
 - `FunctionsRuntime.make(layer)` - Create an Effect runtime from a layer
 - `FunctionsRuntime.Default(app)` - Create a runtime from the provided Firebase Admin app
 
