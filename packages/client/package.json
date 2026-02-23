@@ -31,12 +31,12 @@
   "devDependencies": {
     "effect": "^3.19.15",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0"
+    "firebase": "^12.9.0"
   },
   "peerDependencies": {
     "effect": "^3.19.15",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.8.0"
+    "firebase": "^12.9.0"
   },
   "publishConfig": {
     "access": "public",
