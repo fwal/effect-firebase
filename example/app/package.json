@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "engines": {
-    "node": "22",
+    "node": "24",
     "pnpm": "10.25.0"
   },
   "packageManager": "pnpm@10.25.0",
