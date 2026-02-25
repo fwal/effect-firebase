@@ -14,7 +14,7 @@ interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
 
 interface TaskDispatchedEffectOptionsWithSchema<R, S extends Schema.Schema.Any>
   extends TaskDispatchedEffectOptions<R | Schema.Schema.Context<S>> {
-  dataSchema: S;
+  schema: S;
 }
 
 /**
@@ -56,18 +56,18 @@ export function onTaskDispatchedEffect<R, T, E>(
 // Implementation
 export function onTaskDispatchedEffect<R>(
   options: TaskDispatchedEffectOptions<R> & {
-    dataSchema?: Schema.Schema.Any;
+    schema?: Schema.Schema.Any;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<void, unknown, R>
 ): TaskQueueFunction<unknown> {
-  const { dataSchema } = options;
+  const { schema } = options;
 
   return onTaskDispatched(options, async (request) => {
     const effect = Effect.gen(function* () {
-      if (dataSchema) {
+      if (schema) {
         // Decode task payload and pass both parsed payload and request to handler
-        const taskData = yield* decodeTaskData(dataSchema, request);
+        const taskData = yield* decodeTaskData(schema, request);
         return yield* handler(taskData, request);
       } else {
         // Pass raw request to handler

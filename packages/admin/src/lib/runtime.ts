@@ -3,7 +3,7 @@ import type { FirestoreService } from 'effect-firebase';
 import type { App as FirebaseAdminApp } from 'firebase-admin/app';
 
 import { ManagedRuntime } from 'effect';
-import { layerFromApp } from './admin.js';
+import { layer } from './admin.js';
 import { logger } from 'firebase-functions';
 
 /**
@@ -18,7 +18,7 @@ import { logger } from 'firebase-functions';
  * import { FunctionsRuntime, Admin } from '@effect-firebase/admin';
  * import { initializeApp } from 'firebase-admin/app';
  *
- * const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
+ * const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
  * ```
  */
 export function make<R, E>(
@@ -45,13 +45,12 @@ export function make<R, E>(
  * @example
  * ```ts
  * import { FunctionsRuntime } from '@effect-firebase/admin';
- * import { initializeApp } from 'firebase-admin/app';
  *
- * const runtime = FunctionsRuntime.Default(initializeApp());
+ * const runtime = FunctionsRuntime.Default();
  * ```
  */
 export function Default(
-  app: FirebaseAdminApp
+  app?: FirebaseAdminApp
 ): ManagedRuntime.ManagedRuntime<FirestoreService, never> {
-  return make(layerFromApp(app));
+  return make(layer(app ? { app } : undefined));
 }

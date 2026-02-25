@@ -129,10 +129,7 @@ const program = Effect.gen(function* () {
   const posts = yield* repo.query(Query.where('status', '==', 'published'));
 
   return { postId, posts };
-}).pipe(
-  Effect.provide(PostRepository),
-  Effect.provide(Client.layerFromApp(app))
-);
+}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layer({ app })));
 
 Effect.runPromise(program).then(console.log);
 ```
@@ -146,7 +143,7 @@ import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 import { PostRepository } from './repositories/post-repository';
 
 const runtime = FunctionsRuntime.make(
-  Layer.mergeAll(Admin.layerFromApp(initializeApp()), PostRepository)
+  Layer.mergeAll(Admin.layer({ app: initializeApp() }), PostRepository)
 );
 
 export const createPost = onCallEffect({ runtime }, (request) =>

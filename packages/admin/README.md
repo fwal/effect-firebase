@@ -36,7 +36,7 @@ import {
 } from '@effect-firebase/admin';
 
 // Create the runtime with your layers
-const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
+const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 
 // Define the function
 export const myHttpFunction = onRequestEffect(
@@ -58,7 +58,7 @@ import { Effect, Schema } from 'effect';
 import { initializeApp } from 'firebase-admin/app';
 import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 
-const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
+const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 
 // Define request/response schemas
 const CreatePostRequest = Schema.Struct({
@@ -94,6 +94,30 @@ export const createPost = onCallEffect(
 );
 ```
 
+### Troubleshooting Firestore Credentials
+
+If you see:
+
+`Failed to initialize Google Cloud Firestore client with the available credentials...`
+
+in Cloud Functions, the most common cause is multiple installed copies of `firebase-admin`.
+`initializeApp()` may come from one copy while `getFirestore()` comes from another, and Firestore credential checks fail.
+
+Use one of these fixes:
+
+1. Deduplicate `firebase-admin` in your deployment (`npm ls firebase-admin` / `pnpm why firebase-admin`).
+2. Create Firestore in your app code and provide it directly:
+
+```typescript
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { Admin, FunctionsRuntime } from '@effect-firebase/admin';
+
+const app = initializeApp();
+const db = getFirestore(app);
+const runtime = FunctionsRuntime.make(Admin.layer({ firestore: db }));
+```
+
 ### Cloud Tasks Functions (onTaskDispatched)
 
 ```typescript
@@ -105,7 +129,7 @@ import {
   onTaskDispatchedEffect,
 } from '@effect-firebase/admin';
 
-const runtime = FunctionsRuntime.make(Admin.layerFromApp(initializeApp()));
+const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 
 const ProcessEmailTask = Schema.Struct({
   email: Schema.String,
@@ -150,7 +174,31 @@ Effect.gen(function* () {
     action: 'create_post',
     metadata: { postId: 'abc' },
   });
-}).pipe(Effect.provide(Admin.layerFromApp(initializeApp())));
+}).pipe(Effect.provide(Admin.layer({ app: initializeApp() })));
+```
+
+## Layer Options
+
+Use a single entrypoint for all admin layer creation:
+
+```typescript
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { Admin, FunctionsRuntime } from '@effect-firebase/admin';
+
+const app = initializeApp();
+const db = getFirestore(app);
+
+// Uses FirestoreService and CloudLogger, app is already provided.
+const runtimeFromApp = FunctionsRuntime.make(Admin.layer({ app }));
+
+// Uses an already created Firestore instance.
+const runtimeFromFirestore = FunctionsRuntime.make(
+  Admin.layer({ firestore: db })
+);
+
+// Tries existing default app first, then initializes one if missing.
+const runtimeDefault = FunctionsRuntime.make(Admin.layer());
 ```
 
 ## Configuration
@@ -182,8 +230,10 @@ export const myFunction = onCallEffect(
 
 ### Admin
 
-- `Admin.layer` - Layer providing FirestoreService and CloudLogger (requires `App` in the environment)
-- `Admin.layerFromApp(app)` - Convenience layer with Firebase Admin app already provided
+- `Admin.layer(options?)` - Layer providing FirestoreService and CloudLogger
+- `Admin.layer()` - Ready-to-use layer (uses default app or initializes one)
+- `Admin.layer({ app })` - Returns a ready-to-use layer
+- `Admin.layer({ firestore })` - Returns a ready-to-use layer using your Firestore instance
 
 ### Functions
 

@@ -45,7 +45,7 @@ const program = Effect.gen(function* () {
   return posts;
 }).pipe(
   Effect.provide(PostRepository),
-  Effect.provide(Client.layerFromApp(app)) // Provides FirestoreService
+  Effect.provide(Client.layer({ app })) // Provides FirestoreService
 );
 
 // Run the effect
@@ -56,8 +56,10 @@ Effect.runPromise(program).then(console.log);
 
 ### Client
 
-- `Client.layer` - Layer providing FirestoreService for the Firebase Client SDK (requires `App` in the environment)
-- `Client.layerFromApp(app)` - Convenience layer with Firebase Client app already provided
+- `Client.layer(options?)` - Layer providing FirestoreService for the Firebase Client SDK
+- `Client.layer()` - Uses the default initialized Firebase app
+- `Client.layer({ app })` - Uses the provided Firebase app
+- `Client.layer({ firestore })` - Uses the provided Firestore instance directly
 
 ## Documentation
 
