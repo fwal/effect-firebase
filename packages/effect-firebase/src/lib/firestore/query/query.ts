@@ -19,22 +19,49 @@ import {
 // ============================================================================
 
 /**
- * Extract field keys from a Schema struct (Model).
+ * Extract field keys from a Schema struct (Model), including nested fields as dot notation strings.
+ *
+ * For example, given a schema:
+ * ```ts
+ *  const PostSchema = Schema.Struct({
+ *    title: Schema.String,  
+ *    author: Schema.Struct({
+ *      name: Schema.String,
+ *      age: Schema.Number
+ *    })
+ *  });
+ * 
+ * type PostSchema = Schema.Schema.Type<typeof PostSchema>
+ * type Keys =  FieldKeys<PostSchema> // "title" | "author.name" | "author.age"
+ ```
  */
-export type FieldKeys<S> = S extends { readonly fields: infer F }
-  ? keyof F & string
-  : never;
+type DotPrefix<T extends string> = T extends '' ? '' : `.${T}`
+export type FieldKeys<S> = (
+  S extends object ?
+  { [K in Exclude<keyof S, symbol>]: `${K}${DotPrefix<FieldKeys<S[K]>>}` }[Exclude<keyof S, symbol>]
+  : '') extends infer D ? Extract<D, string> : never
 
 /**
- * Extract the type of a specific field from a Schema.
+ * Extract the type of a specific field from a Schema, including nested fields.
+ * 
+ * For example, 
+ * `FieldType<typeof PostSchema, "title">` would be `string`.
+ * `FieldType<typeof PostSchema, "title2">` TypeError.
+ * `FieldType<typeof PostSchema, "author.name">` would be `string`.
+ * `FieldType<typeof PostSchema, "author.age">` would be `number`.
  */
-export type FieldType<S, K extends string> = S extends {
+export type FieldType<S, K extends FieldKeys<S>> = S extends {
   readonly Type: infer T;
 }
-  ? K extends keyof T
-    ? T[K]
-    : never
+  ? FieldType<T, K>
+  : K extends `${infer Head}.${infer Tail}`
+  ? Head extends keyof S
+  ? FieldType<S[Head], FieldKeys<S[Head]>>
+  : never
+  : K extends keyof S
+  ? S[K]
   : never;
+
 
 // ============================================================================
 // Query Builder Type
@@ -74,6 +101,7 @@ export const where = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
   op: WhereFilterOp,
   value: FieldType<S, K>
 ): Query<S> => [new Where({ field, op, value })] as Query<S>;
+
 
 /**
  * Create an orderBy constraint with type-safe field names.
@@ -221,8 +249,8 @@ export const addWhere =
     op: WhereFilterOp,
     value: FieldType<S, K>
   ) =>
-  (query: Query<S>): Query<S> =>
-    [...query, new Where({ field, op, value })] as Query<S>;
+    (query: Query<S>): Query<S> =>
+      [...query, new Where({ field, op, value })] as Query<S>;
 
 /**
  * Pipeable version of orderBy that appends to an existing query.
@@ -240,8 +268,8 @@ export const addOrderBy =
     field: K,
     direction: OrderByDirection = 'asc'
   ) =>
-  (query: Query<S>): Query<S> =>
-    [...query, new OrderBy({ field, direction })] as Query<S>;
+    (query: Query<S>): Query<S> =>
+      [...query, new OrderBy({ field, direction })] as Query<S>;
 
 /**
  * Pipeable version of limit that appends to an existing query.
@@ -256,48 +284,48 @@ export const addOrderBy =
  */
 export const addLimit =
   (count: number) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new Limit({ count })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new Limit({ count })] as Query<S>;
 
 /**
  * Pipeable version of limitToLast that appends to an existing query.
  */
 export const addLimitToLast =
   (count: number) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new LimitToLast({ count })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new LimitToLast({ count })] as Query<S>;
 
 /**
  * Pipeable version of startAt that appends to an existing query.
  */
 export const addStartAt =
   (...values: ReadonlyArray<unknown>) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new StartAt({ values })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new StartAt({ values })] as Query<S>;
 
 /**
  * Pipeable version of startAfter that appends to an existing query.
  */
 export const addStartAfter =
   (...values: ReadonlyArray<unknown>) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new StartAfter({ values })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new StartAfter({ values })] as Query<S>;
 
 /**
  * Pipeable version of endAt that appends to an existing query.
  */
 export const addEndAt =
   (...values: ReadonlyArray<unknown>) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new EndAt({ values })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new EndAt({ values })] as Query<S>;
 
 /**
  * Pipeable version of endBefore that appends to an existing query.
  */
 export const addEndBefore =
   (...values: ReadonlyArray<unknown>) =>
-  <S>(query: Query<S>): Query<S> =>
-    [...query, new EndBefore({ values })] as Query<S>;
+    <S>(query: Query<S>): Query<S> =>
+      [...query, new EndBefore({ values })] as Query<S>;
 
 // ============================================================================
 // Utility Functions
