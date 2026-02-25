@@ -29,7 +29,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^3.19.15",
+    "effect": "^3.19.19",
     "effect-firebase": "workspace:*",
     "firebase": "^12.9.0"
   },
