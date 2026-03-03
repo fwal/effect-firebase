@@ -102,7 +102,6 @@ export const where = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
   value: FieldType<S, K>
 ): Query<S> => [new Where({ field, op, value })] as Query<S>;
 
-
 /**
  * Create an orderBy constraint with type-safe field names.
  *
@@ -249,8 +248,8 @@ export const addWhere =
     op: WhereFilterOp,
     value: FieldType<S, K>
   ) =>
-    (query: Query<S>): Query<S> =>
-      [...query, new Where({ field, op, value })] as Query<S>;
+  (query: Query<S>): Query<S> =>
+    [...query, new Where({ field, op, value })] as Query<S>;
 
 /**
  * Pipeable version of orderBy that appends to an existing query.
@@ -268,8 +267,8 @@ export const addOrderBy =
     field: K,
     direction: OrderByDirection = 'asc'
   ) =>
-    (query: Query<S>): Query<S> =>
-      [...query, new OrderBy({ field, direction })] as Query<S>;
+  (query: Query<S>): Query<S> =>
+    [...query, new OrderBy({ field, direction })] as Query<S>;
 
 /**
  * Pipeable version of limit that appends to an existing query.
@@ -284,48 +283,48 @@ export const addOrderBy =
  */
 export const addLimit =
   (count: number) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new Limit({ count })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new Limit({ count })] as Query<S>;
 
 /**
  * Pipeable version of limitToLast that appends to an existing query.
  */
 export const addLimitToLast =
   (count: number) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new LimitToLast({ count })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new LimitToLast({ count })] as Query<S>;
 
 /**
  * Pipeable version of startAt that appends to an existing query.
  */
 export const addStartAt =
   (...values: ReadonlyArray<unknown>) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new StartAt({ values })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new StartAt({ values })] as Query<S>;
 
 /**
  * Pipeable version of startAfter that appends to an existing query.
  */
 export const addStartAfter =
   (...values: ReadonlyArray<unknown>) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new StartAfter({ values })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new StartAfter({ values })] as Query<S>;
 
 /**
  * Pipeable version of endAt that appends to an existing query.
  */
 export const addEndAt =
   (...values: ReadonlyArray<unknown>) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new EndAt({ values })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new EndAt({ values })] as Query<S>;
 
 /**
  * Pipeable version of endBefore that appends to an existing query.
  */
 export const addEndBefore =
   (...values: ReadonlyArray<unknown>) =>
-    <S>(query: Query<S>): Query<S> =>
-      [...query, new EndBefore({ values })] as Query<S>;
+  <S>(query: Query<S>): Query<S> =>
+    [...query, new EndBefore({ values })] as Query<S>;
 
 // ============================================================================
 // Utility Functions
