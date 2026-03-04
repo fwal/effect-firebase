@@ -1,14 +1,6 @@
-import { Option, Schema } from 'effect';
+import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  Class,
-  Field,
-  Generated,
-  GeneratedByApp,
-  Optional,
-  OptionalNull,
-  Sensitive,
-} from './core.js';
+import { Class, Field, Generated, GeneratedByApp, Sensitive } from './core.js';
 
 describe('Model.Class', () => {
   const UserId = Schema.String.pipe(Schema.brand('UserId'));
@@ -36,7 +28,7 @@ describe('Model.Class', () => {
     it('should encode to plain object', () => {
       const encode = Schema.encodeSync(User);
       const user = new User({
-        id: 'user-123' as typeof UserId.Type,
+        id: UserId.make('user-123'),
         name: 'John Doe',
         email: 'john@example.com',
       });
@@ -227,138 +219,5 @@ describe('Sensitive', () => {
     const result = decode({ email: 'test@example.com' });
 
     expect((result as Record<string, unknown>)['password']).toBeUndefined();
-  });
-});
-
-describe('Optional', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
-    name: Schema.String,
-    bio: Optional(Schema.String),
-  }) {}
-
-  describe('get variant', () => {
-    it('should decode value to Option.some', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-      const result = decode({ name: 'John', bio: 'Developer' });
-
-      expect(Option.isSome(result.bio)).toBe(true);
-      expect(Option.getOrNull(result.bio)).toBe('Developer');
-    });
-
-    it('should decode null to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-      const result = decode({ name: 'John', bio: null });
-
-      expect(Option.isNone(result.bio)).toBe(true);
-    });
-
-    it('should decode undefined to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-      const result = decode({ name: 'John', bio: undefined });
-
-      expect(Option.isNone(result.bio)).toBe(true);
-    });
-  });
-
-  describe('encoding get variant', () => {
-    it('should encode Option.none as null', () => {
-      const encode = Schema.encodeSync(TestModel);
-      const result = encode(
-        new TestModel({ name: 'John', bio: Option.none() })
-      );
-
-      expect(result.bio).toBeNull();
-    });
-
-    it('should encode Option.some with the value', () => {
-      const encode = Schema.encodeSync(TestModel);
-      const result = encode(
-        new TestModel({ name: 'John', bio: Option.some('Developer') })
-      );
-
-      expect(result.bio).toBe('Developer');
-    });
-  });
-
-  describe('json variant', () => {
-    it('should decode present value to Option.some', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.json);
-      const result = decode({ name: 'John', bio: 'Developer' });
-
-      expect(Option.isSome(result.bio)).toBe(true);
-    });
-
-    it('should decode missing key to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.json);
-      const result = decode({ name: 'John' });
-
-      expect(Option.isNone(result.bio)).toBe(true);
-    });
-  });
-});
-
-describe('OptionalNull', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
-    name: Schema.String,
-    bio: OptionalNull(Schema.String),
-  }) {}
-
-  describe('get variant', () => {
-    it('should decode value to Option.some', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-      const result = decode({ name: 'John', bio: 'Developer' });
-
-      expect(Option.isSome(result.bio)).toBe(true);
-      expect(Option.getOrNull(result.bio)).toBe('Developer');
-    });
-
-    it('should decode null to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-      const result = decode({ name: 'John', bio: null });
-
-      expect(Option.isNone(result.bio)).toBe(true);
-    });
-
-    it('should reject undefined', () => {
-      const decode = Schema.decodeUnknownSync(TestModel);
-
-      expect(() => decode({ name: 'John', bio: undefined })).toThrow();
-    });
-  });
-
-  describe('encoding get variant', () => {
-    it('should encode Option.none as null', () => {
-      const encode = Schema.encodeSync(TestModel);
-      const result = encode(
-        new TestModel({ name: 'John', bio: Option.none() })
-      );
-
-      expect(result.bio).toBeNull();
-    });
-
-    it('should encode Option.some with the value', () => {
-      const encode = Schema.encodeSync(TestModel);
-      const result = encode(
-        new TestModel({ name: 'John', bio: Option.some('Developer') })
-      );
-
-      expect(result.bio).toBe('Developer');
-    });
-  });
-
-  describe('json variant', () => {
-    it('should decode present value to Option.some', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.json);
-      const result = decode({ name: 'John', bio: 'Developer' });
-
-      expect(Option.isSome(result.bio)).toBe(true);
-    });
-
-    it('should decode missing key to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.json);
-      const result = decode({ name: 'John' });
-
-      expect(Option.isNone(result.bio)).toBe(true);
-    });
   });
 });

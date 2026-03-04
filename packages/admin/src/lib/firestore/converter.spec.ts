@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  deleteField,
-  GeoPoint as FirebaseGeoPoint,
-  serverTimestamp,
-  Timestamp as FirebaseTimestamp,
+  FieldValue,
   Firestore,
-} from 'firebase/firestore';
+  GeoPoint as AdminGeoPoint,
+  Timestamp as AdminTimestamp,
+} from 'firebase-admin/firestore';
 import {
   fromFirestoreDocumentData,
   toFirestoreDocumentData,
@@ -15,11 +14,11 @@ import { FirestoreSchema } from 'effect-firebase';
 describe('Firestore Converter', () => {
   describe('fromFirestoreDocumentData', () => {
     it('should convert Firestore Timestamp to FirestoreSchema.Timestamp', () => {
-      const firebaseTimestamp = new FirebaseTimestamp(1705315800, 123000000);
+      const adminTimestamp = new AdminTimestamp(1705315800, 123000000);
 
       const result = fromFirestoreDocumentData({
         title: 'Test Post',
-        createdAt: firebaseTimestamp,
+        createdAt: adminTimestamp,
       });
 
       expect(result.title).toBe('Test Post');
@@ -29,11 +28,11 @@ describe('Firestore Converter', () => {
     });
 
     it('should handle nested timestamps', () => {
-      const firebaseTimestamp = new FirebaseTimestamp(1705315800, 0);
+      const adminTimestamp = new AdminTimestamp(1705315800, 0);
 
       const result = fromFirestoreDocumentData({
         post: {
-          createdAt: firebaseTimestamp,
+          createdAt: adminTimestamp,
           title: 'Nested',
         },
       });
@@ -42,10 +41,10 @@ describe('Firestore Converter', () => {
     });
 
     it('should handle timestamps in arrays', () => {
-      const firebaseTimestamp = new FirebaseTimestamp(1705315800, 0);
+      const adminTimestamp = new AdminTimestamp(1705315800, 0);
 
       const result = fromFirestoreDocumentData({
-        timestamps: [firebaseTimestamp, firebaseTimestamp],
+        timestamps: [adminTimestamp, adminTimestamp],
       });
 
       expect(result.timestamps[0]).toBeInstanceOf(FirestoreSchema.Timestamp);
@@ -69,26 +68,25 @@ describe('Firestore Converter', () => {
         createdAt: null,
       });
 
-      // null should stay null, not be converted to Timestamp
       expect(result.createdAt).toBeNull();
     });
   });
 
   describe('toFirestoreDocumentData', () => {
-    const fakeFirestore = {} as unknown as Firestore;
-
     it('should convert FirestoreSchema.Timestamp to Firestore Timestamp', () => {
+      const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
         FirestoreSchema.Timestamp.fromMillis(1705315800123)
       );
 
-      expect(result).toBeInstanceOf(FirebaseTimestamp);
-      expect((result as FirebaseTimestamp).seconds).toBe(1705315800);
-      expect((result as FirebaseTimestamp).nanoseconds).toBe(123000000);
+      expect(result).toBeInstanceOf(AdminTimestamp);
+      expect((result as AdminTimestamp).seconds).toBe(1705315800);
+      expect((result as AdminTimestamp).nanoseconds).toBe(123000000);
     });
 
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {
+      const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
         new FirestoreSchema.GeoPoint({
@@ -97,32 +95,60 @@ describe('Firestore Converter', () => {
         })
       );
 
-      expect(result).toBeInstanceOf(FirebaseGeoPoint);
-      expect((result as FirebaseGeoPoint).latitude).toBe(55.6761);
-      expect((result as FirebaseGeoPoint).longitude).toBe(12.5683);
+      expect(result).toBeInstanceOf(AdminGeoPoint);
+      expect((result as AdminGeoPoint).latitude).toBe(55.6761);
+      expect((result as AdminGeoPoint).longitude).toBe(12.5683);
+    });
+
+    it('should convert FirestoreSchema.Reference using db.doc(path)', () => {
+      const docCalls: string[] = [];
+      const fakeReference = { __tag: 'fake-doc-ref' };
+      const fakeFirestore = {
+        doc: (path: string) => {
+          docCalls.push(path);
+          return fakeReference;
+        },
+      } as unknown as Firestore;
+
+      const result = toFirestoreDocumentData(
+        fakeFirestore,
+        FirestoreSchema.Reference.makeFromPath('posts/post-1')
+      );
+
+      expect(docCalls).toEqual(['posts/post-1']);
+      expect(result).toBe(fakeReference);
     });
 
     it('should convert ServerTimestamp to Firestore field value', () => {
+      const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
         FirestoreSchema.ServerTimestamp.make()
       );
-      expect(result).toStrictEqual(serverTimestamp());
+
+      expect(result).toStrictEqual(FieldValue.serverTimestamp());
     });
 
     it('should convert Delete to Firestore field value', () => {
+      const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
         FirestoreSchema.Delete.make()
       );
-      expect(result).toStrictEqual(deleteField());
+
+      expect(result).toStrictEqual(FieldValue.delete());
     });
 
     it('should recursively convert nested objects and arrays', () => {
+      const fakeFirestore = {
+        doc: (path: string) => ({ path, __tag: 'fake-doc-ref' }),
+      } as unknown as Firestore;
+
       const result = toFirestoreDocumentData(fakeFirestore, {
         createdAt: FirestoreSchema.Timestamp.fromMillis(1705315800000),
         metadata: {
           location: new FirestoreSchema.GeoPoint({ latitude: 1, longitude: 2 }),
+          postRef: FirestoreSchema.Reference.makeFromPath('posts/post-1'),
         },
         updates: [
           FirestoreSchema.Timestamp.fromMillis(1705315800123),
@@ -132,7 +158,7 @@ describe('Firestore Converter', () => {
       });
 
       expect((result as Record<string, unknown>).createdAt).toBeInstanceOf(
-        FirebaseTimestamp
+        AdminTimestamp
       );
       expect(
         (
@@ -141,37 +167,44 @@ describe('Firestore Converter', () => {
             unknown
           >
         ).location
-      ).toBeInstanceOf(FirebaseGeoPoint);
+      ).toBeInstanceOf(AdminGeoPoint);
+      expect(
+        (
+          (result as Record<string, unknown>).metadata as Record<
+            string,
+            unknown
+          >
+        ).postRef
+      ).toEqual({ path: 'posts/post-1', __tag: 'fake-doc-ref' });
       expect((result as Record<string, unknown>).updates).toHaveLength(3);
       expect(
         ((result as Record<string, unknown>).updates as unknown[])[0]
-      ).toBeInstanceOf(FirebaseTimestamp);
+      ).toBeInstanceOf(AdminTimestamp);
       expect(
         ((result as Record<string, unknown>).updates as unknown[])[1]
-      ).toStrictEqual(deleteField());
+      ).toStrictEqual(FieldValue.delete());
       expect(
         ((result as Record<string, unknown>).updates as unknown[])[2]
       ).toBeNull();
     });
 
     it('should preserve already-native Firestore values', () => {
-      const firebaseTimestamp = new FirebaseTimestamp(1705315800, 0);
-      const firebaseGeoPoint = new FirebaseGeoPoint(10, 20);
-      const firebaseDelete = deleteField();
+      const fakeFirestore = {} as unknown as Firestore;
+      const adminTimestamp = new AdminTimestamp(1705315800, 0);
+      const adminGeoPoint = new AdminGeoPoint(10, 20);
+      const adminDelete = FieldValue.delete();
 
       const result = toFirestoreDocumentData(fakeFirestore, {
-        timestamp: firebaseTimestamp,
-        geoPoint: firebaseGeoPoint,
-        delete: firebaseDelete,
+        timestamp: adminTimestamp,
+        geoPoint: adminGeoPoint,
+        delete: adminDelete,
       });
 
       expect((result as Record<string, unknown>).timestamp).toBe(
-        firebaseTimestamp
+        adminTimestamp
       );
-      expect((result as Record<string, unknown>).geoPoint).toBe(
-        firebaseGeoPoint
-      );
-      expect((result as Record<string, unknown>).delete).toBe(firebaseDelete);
+      expect((result as Record<string, unknown>).geoPoint).toBe(adminGeoPoint);
+      expect((result as Record<string, unknown>).delete).toBe(adminDelete);
     });
   });
 });
