@@ -1,4 +1,5 @@
 import {
+  deleteField,
   doc,
   DocumentData,
   DocumentReference,
@@ -36,6 +37,9 @@ export const toFirestoreDocumentData = (
   }
   if (data instanceof FirestoreSchema.ServerTimestamp) {
     return serverTimestamp();
+  }
+  if (data instanceof FirestoreSchema.Delete) {
+    return deleteField();
   }
   if (Array.isArray(data)) {
     return data.map((item) => toFirestoreDocumentData(db, item));
