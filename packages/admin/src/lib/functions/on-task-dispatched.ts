@@ -73,7 +73,7 @@ export function onTaskDispatchedEffect<R>(
         // Pass raw request to handler
         return yield* handler(request);
       }
-    });
+    }).pipe(Effect.withSpan('onTaskDispatchedEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

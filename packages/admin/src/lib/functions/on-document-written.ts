@@ -88,7 +88,7 @@ export function onDocumentWrittenEffect<
         } as TypedWrittenChange<Schema.Schema.Type<S>>,
         event
       );
-    });
+    }).pipe(Effect.withSpan('onDocumentWrittenEffect'));
 
     await run(
       options.runtime,
@@ -154,7 +154,7 @@ export function onDocumentWrittenWithAuthContextEffect<
         before,
         after,
       } as TypedWrittenChange<Schema.Schema.Type<S>>);
-    });
+    }).pipe(Effect.withSpan('onDocumentWrittenWithAuthContextEffect'));
 
     await run(
       options.runtime,

@@ -82,7 +82,7 @@ export function onDocumentUpdatedEffect<
         } as TypedChange<Schema.Schema.Type<S>>,
         event
       );
-    });
+    }).pipe(Effect.withSpan('onDocumentUpdatedEffect'));
 
     await run(
       options.runtime,
@@ -144,7 +144,7 @@ export function onDocumentUpdatedWithAuthContextEffect<
         before,
         after,
       } as TypedChange<Schema.Schema.Type<S>>);
-    });
+    }).pipe(Effect.withSpan('onDocumentUpdatedWithAuthContextEffect'));
 
     await run(
       options.runtime,

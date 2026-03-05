@@ -118,7 +118,7 @@ export function onCallEffect<R>(
           ? encodeOutput(outputSchema)(output)
           : Effect.succeed(output)
       )
-    );
+    ).pipe(Effect.withSpan('onCallEffect'));
 
     return await run(
       options.runtime,

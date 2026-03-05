@@ -78,7 +78,7 @@ export function onMessagePublishedEffect<R>(
         // Pass raw event to handler
         return yield* handler(event);
       }
-    });
+    }).pipe(Effect.withSpan('onMessagePublishedEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

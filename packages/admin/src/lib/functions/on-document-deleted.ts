@@ -55,7 +55,7 @@ export function onDocumentDeletedEffect<
         options.idField
       );
       return yield* handler(data as Schema.Schema.Type<S>, event);
-    });
+    }).pipe(Effect.withSpan('onDocumentDeletedEffect'));
 
     await run(
       options.runtime,
@@ -104,7 +104,7 @@ export function onDocumentDeletedWithAuthContextEffect<
         options.idField
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);
-    });
+    }).pipe(Effect.withSpan('onDocumentDeletedWithAuthContextEffect'));
 
     await run(
       options.runtime,

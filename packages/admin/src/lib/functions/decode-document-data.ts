@@ -22,6 +22,7 @@ export const decodeDocumentData = <S extends Schema.Schema.Any>(
     ? { ...convertedData, [idField]: docId }
     : convertedData;
   return Schema.decodeUnknown(schema)(dataWithId).pipe(
-    Effect.orDie
+    Effect.orDie,
+    Effect.withSpan('decodeDocumentData')
   ) as Effect.Effect<Schema.Schema.Type<S>, never, Schema.Schema.Context<S>>;
 };

@@ -55,7 +55,7 @@ export function onDocumentCreatedEffect<
         options.idField
       );
       return yield* handler(data as Schema.Schema.Type<S>, event);
-    });
+    }).pipe(Effect.withSpan('onDocumentCreatedEffect'));
 
     await run(
       options.runtime,
@@ -104,7 +104,7 @@ export function onDocumentCreatedWithAuthContextEffect<
         options.idField
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);
-    });
+    }).pipe(Effect.withSpan('onDocumentCreatedWithAuthContextEffect'));
 
     await run(
       options.runtime,

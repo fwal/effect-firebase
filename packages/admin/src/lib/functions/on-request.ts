@@ -116,7 +116,7 @@ export function onRequestEffect<R>(
           ? sendJson(response, responseSchema, successStatus)(output)
           : Effect.void
       )
-    );
+    ).pipe(Effect.withSpan('onRequestEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
