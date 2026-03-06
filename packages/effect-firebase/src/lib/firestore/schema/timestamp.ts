@@ -35,10 +35,16 @@ export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
 }
 
 /**
+ * Schema where Timestamp class instance is both Type and Encoded.
+ * Using instanceOf ensures the class instance is preserved through Schema.encode.
+ */
+export const TimestampInstance = Schema.instanceOf(Timestamp);
+
+/**
  * Schema representing a timestamp as a DateTime.Utc.
  */
 export const TimestampDateTimeUtc = Schema.transform(
-  Timestamp,
+  TimestampInstance,
   Schema.DateTimeUtcFromSelf,
   {
     decode: (ts) => DateTime.unsafeMake(ts.toMillis()),
@@ -54,8 +60,14 @@ export class ServerTimestamp extends Schema.Class<ServerTimestamp>(
   'ServerTimestamp'
 )({}) {}
 
+/**
+ * Schema where ServerTimestamp class instance is both Type and Encoded.
+ * Using instanceOf ensures the class instance is preserved through Schema.encode.
+ */
+export const ServerTimestampInstance = Schema.instanceOf(ServerTimestamp);
+
 export const AnyTimestampDateTimeUtc = Schema.transformOrFail(
-  Schema.Union(Timestamp, ServerTimestamp),
+  Schema.Union(TimestampInstance, ServerTimestampInstance),
   Schema.DateTimeUtcFromSelf,
   {
     strict: true,

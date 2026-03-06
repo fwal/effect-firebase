@@ -171,7 +171,10 @@ describe('TimestampDateTimeUtc', () => {
 
   describe('decoding', () => {
     it('should decode Timestamp to DateTime.Utc', () => {
-      const input = { seconds: 1705315800, nanoseconds: 123000000 };
+      const input = new Timestamp({
+        seconds: 1705315800,
+        nanoseconds: 123000000,
+      });
       const dt = decode(input);
 
       expect(DateTime.isDateTime(dt)).toBe(true);
@@ -191,10 +194,10 @@ describe('TimestampDateTimeUtc', () => {
   describe('roundtrip', () => {
     it('should maintain precision through roundtrip', () => {
       const originalMillis = 1705315800123;
-      const input = {
+      const input = new Timestamp({
         seconds: Math.floor(originalMillis / 1000),
         nanoseconds: (originalMillis % 1000) * 1000000,
-      };
+      });
       const dt = decode(input);
       const encoded = encode(dt);
 
