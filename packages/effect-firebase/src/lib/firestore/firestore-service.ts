@@ -55,6 +55,11 @@ type FirestoreCRUD = {
     path: string,
     data: typeof Data.Type
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
+
+  /**
+   * Remove a document from the Firestore database.
+   * @param path - The path to the document.
+   */
   readonly remove: (
     path: string
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
