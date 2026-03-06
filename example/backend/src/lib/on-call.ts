@@ -2,6 +2,7 @@ import { onCallEffect } from '@effect-firebase/admin';
 import { Effect, Option } from 'effect';
 import { runtime } from './runtime.js';
 import { OnExampleCall, PostRepository } from '@example/shared';
+import { SerializeError, ErrorHandler } from './error-handler.js';
 
 /**
  * Example using onCallEffect with schemas.
@@ -20,5 +21,5 @@ export const onExampleCall = onCallEffect(
       const posts = yield* PostRepository;
       const post = yield* posts.getById(input.id);
       return Option.getOrThrow(post);
-    })
+    }).pipe(SerializeError, ErrorHandler)
 );

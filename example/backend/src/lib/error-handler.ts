@@ -10,12 +10,7 @@ export interface ErrorResponse {
   };
 }
 
-export const SerializeError = Effect.catchAll<
-  unknown,
-  ErrorResponse,
-  never,
-  never
->((error) => {
+const formatError = (error: unknown) => {
   if (error instanceof ParseError) {
     const failures = ParseResult.ArrayFormatter.formatErrorSync(error).map(
       (failure) => ({ path: failure.path.join('.'), message: failure.message })
@@ -32,4 +27,15 @@ export const SerializeError = Effect.catchAll<
   return Effect.succeed({
     error: { message: 'Internal error', tag: 'UnknownError' },
   });
-});
+};
+
+export const SerializeError = Effect.catchAll<
+  unknown,
+  ErrorResponse,
+  never,
+  never
+>((error) => formatError(error));
+
+export const ErrorHandler = Effect.catchAllDefect((error) =>
+  formatError(error)
+);

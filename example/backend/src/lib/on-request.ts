@@ -2,6 +2,7 @@ import { Effect, Option } from 'effect';
 import { onRequestEffect } from '@effect-firebase/admin';
 import { OnExampleRequest, PostId, PostRepository } from '@example/shared';
 import { runtime } from './runtime.js';
+import { SerializeError, ErrorHandler } from './error-handler.js';
 
 /**
  * Example using onRequestEffect with schemas.
@@ -21,5 +22,5 @@ export const onExampleRequest = onRequestEffect(
       const id = PostId.make(body.id);
       const post = yield* posts.getById(id);
       return Option.getOrThrow(post);
-    })
+    }).pipe(SerializeError, ErrorHandler)
 );
