@@ -2,6 +2,7 @@ import { DateTime as EffectDateTime, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { DateTime, DateTimeInsert, DateTimeUpdate } from './datetime.js';
 import { Class, Generated } from './core.js';
+import { Timestamp } from '../schema/timestamp.js';
 
 describe('Model.DateTime', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -16,7 +17,7 @@ describe('Model.DateTime', () => {
       const decode = Schema.decodeUnknownSync(TestModel);
       const result = decode({
         id: 'post-1',
-        createdAt: { seconds: 1705315800, nanoseconds: 123000000 },
+        createdAt: Timestamp.fromMillis(1705315800123),
       });
 
       expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
@@ -43,7 +44,7 @@ describe('Model.DateTime', () => {
     it('should decode Timestamp to DateTime.Utc', () => {
       const decode = Schema.decodeUnknownSync(TestModel.add);
       const result = decode({
-        createdAt: { seconds: 1705315800, nanoseconds: 0 },
+        createdAt: Timestamp.fromMillis(1705315800000),
       });
 
       expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
@@ -100,7 +101,7 @@ describe('Model.DateTimeInsert', () => {
       const decode = Schema.decodeUnknownSync(TestModel);
       const result = decode({
         id: 'post-1',
-        createdAt: { seconds: 1705315800, nanoseconds: 0 },
+        createdAt: Timestamp.fromMillis(1705315800000),
       });
 
       expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
@@ -142,7 +143,7 @@ describe('Model.DateTimeUpdate', () => {
       const decode = Schema.decodeUnknownSync(TestModel);
       const result = decode({
         id: 'post-1',
-        updatedAt: { seconds: 1705315800, nanoseconds: 0 },
+        updatedAt: Timestamp.fromMillis(1705315800000),
       });
 
       expect(EffectDateTime.isDateTime(result.updatedAt)).toBe(true);

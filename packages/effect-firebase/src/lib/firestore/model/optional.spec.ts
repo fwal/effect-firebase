@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Class } from './core.js';
 
 import { Optional, OptionalNull, OptionalDeletable } from './optional.js';
-import { Delete } from '../schema/delete.js';
+import { Delete } from '../schema/fields.js';
 
 describe('Optional', () => {
   class TestModel extends Class<TestModel>('TestModel')({
