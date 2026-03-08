@@ -1,4 +1,5 @@
 export * as FirestoreSchema from './lib/firestore/schema/schema.js';
+export * as FirestoreField from './lib/firestore/fields/fields.js';
 export * from './lib/firestore/firestore-service.js';
 export * from './lib/firestore/errors.js';
 export * from './lib/firestore/snapshot.js';

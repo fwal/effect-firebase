@@ -2,7 +2,12 @@ import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Class } from './core.js';
 import { WithArrayFields, Array } from './array.js';
-import { ArrayUnion, ArrayRemove } from '../schema/fields.js';
+import {
+  ArrayUnion,
+  ArrayRemove,
+  arrayUnion,
+  arrayRemove,
+} from '../fields/array.js';
 
 describe('WithArrayFields', () => {
   class TestModel extends Class<TestModel>('TestModel')({
@@ -39,7 +44,7 @@ describe('WithArrayFields', () => {
     it('should accept an ArrayUnion sentinel', () => {
       const result = Schema.decodeUnknownSync(TestModel.update)({
         name: 'Post',
-        tags: ArrayUnion.values(['c', 'd']),
+        tags: arrayUnion(['c', 'd']),
       });
       expect(result.tags).toBeInstanceOf(ArrayUnion);
       expect(result.tags.values).toEqual(['c', 'd']);
@@ -48,7 +53,7 @@ describe('WithArrayFields', () => {
     it('should accept an ArrayRemove sentinel', () => {
       const result = Schema.decodeUnknownSync(TestModel.update)({
         name: 'Post',
-        tags: ArrayRemove.values(['a']),
+        tags: arrayRemove(['a']),
       });
       expect(result.tags).toBeInstanceOf(ArrayRemove);
       expect(result.tags.values).toEqual(['a']);
@@ -57,7 +62,7 @@ describe('WithArrayFields', () => {
     it('should encode ArrayUnion sentinel as-is (for converter to handle)', () => {
       const result = Schema.encodeSync(TestModel.update)({
         name: 'Post',
-        tags: ArrayUnion.values(['c']),
+        tags: arrayUnion(['c']),
       });
       expect(result.tags).toBeInstanceOf(ArrayUnion);
       expect(result.tags.values).toEqual(['c']);
@@ -66,7 +71,7 @@ describe('WithArrayFields', () => {
     it('should encode ArrayRemove sentinel as-is (for converter to handle)', () => {
       const result = Schema.encodeSync(TestModel.update)({
         name: 'Post',
-        tags: ArrayRemove.values(['a']),
+        tags: arrayRemove(['a']),
       });
       expect(result.tags).toBeInstanceOf(ArrayRemove);
       expect(result.tags.values).toEqual(['a']);
@@ -86,7 +91,7 @@ describe('WithArrayFields', () => {
       expect(() =>
         Schema.decodeUnknownSync(TestModel.json)({
           name: 'Post',
-          tags: ArrayUnion.make({ values: ['c'] }),
+          tags: arrayUnion(['c']),
         })
       ).toThrow();
     });
@@ -110,7 +115,7 @@ describe('Array', () => {
   it('update variant accepts ArrayUnion', () => {
     const result = Schema.decodeUnknownSync(TestModel.update)({
       name: 'Post',
-      tags: ArrayUnion.values(['y']),
+      tags: arrayUnion(['y']),
     });
     expect(result.tags).toBeInstanceOf(ArrayUnion);
   });
@@ -118,7 +123,7 @@ describe('Array', () => {
   it('update variant accepts ArrayRemove', () => {
     const result = Schema.decodeUnknownSync(TestModel.update)({
       name: 'Post',
-      tags: ArrayRemove.values(['x']),
+      tags: arrayRemove(['x']),
     });
     expect(result.tags).toBeInstanceOf(ArrayRemove);
   });

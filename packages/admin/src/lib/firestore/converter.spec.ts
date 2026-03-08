@@ -143,7 +143,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
-        FirestoreSchema.ArrayUnion.values(['a', 'b'])
+        FirestoreSchema.ArrayUnion.make({ values: ['a', 'b'] })
       );
       expect(result).toStrictEqual(FieldValue.arrayUnion('a', 'b'));
     });
@@ -152,7 +152,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
-        FirestoreSchema.ArrayRemove.values(['a'])
+        FirestoreSchema.ArrayRemove.make({ values: ['a'] })
       );
       expect(result).toStrictEqual(FieldValue.arrayRemove('a'));
     });

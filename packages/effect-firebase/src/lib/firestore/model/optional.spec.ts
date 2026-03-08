@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Class } from './core.js';
 
 import { Optional, OptionalNull, OptionalDeletable } from './optional.js';
-import { Delete } from '../schema/fields.js';
+import { Delete, delete as deleteField } from '../fields/delete.js';
 
 describe('Optional', () => {
   class TestModel extends Class<TestModel>('TestModel')({
@@ -170,7 +170,7 @@ describe('OptionalDeletable', () => {
   describe('update variant', () => {
     it('should decode Delete value to Option.some', () => {
       const decode = Schema.decodeUnknownSync(TestModel.update);
-      const result = decode({ name: 'John', bio: Delete.make() });
+      const result = decode({ name: 'John', bio: deleteField() });
 
       expect(Option.isSome(result.bio)).toBe(true);
       expect(Option.getOrNull(result.bio)).toBeInstanceOf(Delete);
@@ -209,7 +209,7 @@ describe('OptionalDeletable', () => {
       const encode = Schema.encodeSync(TestModel.update);
       const result = encode({
         name: 'John',
-        bio: Option.some(new Delete({})),
+        bio: Option.some(deleteField()),
       });
 
       expect(result.bio).toBeDefined();

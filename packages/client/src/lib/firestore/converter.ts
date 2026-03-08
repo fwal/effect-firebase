@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { FirestoreSchema } from 'effect-firebase';
+import { FirestoreSchema, FirestoreField } from 'effect-firebase';
 
 export const toFirestoreDocumentData = (
   db: Firestore,
@@ -40,13 +40,13 @@ export const toFirestoreDocumentData = (
   if (data instanceof FirestoreSchema.ServerTimestamp) {
     return serverTimestamp();
   }
-  if (data instanceof FirestoreSchema.Delete) {
+  if (data instanceof FirestoreField.Delete) {
     return deleteField();
   }
-  if (data instanceof FirestoreSchema.ArrayUnion) {
+  if (data instanceof FirestoreField.ArrayUnion) {
     return arrayUnion(...data.values);
   }
-  if (data instanceof FirestoreSchema.ArrayRemove) {
+  if (data instanceof FirestoreField.ArrayRemove) {
     return arrayRemove(...data.values);
   }
   if (Array.isArray(data)) {

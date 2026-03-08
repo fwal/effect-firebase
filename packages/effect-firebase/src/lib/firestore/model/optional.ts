@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { VariantSchema } from '@effect/experimental';
 import { VariantsDatabase, fieldEvolve } from './core.js';
-import { Delete } from '../schema/fields.js';
+import { DeleteInstance } from '../fields/delete.js';
 
 /**
  * Convert a field to one that is optional for all variants.
@@ -102,7 +102,7 @@ export type OptionalDeletable<S extends Schema.Schema.Any> =
     readonly get: Schema.OptionFromUndefinedOr<S>;
     readonly add: Schema.OptionFromUndefinedOr<S>;
     readonly update: Schema.OptionFromUndefinedOr<
-      Schema.Union<[S, typeof Delete]>
+      Schema.Union<[S, typeof DeleteInstance]>
     >;
     readonly json: Schema.optionalWith<S, { as: 'Option' }>;
     readonly jsonAdd: Schema.optionalWith<S, { as: 'Option'; nullable: true }>;
@@ -123,14 +123,16 @@ export const OptionalDeletable: <
       readonly [K in keyof S]: S[K] extends Schema.Schema.Any
         ? K extends VariantsDatabase
           ? Schema.OptionFromUndefinedOr<S[K]>
-          : Schema.OptionFromUndefinedOr<Schema.Union<[S[K], typeof Delete]>>
+          : Schema.OptionFromUndefinedOr<
+              Schema.Union<[S[K], typeof DeleteInstance]>
+            >
         : never;
     }>
   : never = fieldEvolve({
   get: Schema.OptionFromUndefinedOr,
   add: Schema.OptionFromUndefinedOr,
   update: (s: Schema.Schema.Any) =>
-    Schema.OptionFromUndefinedOr(Schema.Union(s, Delete)),
+    Schema.OptionFromUndefinedOr(Schema.Union(s, DeleteInstance)),
   json: Schema.optionalWith({ as: 'Option' }),
   jsonAdd: Schema.optionalWith({ as: 'Option', nullable: true }),
   jsonUpdate: Schema.optionalWith({ as: 'Option', nullable: true }),

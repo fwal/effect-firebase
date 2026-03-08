@@ -1,12 +1,7 @@
 import { Schema } from 'effect';
 import { VariantSchema } from '@effect/experimental';
 import { fieldEvolve } from './core.js';
-import {
-  ArrayUnion,
-  ArrayUnionInstance,
-  ArrayRemove,
-  ArrayRemoveInstance,
-} from '../schema/fields.js';
+import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
 
 /**
  * Adds `ArrayUnion` and `ArrayRemove` sentinel support to an array field's `update` variant.
@@ -25,19 +20,15 @@ import {
  *
  * // update variant accepts:
  * postRepo.update('id', { tags: ['a', 'b'] });              // replace
- * postRepo.update('id', { tags: ArrayUnion.withValues(['c']) });    // arrayUnion
- * postRepo.update('id', { tags: ArrayRemove.withValues(['a']) }); // arrayRemove
+ * postRepo.update('id', { tags: arrayUnion(['c']) });    // arrayUnion
+ * postRepo.update('id', { tags: arrayRemove(['a']) }); // arrayRemove
  * ```
  */
 export type WithArrayFields<S extends Schema.Schema.Any> = VariantSchema.Field<{
   readonly get: S;
   readonly add: S;
   readonly update: Schema.Union<
-    [
-      S,
-      Schema.instanceOf<typeof ArrayUnion>,
-      Schema.instanceOf<typeof ArrayRemove>
-    ]
+    [S, typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
   >;
   readonly json: S;
   readonly jsonAdd: S;
@@ -57,11 +48,7 @@ export const WithArrayFields: <
       readonly [K in keyof S]: S[K] extends Schema.Schema.Any
         ? K extends 'update'
           ? Schema.Union<
-              [
-                S[K],
-                Schema.instanceOf<typeof ArrayUnion>,
-                Schema.instanceOf<typeof ArrayRemove>
-              ]
+              [S[K], typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
             >
           : S[K]
         : never;
