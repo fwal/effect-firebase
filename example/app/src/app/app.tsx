@@ -1,9 +1,9 @@
 import { initializeApp } from 'firebase/app';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import {
-  getFunctions,
-  connectFunctionsEmulator,
-} from 'firebase/functions';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+  connectFirestoreEmulator,
+  initializeFirestore,
+} from 'firebase/firestore';
 import SideMenu from '../components/menu/side-menu.js';
 import MenuItem from '../components/menu/menu-item.js';
 
@@ -18,7 +18,7 @@ export function App({ children }: AppProps) {
   const functions = getFunctions(app, 'europe-north1');
   connectFunctionsEmulator(functions, 'localhost', 5001);
 
-  const db = getFirestore(app);
+  const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
 
   return (

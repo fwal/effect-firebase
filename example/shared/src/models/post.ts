@@ -13,6 +13,8 @@ export class PostModel extends Model.Class<PostModel>('PostModel')({
   title: Schema.String,
   content: Schema.String,
   checked: Schema.Boolean,
+  optional: Model.OptionalDeletable(Schema.String),
+  list: Model.Array(Schema.String),
 }) {
   static idField = 'id' as const;
 }

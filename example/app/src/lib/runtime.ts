@@ -1,8 +1,9 @@
-import type { FirebaseApp } from 'firebase/app';
-import { Layer, ManagedRuntime } from 'effect';
+import { Effect, Layer } from 'effect';
 import { Client } from '@effect-firebase/client';
+import { getFirestore } from 'firebase/firestore';
+import { BrowserRuntime } from '@effect/platform-browser';
 
-export const makeRuntime = (app: FirebaseApp) => {
-  const mainLayer = Layer.mergeAll(Client.layer({ app }));
-  return ManagedRuntime.make(mainLayer);
+export const runMain = (program: Effect.Effect<void>) => {
+  const mainLayer = Layer.mergeAll(Client.layer({ firestore: getFirestore() }));
+  return BrowserRuntime.runMain(program.pipe(Effect.provide(mainLayer)));
 };

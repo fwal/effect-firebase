@@ -22,13 +22,13 @@
   ],
   "references": [
     {
+      "path": "../../packages/effect-firebase/tsconfig.lib.json"
+    },
+    {
       "path": "../shared/tsconfig.lib.json"
     },
     {
       "path": "../../packages/admin/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/effect-firebase/tsconfig.lib.json"
     }
   ]
 }
