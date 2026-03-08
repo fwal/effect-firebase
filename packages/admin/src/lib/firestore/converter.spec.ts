@@ -9,7 +9,7 @@ import {
   fromFirestoreDocumentData,
   toFirestoreDocumentData,
 } from './converter.js';
-import { FirestoreSchema } from 'effect-firebase';
+import { FirestoreSchema, FirestoreField } from 'effect-firebase';
 
 describe('Firestore Converter', () => {
   describe('fromFirestoreDocumentData', () => {
@@ -133,7 +133,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
-        FirestoreSchema.Delete.make()
+        FirestoreField.delete()
       );
 
       expect(result).toStrictEqual(FieldValue.delete());
@@ -143,7 +143,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
-        FirestoreSchema.ArrayUnion.make({ values: ['a', 'b'] })
+        FirestoreField.arrayUnion(['a', 'b'])
       );
       expect(result).toStrictEqual(FieldValue.arrayUnion('a', 'b'));
     });
@@ -152,7 +152,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = toFirestoreDocumentData(
         fakeFirestore,
-        FirestoreSchema.ArrayRemove.make({ values: ['a'] })
+        FirestoreField.arrayRemove(['a'])
       );
       expect(result).toStrictEqual(FieldValue.arrayRemove('a'));
     });
@@ -170,7 +170,7 @@ describe('Firestore Converter', () => {
         },
         updates: [
           FirestoreSchema.Timestamp.fromMillis(1705315800123),
-          FirestoreSchema.Delete.make(),
+          FirestoreField.delete(),
           null,
         ],
       });
