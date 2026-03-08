@@ -13,8 +13,8 @@
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "effect": "^3.19.19",
-    "firebase-admin": "^13.6.0",
-    "@google-cloud/functions-framework": "^5.0.0",
+    "firebase-admin": "^13.7.0",
+    "@google-cloud/functions-framework": "^5.0.2",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
   },

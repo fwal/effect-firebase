@@ -31,7 +31,7 @@
   "devDependencies": {
     "effect": "^3.19.19",
     "effect-firebase": "workspace:*",
-    "firebase": "^12.9.0"
+    "firebase": "^12.10.0"
   },
   "peerDependencies": {
     "effect": "^3.0.0",
