@@ -39,7 +39,11 @@ export default [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredDependencies: ['vitest', '@google-cloud/functions-framework'],
+          ignoredDependencies: [
+            'vite',
+            'vitest',
+            '@google-cloud/functions-framework',
+          ],
           checkVersionMismatches: true,
         },
       ],

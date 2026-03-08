@@ -271,9 +271,6 @@ importers:
       effect:
         specifier: ^3.19.19
         version: 3.19.19
-      effect-firebase:
-        specifier: workspace:*
-        version: link:../../packages/effect-firebase
       firebase-admin:
         specifier: ^13.6.0
         version: 13.6.0(encoding@0.1.13)
