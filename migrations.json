@@ -1,0 +1,10 @@
+{
+  "nx-console": {
+    "initialGitRef": {
+      "ref": "abcd8866b1ee86f871a8cbd5f3e402bcd1b94945",
+      "subject": "chore: Update lockfile"
+    },
+    "targetVersion": "latest",
+    "confirmedPackageUpdates": true
+  }
+}
