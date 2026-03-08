@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { VariantSchema } from '@effect/experimental';
 import { VariantsDatabase, fieldEvolve } from './core.js';
-import { Delete } from '../schema/delete.js';
+import { Delete } from '../schema/fields.js';
 
 /**
  * Convert a field to one that is optional for all variants.
