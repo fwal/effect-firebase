@@ -31,12 +31,18 @@ export default [
     },
   },
   {
-    files: ['packages/**/*.json'],
+    files: ['**/*.json'],
     languageOptions: {
       parser: jsoncParser,
     },
     rules: {
-      '@nx/dependency-checks': 'error',
+      '@nx/dependency-checks': [
+        'error',
+        {
+          ignoredDependencies: ['vitest', '@google-cloud/functions-framework'],
+          checkVersionMismatches: true,
+        },
+      ],
     },
   },
   {
