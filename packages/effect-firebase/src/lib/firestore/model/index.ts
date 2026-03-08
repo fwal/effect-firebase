@@ -1,3 +1,4 @@
+export * from './array.js';
 export * from './core.js';
 export * from './datetime.js';
 export * from './optional.js';

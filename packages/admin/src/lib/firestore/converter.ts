@@ -38,6 +38,12 @@ export const toFirestoreDocumentData = (
   if (data instanceof FirestoreSchema.Delete) {
     return FieldValue.delete();
   }
+  if (data instanceof FirestoreSchema.ArrayUnion) {
+    return FieldValue.arrayUnion(...data.values);
+  }
+  if (data instanceof FirestoreSchema.ArrayRemove) {
+    return FieldValue.arrayRemove(...data.values);
+  }
   if (Array.isArray(data)) {
     return data.map((item) => toFirestoreDocumentData(db, item));
   }

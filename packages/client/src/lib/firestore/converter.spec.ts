@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  arrayRemove,
+  arrayUnion,
   deleteField,
   GeoPoint as FirebaseGeoPoint,
   serverTimestamp,
@@ -116,6 +118,22 @@ describe('Firestore Converter', () => {
         FirestoreSchema.Delete.make()
       );
       expect(result).toStrictEqual(deleteField());
+    });
+
+    it('should convert ArrayUnion to arrayUnion FieldValue', () => {
+      const result = toFirestoreDocumentData(
+        fakeFirestore,
+        FirestoreSchema.ArrayUnion.values(['a', 'b'])
+      );
+      expect(result).toStrictEqual(arrayUnion('a', 'b'));
+    });
+
+    it('should convert ArrayRemove to arrayRemove FieldValue', () => {
+      const result = toFirestoreDocumentData(
+        fakeFirestore,
+        FirestoreSchema.ArrayRemove.values(['a'])
+      );
+      expect(result).toStrictEqual(arrayRemove('a'));
     });
 
     it('should recursively convert nested objects and arrays', () => {

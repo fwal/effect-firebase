@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   deleteField,
   doc,
   DocumentData,
@@ -40,6 +42,12 @@ export const toFirestoreDocumentData = (
   }
   if (data instanceof FirestoreSchema.Delete) {
     return deleteField();
+  }
+  if (data instanceof FirestoreSchema.ArrayUnion) {
+    return arrayUnion(...data.values);
+  }
+  if (data instanceof FirestoreSchema.ArrayRemove) {
+    return arrayRemove(...data.values);
   }
   if (Array.isArray(data)) {
     return data.map((item) => toFirestoreDocumentData(db, item));

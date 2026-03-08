@@ -139,6 +139,24 @@ describe('Firestore Converter', () => {
       expect(result).toStrictEqual(FieldValue.delete());
     });
 
+    it('should convert ArrayUnion to arrayUnion FieldValue', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const result = toFirestoreDocumentData(
+        fakeFirestore,
+        FirestoreSchema.ArrayUnion.values(['a', 'b'])
+      );
+      expect(result).toStrictEqual(FieldValue.arrayUnion('a', 'b'));
+    });
+
+    it('should convert ArrayRemove to arrayRemove FieldValue', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const result = toFirestoreDocumentData(
+        fakeFirestore,
+        FirestoreSchema.ArrayRemove.values(['a'])
+      );
+      expect(result).toStrictEqual(FieldValue.arrayRemove('a'));
+    });
+
     it('should recursively convert nested objects and arrays', () => {
       const fakeFirestore = {
         doc: (path: string) => ({ path, __tag: 'fake-doc-ref' }),
