@@ -62,7 +62,7 @@ export function onDocumentUpdatedEffect<
     const effect = Effect.gen(function* () {
       const docId = event.data?.before.id;
 
-      const before = decodeDocumentData(
+      const before = yield* decodeDocumentData(
         event.data?.before.data(),
         docId,
         schema,
