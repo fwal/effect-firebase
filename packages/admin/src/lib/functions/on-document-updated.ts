@@ -60,6 +60,9 @@ export function onDocumentUpdatedEffect<
 
   return onDocumentUpdated(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.before.ref.path ?? 'unknown',
+      });
       const docId = event.data?.before.id;
 
       const before = yield* decodeDocumentData(
@@ -127,6 +130,9 @@ export function onDocumentUpdatedWithAuthContextEffect<
 
   return onDocumentUpdatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.before.ref.path ?? 'unknown',
+      });
       const docId = event.data?.before.id;
       const before = yield* decodeDocumentData(
         event.data?.before.data(),

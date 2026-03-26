@@ -48,6 +48,9 @@ export function onDocumentDeletedEffect<
 
   return onDocumentDeleted(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.ref.path ?? 'unknown',
+      });
       const data = yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
@@ -97,6 +100,9 @@ export function onDocumentDeletedWithAuthContextEffect<
 
   return onDocumentDeletedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.ref.path ?? 'unknown',
+      });
       const data = yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,

@@ -61,6 +61,12 @@ export function onDocumentWrittenEffect<
 
   return onDocumentWritten(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document:
+          event.data?.after.ref.path ??
+          event.data?.before.ref.path ??
+          'unknown',
+      });
       const docId = event.data?.after.id ?? event.data?.before.id;
       const beforeData = event.data?.before.data();
       const afterData = event.data?.after.data();
@@ -130,6 +136,12 @@ export function onDocumentWrittenWithAuthContextEffect<
 
   return onDocumentWrittenWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document:
+          event.data?.after.ref.path ??
+          event.data?.before.ref.path ??
+          'unknown',
+      });
       const docId = event.data?.after.id ?? event.data?.before.id;
       const beforeData = event.data?.before.data();
       const afterData = event.data?.after.data();

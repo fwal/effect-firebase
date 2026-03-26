@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect';
+import { Effect, pipe, Schema } from 'effect';
 import {
   onDocumentCreated,
   onDocumentCreatedWithAuthContext,
@@ -47,15 +47,21 @@ export function onDocumentCreatedEffect<
   const schema = options.schema ?? Schema.Unknown;
 
   return onDocumentCreated(options, async (event) => {
-    const effect = Effect.gen(function* () {
-      const data = yield* decodeDocumentData(
+    const effect = pipe(
+      decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField
-      );
-      return yield* handler(data as Schema.Schema.Type<S>, event);
-    }).pipe(Effect.withSpan('onDocumentCreatedEffect'));
+      ),
+      Effect.tap(() =>
+        Effect.annotateCurrentSpan({
+          document: event.data?.ref.path ?? 'unknown',
+        })
+      ),
+      Effect.flatMap((data) => handler(data as Schema.Schema.Type<S>, event)),
+      Effect.withSpan('onDocumentCreatedEffect')
+    );
 
     await run(
       options.runtime,
@@ -97,6 +103,9 @@ export function onDocumentCreatedWithAuthContextEffect<
 
   return onDocumentCreatedWithAuthContext(options, async (event) => {
     const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.ref.path ?? 'unknown',
+      });
       const data = yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
