@@ -9,10 +9,13 @@ import {
 } from 'firebase-admin/firestore';
 import { FirestoreSchema, FirestoreField } from 'effect-firebase';
 
-export const toFirestoreDocumentData = (
-  db: Firestore,
-  data: DocumentData
-): DocumentData => {
+/**
+ * Encode a value to Firestore admin sdk format.
+ * @param db The Firestore instance.
+ * @param data The value to encode.
+ * @returns The encoded value.
+ */
+export const firestoreEncode = (db: Firestore, data: unknown): unknown => {
   if (
     data === null ||
     data instanceof Timestamp ||
@@ -39,23 +42,32 @@ export const toFirestoreDocumentData = (
     return FieldValue.delete();
   }
   if (data instanceof FirestoreField.ArrayUnion) {
-    return FieldValue.arrayUnion(...data.values);
+    return FieldValue.arrayUnion(
+      ...data.values.map((v) => firestoreEncode(db, v))
+    );
   }
   if (data instanceof FirestoreField.ArrayRemove) {
-    return FieldValue.arrayRemove(...data.values);
+    return FieldValue.arrayRemove(
+      ...data.values.map((v) => firestoreEncode(db, v))
+    );
   }
   if (Array.isArray(data)) {
-    return data.map((item) => toFirestoreDocumentData(db, item));
+    return data.map((item) => firestoreEncode(db, item));
   }
   if (typeof data === 'object' && data !== null) {
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, toFirestoreDocumentData(db, v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)])
     );
   }
   return data;
 };
 
-export const fromFirestoreDocumentData = (data: DocumentData): DocumentData => {
+/**
+ * Decode a value from Firestore admin sdk format.
+ * @param data The value to decode.
+ * @returns The decoded value.
+ */
+export const firestoreDecode = (data: DocumentData): DocumentData => {
   if (data instanceof Timestamp) {
     return FirestoreSchema.Timestamp.fromMillis(data.toMillis());
   }
@@ -69,11 +81,11 @@ export const fromFirestoreDocumentData = (data: DocumentData): DocumentData => {
     return FirestoreSchema.Reference.makeFromPath(data.path);
   }
   if (Array.isArray(data)) {
-    return data.map(fromFirestoreDocumentData);
+    return data.map(firestoreDecode);
   }
   if (typeof data === 'object' && data !== null) {
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, fromFirestoreDocumentData(v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)])
     );
   }
   return data;
@@ -82,6 +94,7 @@ export const fromFirestoreDocumentData = (data: DocumentData): DocumentData => {
 export const makeConverter = (
   db: Firestore
 ): FirestoreDataConverter<DocumentData, DocumentData> => ({
-  toFirestore: (modelObject) => toFirestoreDocumentData(db, modelObject),
-  fromFirestore: (snapshot) => fromFirestoreDocumentData(snapshot.data()),
+  toFirestore: (modelObject) =>
+    firestoreEncode(db, modelObject) as DocumentData,
+  fromFirestore: (snapshot) => firestoreDecode(snapshot.data()),
 });

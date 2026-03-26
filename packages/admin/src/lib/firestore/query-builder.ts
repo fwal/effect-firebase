@@ -2,17 +2,10 @@ import {
   Query,
   CollectionReference,
   Filter,
-  DocumentData,
   Firestore,
 } from 'firebase-admin/firestore';
 import type { QueryConstraint } from 'effect-firebase';
-import { toFirestoreDocumentData } from './converter.js';
-
-/**
- * Helper to convert unknown value to DocumentData for Firestore.
- */
-const convertValue = (db: Firestore, value: unknown): unknown =>
-  toFirestoreDocumentData(db, value as DocumentData);
+import { firestoreEncode } from './converter.js';
 
 /**
  * Convert a single query constraint to Firebase Admin SDK query constraint.
@@ -27,7 +20,7 @@ const applyConstraint = (
       return query.where(
         constraint.field,
         constraint.op,
-        convertValue(db, constraint.value)
+        firestoreEncode(db, constraint.value)
       );
     case 'OrderBy':
       return query.orderBy(constraint.field, constraint.direction);
@@ -37,19 +30,19 @@ const applyConstraint = (
       return query.limitToLast(constraint.count);
     case 'StartAt':
       return query.startAt(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value))
       );
     case 'StartAfter':
       return query.startAfter(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value))
       );
     case 'EndAt':
       return query.endAt(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value))
       );
     case 'EndBefore':
       return query.endBefore(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value))
       );
     case 'And':
       return query.where(buildCompositeFilter(db, constraint));
@@ -84,7 +77,7 @@ const buildFilter = (db: Firestore, constraint: QueryConstraint): Filter => {
       return Filter.where(
         constraint.field,
         constraint.op,
-        convertValue(db, constraint.value)
+        firestoreEncode(db, constraint.value)
       );
     case 'And':
       return Filter.and(

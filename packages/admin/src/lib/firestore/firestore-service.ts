@@ -9,10 +9,10 @@ import type { Snapshot } from 'effect-firebase';
 import { UnknownException } from 'effect/Cause';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { App } from '../app.js';
-import { fromFirestoreDocumentData, makeConverter } from './converter.js';
+import { firestoreDecode, makeConverter } from './converter.js';
 import { buildQuery } from './query-builder.js';
 
-const packSnapshot = makeSnapshotPacker(fromFirestoreDocumentData);
+const packSnapshot = makeSnapshotPacker(firestoreDecode);
 
 const mapError = (error: unknown) =>
   error instanceof Error

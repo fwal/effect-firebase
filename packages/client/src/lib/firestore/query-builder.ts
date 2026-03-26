@@ -19,13 +19,13 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import type { QueryConstraint } from 'effect-firebase';
-import { toFirestoreDocumentData } from './converter.js';
+import { firestoreEncode } from './converter.js';
 
 /**
  * Helper to convert unknown value to DocumentData for Firestore.
  */
 const convertValue = (db: Firestore, value: unknown): unknown =>
-  toFirestoreDocumentData(db, value as DocumentData);
+  firestoreEncode(db, value as DocumentData);
 
 /**
  * Convert a single query constraint to Firebase Client SDK query constraint.

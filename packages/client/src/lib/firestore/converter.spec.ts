@@ -8,18 +8,15 @@ import {
   Timestamp as FirebaseTimestamp,
   Firestore,
 } from 'firebase/firestore';
-import {
-  fromFirestoreDocumentData,
-  toFirestoreDocumentData,
-} from './converter.js';
+import { firestoreDecode, firestoreEncode } from './converter.js';
 import { FirestoreSchema, FirestoreField } from 'effect-firebase';
 
 describe('Firestore Converter', () => {
-  describe('fromFirestoreDocumentData', () => {
+  describe('firestoreDecode', () => {
     it('should convert Firestore Timestamp to FirestoreSchema.Timestamp', () => {
       const firebaseTimestamp = new FirebaseTimestamp(1705315800, 123000000);
 
-      const result = fromFirestoreDocumentData({
+      const result = firestoreDecode({
         title: 'Test Post',
         createdAt: firebaseTimestamp,
       });
@@ -33,7 +30,7 @@ describe('Firestore Converter', () => {
     it('should handle nested timestamps', () => {
       const firebaseTimestamp = new FirebaseTimestamp(1705315800, 0);
 
-      const result = fromFirestoreDocumentData({
+      const result = firestoreDecode({
         post: {
           createdAt: firebaseTimestamp,
           title: 'Nested',
@@ -46,7 +43,7 @@ describe('Firestore Converter', () => {
     it('should handle timestamps in arrays', () => {
       const firebaseTimestamp = new FirebaseTimestamp(1705315800, 0);
 
-      const result = fromFirestoreDocumentData({
+      const result = firestoreDecode({
         timestamps: [firebaseTimestamp, firebaseTimestamp],
       });
 
@@ -55,7 +52,7 @@ describe('Firestore Converter', () => {
     });
 
     it('should preserve null and undefined values', () => {
-      const result = fromFirestoreDocumentData({
+      const result = firestoreDecode({
         nullValue: null,
         undefinedValue: undefined,
         stringValue: 'test',
@@ -67,7 +64,7 @@ describe('Firestore Converter', () => {
     });
 
     it('should NOT convert null to Timestamp', () => {
-      const result = fromFirestoreDocumentData({
+      const result = firestoreDecode({
         createdAt: null,
       });
 
@@ -76,11 +73,11 @@ describe('Firestore Converter', () => {
     });
   });
 
-  describe('toFirestoreDocumentData', () => {
+  describe('firestoreEncode', () => {
     const fakeFirestore = {} as unknown as Firestore;
 
     it('should convert FirestoreSchema.Timestamp to Firestore Timestamp', () => {
-      const result = toFirestoreDocumentData(
+      const result = firestoreEncode(
         fakeFirestore,
         FirestoreSchema.Timestamp.fromMillis(1705315800123)
       );
@@ -91,7 +88,7 @@ describe('Firestore Converter', () => {
     });
 
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {
-      const result = toFirestoreDocumentData(
+      const result = firestoreEncode(
         fakeFirestore,
         new FirestoreSchema.GeoPoint({
           latitude: 55.6761,
@@ -105,7 +102,7 @@ describe('Firestore Converter', () => {
     });
 
     it('should convert ServerTimestamp to Firestore field value', () => {
-      const result = toFirestoreDocumentData(
+      const result = firestoreEncode(
         fakeFirestore,
         FirestoreSchema.ServerTimestamp.make()
       );
@@ -113,15 +110,12 @@ describe('Firestore Converter', () => {
     });
 
     it('should convert Delete to Firestore field value', () => {
-      const result = toFirestoreDocumentData(
-        fakeFirestore,
-        FirestoreField.delete()
-      );
+      const result = firestoreEncode(fakeFirestore, FirestoreField.delete());
       expect(result).toStrictEqual(deleteField());
     });
 
     it('should convert ArrayUnion to arrayUnion FieldValue', () => {
-      const result = toFirestoreDocumentData(
+      const result = firestoreEncode(
         fakeFirestore,
         FirestoreField.arrayUnion(['a', 'b'])
       );
@@ -129,15 +123,37 @@ describe('Firestore Converter', () => {
     });
 
     it('should convert ArrayRemove to arrayRemove FieldValue', () => {
-      const result = toFirestoreDocumentData(
+      const result = firestoreEncode(
         fakeFirestore,
         FirestoreField.arrayRemove(['a'])
       );
       expect(result).toStrictEqual(arrayRemove('a'));
     });
 
+    it('should recursively encode values inside ArrayUnion', () => {
+      const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
+      const result = firestoreEncode(
+        fakeFirestore,
+        FirestoreField.arrayUnion([ts])
+      );
+      expect(result).toStrictEqual(
+        arrayUnion(FirebaseTimestamp.fromMillis(1705315800000))
+      );
+    });
+
+    it('should recursively encode values inside ArrayRemove', () => {
+      const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
+      const result = firestoreEncode(
+        fakeFirestore,
+        FirestoreField.arrayRemove([ts])
+      );
+      expect(result).toStrictEqual(
+        arrayRemove(FirebaseTimestamp.fromMillis(1705315800000))
+      );
+    });
+
     it('should recursively convert nested objects and arrays', () => {
-      const result = toFirestoreDocumentData(fakeFirestore, {
+      const result = firestoreEncode(fakeFirestore, {
         createdAt: FirestoreSchema.Timestamp.fromMillis(1705315800000),
         metadata: {
           location: new FirestoreSchema.GeoPoint({ latitude: 1, longitude: 2 }),
@@ -177,7 +193,7 @@ describe('Firestore Converter', () => {
       const firebaseGeoPoint = new FirebaseGeoPoint(10, 20);
       const firebaseDelete = deleteField();
 
-      const result = toFirestoreDocumentData(fakeFirestore, {
+      const result = firestoreEncode(fakeFirestore, {
         timestamp: firebaseTimestamp,
         geoPoint: firebaseGeoPoint,
         delete: firebaseDelete,

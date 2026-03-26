@@ -16,7 +16,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { App, layer as appLayer } from '../app.js';
-import { fromFirestoreDocumentData, makeConverter } from './converter.js';
+import { firestoreDecode, makeConverter } from './converter.js';
 import { buildQuery } from './query-builder.js';
 
 const dataOptions = (options?: FirestoreDataOptions) => ({
@@ -37,7 +37,7 @@ const make = (db: Firestore) => {
           if (!data) return Option.none();
           return Option.some([
             { id: snapshot.id, path: snapshot.ref.path },
-            fromFirestoreDocumentData(data),
+            firestoreDecode(data),
           ]);
         })
       ),
@@ -76,7 +76,7 @@ const make = (db: Firestore) => {
               if (!data) return Option.none();
               return Option.some([
                 { id: queryDoc.id, path: queryDoc.ref.path },
-                fromFirestoreDocumentData(data),
+                firestoreDecode(data),
               ]);
             }
           );
@@ -98,7 +98,7 @@ const make = (db: Firestore) => {
                   emit.single(
                     Option.some([
                       { id: snapshot.id, path: snapshot.ref.path },
-                      fromFirestoreDocumentData(data),
+                      firestoreDecode(data),
                     ])
                   );
                 }
@@ -126,7 +126,7 @@ const make = (db: Firestore) => {
                     if (!data) return Option.none();
                     return Option.some([
                       { id: queryDoc.id, path: queryDoc.ref.path },
-                      fromFirestoreDocumentData(data),
+                      firestoreDecode(data),
                     ]);
                   }
                 );

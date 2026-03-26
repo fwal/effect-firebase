@@ -1,5 +1,5 @@
 import { Effect, Schema } from 'effect';
-import { fromFirestoreDocumentData } from '../firestore/converter.js';
+import { firestoreDecode } from '../firestore/converter.js';
 
 /**
  * Decodes raw Firestore document data into a typed schema.
@@ -17,7 +17,7 @@ export const decodeDocumentData = <S extends Schema.Schema.Any>(
   schema: S,
   idField?: string
 ): Effect.Effect<Schema.Schema.Type<S>, never, Schema.Schema.Context<S>> => {
-  const convertedData = fromFirestoreDocumentData(rawData ?? {});
+  const convertedData = firestoreDecode(rawData ?? {});
   const dataWithId = idField
     ? { ...convertedData, [idField]: docId }
     : convertedData;
