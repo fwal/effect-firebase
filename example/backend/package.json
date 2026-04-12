@@ -12,13 +12,11 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
-    "effect": "^3.19.19",
+    "effect": "^4.0.0-beta.43",
     "firebase-admin": "^13.6.0",
     "@google-cloud/functions-framework": "^5.0.0",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
   },
-  "devDependencies": {
-    "@effect/experimental": "^0.58.0"
-  }
+  "devDependencies": {}
 }
