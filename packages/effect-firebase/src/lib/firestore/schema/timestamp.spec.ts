@@ -53,7 +53,7 @@ describe('Timestamp', () => {
 
   describe('fromDateTime', () => {
     it('should create a Timestamp from DateTime.Utc', () => {
-      const dt = DateTime.unsafeMake(1705315800123);
+      const dt = DateTime.makeUnsafe(1705315800123);
       const ts = Timestamp.fromDateTime(dt);
 
       expect(ts.seconds).toBe(1705315800);
@@ -178,13 +178,13 @@ describe('TimestampDateTimeUtc', () => {
       const dt = decode(input);
 
       expect(DateTime.isDateTime(dt)).toBe(true);
-      expect(dt.epochMillis).toBe(1705315800123);
+      expect(DateTime.toEpochMillis(dt)).toBe(1705315800123);
     });
   });
 
   describe('encoding', () => {
     it('should encode DateTime.Utc to Timestamp', () => {
-      const dt = DateTime.unsafeMake(1705315800123);
+      const dt = DateTime.makeUnsafe(1705315800123);
       const encoded = encode(dt);
 
       expect(encoded).toEqual({ seconds: 1705315800, nanoseconds: 123000000 });
@@ -216,7 +216,7 @@ describe('AnyTimestampDateTimeUtc', () => {
       const dt = decode(ts);
 
       expect(DateTime.isDateTime(dt)).toBe(true);
-      expect(dt.epochMillis).toBe(1705315800123);
+      expect(DateTime.toEpochMillis(dt)).toBe(1705315800123);
     });
 
     it('should fail to decode ServerTimestamp', () => {
@@ -227,7 +227,7 @@ describe('AnyTimestampDateTimeUtc', () => {
 
   describe('encoding', () => {
     it('should encode DateTime.Utc to Timestamp (not ServerTimestamp)', () => {
-      const dt = DateTime.unsafeMake(1705315800123);
+      const dt = DateTime.makeUnsafe(1705315800123);
       const encoded = encode(dt);
 
       // Encoding returns a plain object representation (Timestamp schema encoded form)

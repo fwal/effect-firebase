@@ -32,7 +32,7 @@ describe('Repository - DateTimeInsert encoding', () => {
     it('should handle DateTime.Utc values', () => {
       const encode = Schema.encodeSync(PostModel.add);
       const millis = 1705315800000;
-      const now = DateTime.unsafeMake(millis);
+      const now = DateTime.makeUnsafe(millis);
 
       const result = encode({
         title: 'Test Post',

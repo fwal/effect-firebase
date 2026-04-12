@@ -21,7 +21,9 @@ describe('Model.DateTime', () => {
       });
 
       expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
-      expect(result.createdAt.epochMillis).toBe(1705315800123);
+      expect(EffectDateTime.toEpochMillis(result.createdAt)).toBe(
+        1705315800123
+      );
     });
 
     it('should encode DateTime.Utc to Timestamp', () => {
@@ -29,7 +31,7 @@ describe('Model.DateTime', () => {
       const result = encode(
         new TestModel({
           id: 'post-1' as typeof PostId.Type,
-          createdAt: EffectDateTime.unsafeMake(1705315800123),
+          createdAt: EffectDateTime.makeUnsafe(1705315800123),
         })
       );
 
@@ -53,7 +55,7 @@ describe('Model.DateTime', () => {
     it('should encode DateTime.Utc to Timestamp', () => {
       const encode = Schema.encodeSync(TestModel.add);
       const result = encode({
-        createdAt: EffectDateTime.unsafeMake(1705315800000),
+        createdAt: EffectDateTime.makeUnsafe(1705315800000),
       });
 
       expect(result.createdAt).toEqual({
@@ -76,7 +78,7 @@ describe('Model.DateTime', () => {
 
     it('should encode DateTime.Utc to ISO string', () => {
       const encode = Schema.encodeSync(TestModel.json);
-      const dt = EffectDateTime.unsafeMake(1705315800123);
+      const dt = EffectDateTime.makeUnsafe(1705315800123);
       const result = encode({
         id: 'post-1',
         createdAt: dt,
@@ -165,10 +167,9 @@ describe('Model.DateTimeUpdate', () => {
   describe('update variant', () => {
     it('should include updatedAt field', () => {
       const decode = Schema.decodeUnknownSync(TestModel.update);
-      // For update variant with ServerDateTime, we decode from Timestamp
       const result = decode({
         id: 'post-1',
-        updatedAt: { seconds: 1705315800, nanoseconds: 0 },
+        updatedAt: Timestamp.fromMillis(1705315800000),
       });
 
       expect(EffectDateTime.isDateTime(result.updatedAt)).toBe(true);
