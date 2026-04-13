@@ -1,7 +1,7 @@
 import { Effect, Context, Option, Stream } from 'effect';
 import { FirestoreError } from './errors.js';
 import { Snapshot } from './snapshot.js';
-import { UnknownException } from 'effect/Cause';
+import { UnknownError } from 'effect/Cause';
 import { Data } from './schema/data.js';
 import type { QueryConstraint } from './query/constraints.js';
 
@@ -15,10 +15,7 @@ type FirestoreCRUD = {
   readonly get: (
     path: string,
     options?: FirestoreDataOptions
-  ) => Effect.Effect<
-    Option.Option<Snapshot>,
-    FirestoreError | UnknownException
-  >;
+  ) => Effect.Effect<Option.Option<Snapshot>, FirestoreError | UnknownError>;
 
   /**
    * Add a document to the Firestore database.
@@ -31,7 +28,7 @@ type FirestoreCRUD = {
     data: typeof Data.Type
   ) => Effect.Effect<
     { id: string; path: string },
-    FirestoreError | UnknownException
+    FirestoreError | UnknownError
   >;
 
   /**
@@ -44,7 +41,7 @@ type FirestoreCRUD = {
     path: string,
     data: typeof Data.Type,
     options?: { merge?: boolean }
-  ) => Effect.Effect<void, FirestoreError | UnknownException>;
+  ) => Effect.Effect<void, FirestoreError | UnknownError>;
 
   /**
    * Update a document in the Firestore database.
@@ -54,7 +51,7 @@ type FirestoreCRUD = {
   readonly update: (
     path: string,
     data: typeof Data.Type
-  ) => Effect.Effect<void, FirestoreError | UnknownException>;
+  ) => Effect.Effect<void, FirestoreError | UnknownError>;
 
   /**
    * Remove a document from the Firestore database.
@@ -62,7 +59,7 @@ type FirestoreCRUD = {
    */
   readonly remove: (
     path: string
-  ) => Effect.Effect<void, FirestoreError | UnknownException>;
+  ) => Effect.Effect<void, FirestoreError | UnknownError>;
 };
 
 type FirestoreQuery = {
@@ -75,10 +72,7 @@ type FirestoreQuery = {
   readonly query: (
     collectionPath: string,
     constraints: ReadonlyArray<QueryConstraint>
-  ) => Effect.Effect<
-    ReadonlyArray<Snapshot>,
-    FirestoreError | UnknownException
-  >;
+  ) => Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError | UnknownError>;
 };
 
 type FirestoreStreaming = {
@@ -123,6 +117,7 @@ export type FirestoreServiceShape = FirestoreCRUD &
   FirestoreQuery &
   FirestoreStreaming;
 
-export class FirestoreService extends Context.Tag(
-  '@effect-firebase/FirestoreService'
-)<FirestoreService, FirestoreServiceShape>() {}
+export class FirestoreService extends Context.Service<
+  FirestoreService,
+  FirestoreServiceShape
+>()('@effect-firebase/FirestoreService') {}

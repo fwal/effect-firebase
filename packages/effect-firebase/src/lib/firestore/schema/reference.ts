@@ -1,4 +1,4 @@
-import { ParseResult, Schema } from 'effect';
+import { Schema, SchemaGetter } from 'effect';
 
 const isPathValid = (path: string) => {
   const parts = path.split('/').filter(Boolean);
@@ -15,13 +15,13 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     parent: Schema.optional(
       Schema.suspend((): Schema.Schema<Reference> => Reference)
     ),
-  }).pipe(
-    Schema.filter(
+  }).check(
+    Schema.makeFilter(
       ({ path }) =>
         isPathValid(path) ||
         'Path must not be empty and must contain an even number of parts'
     ),
-    Schema.filter(
+    Schema.makeFilter(
       ({ id, path }) =>
         id === (path.split('/').pop() ?? '') ||
         'Id must match the last part of the path'
@@ -32,9 +32,7 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     const parts = path.split('/').filter(Boolean);
 
     if (!isPathValid(path)) {
-      throw new ParseResult.Type(
-        Schema.String.ast,
-        path,
+      throw new Error(
         'Path must not be empty and must contain an even number of parts'
       );
     }
@@ -46,7 +44,7 @@ export class Reference extends Schema.Class<Reference>('Reference')(
         : undefined;
 
     const id = parts.pop() ?? '';
-    return Reference.make({ id, path, parent });
+    return new Reference({ id, path, parent });
   }
 }
 
@@ -60,41 +58,32 @@ export const ReferenceInstance = Schema.instanceOf(Reference);
  * Schema that transforms Reference to just its ID string.
  * Uses instanceOf to preserve class instance during encoding.
  */
-export const AnyReferenceId = Schema.transformOrFail(
-  ReferenceInstance,
-  Schema.String,
-  {
-    strict: true,
-    decode: (ref) => ParseResult.succeed(ref.id),
-    encode: (input, _, ast) =>
-      ParseResult.fail(
-        new ParseResult.Forbidden(
-          ast,
-          input,
-          'Id string cannot be encoded to Reference'
-        )
-      ),
-  }
+export const AnyReferenceId = ReferenceInstance.pipe(
+  Schema.decodeTo(Schema.String, {
+    decode: SchemaGetter.transform((ref: Reference) => ref.id),
+    encode: SchemaGetter.forbidden(
+      () => 'Id string cannot be encoded to Reference'
+    ),
+  })
 );
 
 /**
  * Schema that transforms Reference to just its path string.
  * Uses instanceOf to preserve class instance during encoding.
  */
-export const AnyReferencePath = Schema.transform(
-  ReferenceInstance,
-  Schema.String,
-  {
-    strict: true,
-    decode: (ref) => ref.path,
-    encode: (path) => Reference.makeFromPath(path),
-  }
+export const AnyReferencePath = ReferenceInstance.pipe(
+  Schema.decodeTo(Schema.String, {
+    decode: SchemaGetter.transform((ref: Reference) => ref.path),
+    encode: SchemaGetter.transform((path: string) =>
+      Reference.makeFromPath(path)
+    ),
+  })
 );
 
 /**
  * Constraint for string-based schemas (including branded strings).
  */
-type StringBasedSchema = Schema.Schema.AnyNoContext & { readonly Type: string };
+type StringBasedSchema = Schema.Top & { readonly Type: string };
 
 /**
  * Create a typed reference schema that transforms to a branded ID.
@@ -114,17 +103,15 @@ export const ReferenceId = <Id extends StringBasedSchema>(
   idSchema: Id,
   collectionPath: string
 ) =>
-  Schema.compose(
-    // Step 1: Reference instance <-> string (extract/reconstruct id)
-    // Using instanceOf ensures the Encoded is a class instance, not a plain object
-    Schema.transform(ReferenceInstance, Schema.String, {
-      strict: true,
-      decode: (ref) => ref.id,
-      encode: (id) => Reference.makeFromPath(`${collectionPath}/${id}`),
+  ReferenceInstance.pipe(
+    Schema.decodeTo(Schema.String, {
+      decode: SchemaGetter.transform((ref: Reference) => ref.id),
+      encode: SchemaGetter.transform((id: string) =>
+        Reference.makeFromPath(`${collectionPath}/${id}`)
+      ),
     }),
-    // Step 2: string <-> BrandedId (apply branding)
-    idSchema
-  ).annotations({
+    Schema.decodeTo(idSchema)
+  ).annotate({
     identifier: `TypedReferenceId<${collectionPath}>`,
   });
 
@@ -137,16 +124,23 @@ export const ReferenceId = <Id extends StringBasedSchema>(
  */
 export const ReferencePath = (collectionPath: string) => {
   const pathSchema = Schema.String.pipe(
-    Schema.filter((path) => path.startsWith(`${collectionPath}/`), {
-      message: () => `Path must start with "${collectionPath}/"`,
-    })
+    Schema.check(
+      Schema.makeFilter(
+        (path) =>
+          path.startsWith(`${collectionPath}/`) ||
+          `Path must start with "${collectionPath}/"`
+      )
+    )
   );
 
-  return Schema.transform(ReferenceInstance, pathSchema, {
-    strict: true,
-    decode: (ref) => ref.path,
-    encode: (path) => Reference.makeFromPath(path),
-  }).annotations({
+  return ReferenceInstance.pipe(
+    Schema.decodeTo(pathSchema, {
+      decode: SchemaGetter.transform((ref: Reference) => ref.path),
+      encode: SchemaGetter.transform((path: string) =>
+        Reference.makeFromPath(path)
+      ),
+    })
+  ).annotate({
     identifier: `TypedReferencePath<${collectionPath}>`,
   });
 };

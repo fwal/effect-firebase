@@ -1,11 +1,11 @@
-import { Schema } from 'effect';
+import { Schema, SchemaGetter } from 'effect';
 import { Field } from './core.js';
 import * as FirestoreSchema from '../schema/schema.js';
 
 /**
  * Constraint for string-based schemas (including branded strings).
  */
-type StringBasedSchema = Schema.Schema.AnyNoContext & { readonly Type: string };
+type StringBasedSchema = Schema.Top & { readonly Type: string };
 
 /**
  * A reference field that stores DocumentReference in DB and exposes the ID as a string in JSON.
@@ -129,15 +129,17 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
 
   // JSON: branded ID ↔ DocumentReference
   // Encoded = branded ID, Type = DocumentReference
-  const jsonSchema = Schema.transform(
-    idSchema,
-    FirestoreSchema.ReferenceInstance,
-    {
-      strict: true,
-      decode: (id) =>
-        FirestoreSchema.Reference.makeFromPath(`${collectionPath}/${id}`),
-      encode: (ref) => ref.id as IdType,
-    }
+  const jsonSchema = idSchema.pipe(
+    Schema.decodeTo(FirestoreSchema.ReferenceInstance, {
+      decode: SchemaGetter.transform((id) =>
+        FirestoreSchema.Reference.makeFromPath(
+          `${collectionPath}/${id as string}`
+        )
+      ),
+      encode: SchemaGetter.transform(
+        (ref) => (ref as FirestoreSchema.Reference).id as IdType
+      ),
+    })
   );
 
   return Field({
@@ -169,9 +171,13 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
 export const ReferencePath = (collectionPath: string) => {
   const dbRefSchema = FirestoreSchema.ReferencePath(collectionPath);
   const pathSchema = Schema.String.pipe(
-    Schema.filter((path) => path.startsWith(`${collectionPath}/`), {
-      message: () => `Path must start with "${collectionPath}/"`,
-    })
+    Schema.check(
+      Schema.makeFilter(
+        (path: string) =>
+          path.startsWith(`${collectionPath}/`) ||
+          `Path must start with "${collectionPath}/"`
+      )
+    )
   );
 
   return Field({
@@ -206,8 +212,8 @@ export const ReferenceOptional = <Id extends StringBasedSchema>(
     get: Schema.OptionFromNullOr(typedRefSchema),
     add: Schema.OptionFromNullOr(typedRefSchema),
     update: Schema.OptionFromNullOr(typedRefSchema),
-    json: Schema.optionalWith(idSchema, { as: 'Option' }),
-    jsonAdd: Schema.optionalWith(idSchema, { as: 'Option', nullable: true }),
-    jsonUpdate: Schema.optionalWith(idSchema, { as: 'Option', nullable: true }),
+    json: Schema.OptionFromOptional(idSchema),
+    jsonAdd: Schema.OptionFromOptionalNullOr(idSchema),
+    jsonUpdate: Schema.OptionFromOptionalNullOr(idSchema),
   });
 };

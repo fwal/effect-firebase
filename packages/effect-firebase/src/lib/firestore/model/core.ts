@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import type { Brand } from 'effect/Brand';
-import { VariantSchema } from '@effect/experimental';
+import { VariantSchema } from 'effect/unstable/schema';
 
 // TODO: Keep an eye on the progress of Effect v4 Models as they intend to be more agnostic to the database and more flexible.
 // Everything below are ports of Model from @effect/sql to prevent issues with types being out of sync.
@@ -14,28 +14,27 @@ export const {
   Union,
   extract,
   fieldEvolve,
-  fieldFromKey,
 } = VariantSchema.make({
   variants: ['get', 'add', 'update', 'json', 'jsonAdd', 'jsonUpdate'],
   defaultVariant: 'get',
 });
 
-export type Any = Schema.Schema.Any & {
+export type Any = Schema.Top & {
   readonly fields: Schema.Struct.Fields;
-  readonly add: Schema.Schema.Any;
-  readonly update: Schema.Schema.Any;
-  readonly json: Schema.Schema.Any;
-  readonly jsonAdd: Schema.Schema.Any;
-  readonly jsonUpdate: Schema.Schema.Any;
+  readonly add: Schema.Top;
+  readonly update: Schema.Top;
+  readonly json: Schema.Top;
+  readonly jsonAdd: Schema.Top;
+  readonly jsonUpdate: Schema.Top;
 };
 
-export type AnyNoContext = Schema.Schema.AnyNoContext & {
+export type AnyNoContext = Schema.Top & {
   readonly fields: Schema.Struct.Fields;
-  readonly add: Schema.Schema.AnyNoContext;
-  readonly update: Schema.Schema.AnyNoContext;
-  readonly json: Schema.Schema.AnyNoContext;
-  readonly jsonAdd: Schema.Schema.AnyNoContext;
-  readonly jsonUpdate: Schema.Schema.AnyNoContext;
+  readonly add: Schema.Top;
+  readonly update: Schema.Top;
+  readonly json: Schema.Top;
+  readonly jsonAdd: Schema.Top;
+  readonly jsonUpdate: Schema.Top;
 };
 
 export type VariantsDatabase = 'get' | 'add' | 'update';
@@ -43,13 +42,11 @@ export type VariantsJson = 'json' | 'jsonAdd' | 'jsonUpdate';
 
 export const fields: <A extends VariantSchema.Struct<any>>(
   self: A
-) => A[VariantSchema.TypeId] = VariantSchema.fields;
+) => A[typeof VariantSchema.TypeId] = VariantSchema.fields;
 export const Override: <A>(value: A) => A & Brand<'Override'> =
   VariantSchema.Override;
 
-export type Generated<
-  S extends Schema.Schema.All | Schema.PropertySignature.All
-> = VariantSchema.Field<{
+export type Generated<S extends Schema.Top> = VariantSchema.Field<{
   readonly get: S;
   readonly update: S;
   readonly json: S;
@@ -60,20 +57,14 @@ export type Generated<
  *
  * It is available for selection and update, but not for insertion.
  */
-export const Generated = <
-  S extends Schema.Schema.All | Schema.PropertySignature.All
->(
-  schema: S
-): Generated<S> =>
+export const Generated = <S extends Schema.Top>(schema: S): Generated<S> =>
   Field({
     get: schema,
     update: schema,
     json: schema,
   });
 
-export type GeneratedByApp<
-  S extends Schema.Schema.All | Schema.PropertySignature.All
-> = VariantSchema.Field<{
+export type GeneratedByApp<S extends Schema.Top> = VariantSchema.Field<{
   readonly get: S;
   readonly add: S;
   readonly update: S;
@@ -85,9 +76,7 @@ export type GeneratedByApp<
  *
  * It is required by the database, but not by the JSON variants.
  */
-export const GeneratedByApp = <
-  S extends Schema.Schema.All | Schema.PropertySignature.All
->(
+export const GeneratedByApp = <S extends Schema.Top>(
   schema: S
 ): GeneratedByApp<S> =>
   Field({
@@ -97,9 +86,7 @@ export const GeneratedByApp = <
     json: schema,
   });
 
-export type Sensitive<
-  S extends Schema.Schema.All | Schema.PropertySignature.All
-> = VariantSchema.Field<{
+export type Sensitive<S extends Schema.Top> = VariantSchema.Field<{
   readonly get: S;
   readonly add: S;
   readonly update: S;
@@ -109,11 +96,7 @@ export type Sensitive<
  * A field that represents a sensitive value that should not be exposed in the
  * JSON variants.
  */
-export const Sensitive = <
-  S extends Schema.Schema.All | Schema.PropertySignature.All
->(
-  schema: S
-): Sensitive<S> =>
+export const Sensitive = <S extends Schema.Top>(schema: S): Sensitive<S> =>
   Field({
     get: schema,
     add: schema,

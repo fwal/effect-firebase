@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { VariantSchema } from '@effect/experimental';
+import { VariantSchema } from 'effect/unstable/schema';
 import { fieldEvolve } from './core.js';
 import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
 
@@ -24,31 +24,35 @@ import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
  * postRepo.update('id', { tags: arrayRemove(['a']) }); // arrayRemove
  * ```
  */
-export type WithArrayFields<S extends Schema.Schema.Any> = VariantSchema.Field<{
+export type WithArrayFields<S extends Schema.Top> = VariantSchema.Field<{
   readonly get: S;
   readonly add: S;
   readonly update: Schema.Union<
-    [S, typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
+    readonly [S, typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
   >;
   readonly json: S;
   readonly jsonAdd: S;
   readonly jsonUpdate: S;
 }>;
 
-const identity = (s: Schema.Schema.Any) => s;
+const identity = (s: Schema.Top) => s;
 
 export const WithArrayFields: <
-  Field extends VariantSchema.Field<any> | Schema.Schema.Any
+  Field extends VariantSchema.Field<any> | Schema.Top
 >(
   self: Field
-) => Field extends Schema.Schema.Any
+) => Field extends Schema.Top
   ? WithArrayFields<Field>
   : Field extends VariantSchema.Field<infer S>
   ? VariantSchema.Field<{
-      readonly [K in keyof S]: S[K] extends Schema.Schema.Any
+      readonly [K in keyof S]: S[K] extends Schema.Top
         ? K extends 'update'
           ? Schema.Union<
-              [S[K], typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
+              readonly [
+                S[K],
+                typeof ArrayUnionInstance,
+                typeof ArrayRemoveInstance
+              ]
             >
           : S[K]
         : never;
@@ -56,8 +60,8 @@ export const WithArrayFields: <
   : never = fieldEvolve({
   get: identity,
   add: identity,
-  update: (s: Schema.Schema.Any) =>
-    Schema.Union(s, ArrayUnionInstance, ArrayRemoveInstance),
+  update: (s: Schema.Top) =>
+    Schema.Union([s, ArrayUnionInstance, ArrayRemoveInstance]),
   json: identity,
   jsonAdd: identity,
   jsonUpdate: identity,
@@ -74,7 +78,7 @@ export const WithArrayFields: <
  * }) {}
  * ```
  */
-export const Array = <A, I, R>(
-  element: Schema.Schema<A, I, R>
-): WithArrayFields<Schema.Array$<Schema.Schema<A, I, R>>> =>
+export const Array = <A, I, RD = never, RE = never>(
+  element: Schema.Codec<A, I, RD, RE>
+): WithArrayFields<Schema.$Array<Schema.Codec<A, I, RD, RE>>> =>
   WithArrayFields(Schema.Array(element)) as any;
