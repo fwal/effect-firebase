@@ -1,21 +1,29 @@
 import { Cause, Effect, Option, Schema, Stream } from 'effect';
-import { ParseError } from 'effect/ParseResult';
 
 /**
  * Find all records in the collection.
  */
-export const findAll = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
+export const findAll = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
   readonly execute: (
-    request: II
+    request: Req['Encoded']
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(Schema.Array(options.Result));
+  const encodeRequest = Schema.encodeEffect(options.Request);
+  const decode = Schema.decodeUnknownEffect(Schema.Array(options.Result));
   return (
-    request: IA
-  ): Effect.Effect<ReadonlyArray<A>, E | ParseError, R | IR | AR> =>
+    request: Req['Type']
+  ): Effect.Effect<
+    ReadonlyArray<Res['Type']>,
+    E | Schema.SchemaError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
+  > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
       decode
@@ -25,12 +33,14 @@ export const findAll = <IR, II, IA, AR, AI, A, R, E>(options: {
 /**
  * Run a query with a request schema and discard the result.
  */
-const _void = <IR, II, IA, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly execute: (request: II) => Effect.Effect<unknown, E, R>;
+const _void = <Req extends Schema.Top, E, R>(options: {
+  readonly Request: Req;
+  readonly execute: (request: Req['Encoded']) => Effect.Effect<unknown, E, R>;
 }) => {
-  const encode = Schema.encode(options.Request);
-  return (request: IA): Effect.Effect<void, E | ParseError, R | IR> =>
+  const encode = Schema.encodeEffect(options.Request);
+  return (
+    request: Req['Type']
+  ): Effect.Effect<void, E | Schema.SchemaError, R | Req['EncodingServices']> =>
     Effect.asVoid(Effect.flatMap(encode(request), options.execute));
 };
 
@@ -39,18 +49,27 @@ export { _void as void };
 /**
  * Run a query with a request schema and a result schema and return the first result.
  */
-export const findOne = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
+export const findOne = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
   readonly execute: (
-    request: II
+    request: Req['Encoded']
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(options.Result);
+  const encodeRequest = Schema.encodeEffect(options.Request);
+  const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: IA
-  ): Effect.Effect<Option.Option<A>, E | ParseError, R | IR | AR> =>
+    request: Req['Type']
+  ): Effect.Effect<
+    Option.Option<Res['Type']>,
+    E | Schema.SchemaError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
+  > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
       (arr) =>
@@ -62,48 +81,68 @@ export const findOne = <IR, II, IA, AR, AI, A, R, E>(options: {
 
 /**
  * Run a query with a request schema and a result schema and return the first result.
- * @throws NoSuchElementException if the result is empty.
+ * @throws NoSuchElementError if the result is empty.
  */
-export const single = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
+export const single = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
   readonly execute: (
-    request: II
+    request: Req['Encoded']
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(options.Result);
+  const encodeRequest = Schema.encodeEffect(options.Request);
+  const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: IA
+    request: Req['Type']
   ): Effect.Effect<
-    A,
-    E | ParseError | Cause.NoSuchElementException,
-    R | IR | AR
+    Res['Type'],
+    E | Schema.SchemaError | Cause.NoSuchElementError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
   > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
-      (arr): Effect.Effect<A, ParseError | Cause.NoSuchElementException, AR> =>
+      (
+        arr
+      ): Effect.Effect<
+        Res['Type'],
+        Schema.SchemaError | Cause.NoSuchElementError,
+        Res['DecodingServices']
+      > =>
         Array.isArray(arr) && arr.length > 0
           ? decode(arr[0])
-          : Effect.fail(new Cause.NoSuchElementException())
+          : Effect.fail(new Cause.NoSuchElementError())
     );
 };
 
 /**
  * Stream a single optional result.
  */
-export const streamOne = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
+export const streamOne = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
   readonly execute: (
-    request: II
+    request: Req['Encoded']
   ) => Stream.Stream<Option.Option<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(options.Result);
+  const encodeRequest = Schema.encodeEffect(options.Request);
+  const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: IA
-  ): Stream.Stream<Option.Option<A>, E | ParseError, R | IR | AR> =>
+    request: Req['Type']
+  ): Stream.Stream<
+    Option.Option<Res['Type']>,
+    E | Schema.SchemaError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
+  > =>
     Stream.flatMap(Stream.fromEffect(encodeRequest(request)), (encoded) =>
       options.execute(encoded).pipe(
         Stream.mapEffect((opt) =>
@@ -119,18 +158,27 @@ export const streamOne = <IR, II, IA, AR, AI, A, R, E>(options: {
 /**
  * Stream all results from a query.
  */
-export const streamAll = <IR, II, IA, AR, AI, A, R, E>(options: {
-  readonly Request: Schema.Schema<IA, II, IR>;
-  readonly Result: Schema.Schema<A, AI, AR>;
+export const streamAll = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
   readonly execute: (
-    request: II
+    request: Req['Encoded']
   ) => Stream.Stream<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encode(options.Request);
-  const decode = Schema.decodeUnknown(Schema.Array(options.Result));
+  const encodeRequest = Schema.encodeEffect(options.Request);
+  const decode = Schema.decodeUnknownEffect(Schema.Array(options.Result));
   return (
-    request: IA
-  ): Stream.Stream<ReadonlyArray<A>, E | ParseError, R | IR | AR> =>
+    request: Req['Type']
+  ): Stream.Stream<
+    ReadonlyArray<Res['Type']>,
+    E | Schema.SchemaError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
+  > =>
     Stream.flatMap(Stream.fromEffect(encodeRequest(request)), (encoded) =>
       options.execute(encoded).pipe(Stream.mapEffect((arr) => decode(arr)))
     );

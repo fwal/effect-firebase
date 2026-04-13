@@ -1,8 +1,7 @@
-import { Effect, Option, Schema, Stream } from 'effect';
+import { Effect, Option, Schema, Stream, Struct } from 'effect';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
-import { NoSuchElementException, UnknownException } from 'effect/Cause';
-import { ParseError } from 'effect/ParseResult';
+import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
 import { Any } from './core.js';
 import * as Fetch from './fetch.js';
@@ -10,9 +9,9 @@ import type { QueryConstraint } from '../query/constraints.js';
 
 export type ModelError =
   | FirestoreError
-  | UnknownException
-  | NoSuchElementException
-  | ParseError;
+  | UnknownError
+  | NoSuchElementError
+  | Schema.SchemaError;
 
 export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
   readonly _schema?: S;
@@ -21,7 +20,7 @@ export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
 export type Repository<
   S extends Any,
   Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
-  IdSchema extends S['fields'][Id] extends Schema.Schema.Any
+  IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
     : never
 > = {
@@ -33,9 +32,9 @@ export type Repository<
   readonly add: (
     data: S['add']['Type']
   ) => Effect.Effect<
-    Schema.Schema.Type<IdSchema>,
+    IdSchema['Type'],
     ModelError,
-    S['Context'] | S['add']['Context']
+    S['DecodingServices'] | S['EncodingServices'] | S['add']['EncodingServices']
   >;
 
   /**
@@ -45,9 +44,15 @@ export type Repository<
    * @returns A unit value.
    */
   readonly update: (
-    id: Schema.Schema.Type<IdSchema>,
+    id: IdSchema['Type'],
     data: Partial<Omit<S['update']['Type'], Id>>
-  ) => Effect.Effect<void, ModelError, S['Context'] | S['update']['Context']>;
+  ) => Effect.Effect<
+    void,
+    ModelError,
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['update']['EncodingServices']
+  >;
 
   /**
    * Get a document model by ID.
@@ -55,11 +60,13 @@ export type Repository<
    * @returns The document model.
    */
   readonly getById: (
-    id: Schema.Schema.Type<IdSchema>
+    id: IdSchema['Type']
   ) => Effect.Effect<
     Option.Option<S['Type']>,
     ModelError,
-    S['Context'] | Schema.Schema.Context<S['fields'][Id]>
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['fields'][Id]['EncodingServices']
   >;
 
   /**
@@ -68,11 +75,13 @@ export type Repository<
    * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the model and any updates to it.
    */
   readonly getByIdStream: (
-    id: Schema.Schema.Type<IdSchema>
+    id: IdSchema['Type']
   ) => Stream.Stream<
     Option.Option<S['Type']>,
     ModelError,
-    S['Context'] | Schema.Schema.Context<S['fields'][Id]>
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['fields'][Id]['EncodingServices']
   >;
   /**
    * Delete a document model by ID.
@@ -80,8 +89,12 @@ export type Repository<
    * @returns A unit value.
    */
   readonly delete: (
-    id: Schema.Schema.Type<IdSchema>
-  ) => Effect.Effect<void, ModelError, S['Context']>;
+    id: IdSchema['Type']
+  ) => Effect.Effect<
+    void,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
 
   /**
    * Query the database.
@@ -90,7 +103,11 @@ export type Repository<
    */
   readonly query: (
     constraints: RepositoryQuery<S>
-  ) => Effect.Effect<ReadonlyArray<S['Type']>, ModelError, S['Context']>;
+  ) => Effect.Effect<
+    ReadonlyArray<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
 
   /**
    * Stream the results of a query.
@@ -99,7 +116,11 @@ export type Repository<
    */
   readonly queryStream: (
     constraints: RepositoryQuery<S>
-  ) => Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']>;
+  ) => Stream.Stream<
+    ReadonlyArray<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
 };
 
 /**
@@ -137,7 +158,7 @@ export type Repository<
 export const makeRepository = <
   S extends Any,
   Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
-  IdSchema extends S['fields'][Id] extends Schema.Schema.Any
+  IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
     : never
 >(
@@ -151,7 +172,7 @@ export const makeRepository = <
   Effect.gen(function* () {
     const firestore = yield* FirestoreService;
 
-    const idSchema = Model.fields[options.idField] as Schema.Schema.Any;
+    const idSchema = Model.fields[options.idField] as unknown as IdSchema;
 
     const structFromSnapshot = (snapshot: Snapshot) => {
       const [ref, data] = snapshot;
@@ -161,22 +182,15 @@ export const makeRepository = <
     const addSchema = Fetch.single({
       Request: Model.add,
       Result: idSchema,
-      execute: (data: S['add']['Type']) =>
+      execute: (data: unknown) =>
         firestore
-          .add(options.collectionPath, data)
-          .pipe(Effect.flatMap((value) => Effect.succeed([value.id]))),
+          .add(options.collectionPath, data as Record<string, unknown>)
+          .pipe(Effect.map((value) => [value.id])),
     });
 
-    const add = (
-      data: S['add']['Type']
-    ): Effect.Effect<
-      Schema.Schema.Type<IdSchema>,
-      ModelError,
-      S['Context'] | S['add']['Context']
-    > =>
+    const add = (data: S['add']['Type']) =>
       addSchema(data).pipe(
         Effect.withSpan(`${options.spanPrefix}.add`, {
-          captureStackTrace: false,
           attributes: { data },
         })
       );
@@ -184,29 +198,35 @@ export const makeRepository = <
     // Create schema for update: required id + partial data fields (all optional)
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
-    ).pipe(Schema.omit(options.idField as string), Schema.partial);
+    )
+      .mapFields(Struct.omit([options.idField as string]))
+      .mapFields(Struct.map(Schema.optional));
 
-    const updateFieldsSchema = Schema.extend(
-      Schema.Struct({ [options.idField]: idSchema }),
-      PartialDataSchema
-    );
+    const updateFieldsSchema = Schema.Struct({
+      [options.idField]: idSchema,
+    }).pipe(Schema.fieldsAssign(PartialDataSchema.fields));
 
     const updateSchema = Fetch.void({
       Request: updateFieldsSchema,
-      execute: ({ [options.idField]: id, ...data }) =>
-        firestore.update(`${options.collectionPath}/${id}`, data),
+      execute: (input: unknown) => {
+        const record = input as Record<string, unknown>;
+        const { [options.idField as string]: id, ...data } = record;
+        return firestore.update(
+          `${options.collectionPath}/${id as string}`,
+          data
+        );
+      },
     });
 
     const update = (
-      id: Schema.Schema.Type<IdSchema>,
+      id: IdSchema['Type'],
       data: Partial<Omit<S['update']['Type'], Id>>
-    ): Effect.Effect<void, ModelError, S['Context'] | S['update']['Context']> =>
+    ) =>
       updateSchema({
         [options.idField]: id,
         ...data,
-      }).pipe(
+      } as Parameters<typeof updateSchema>[0]).pipe(
         Effect.withSpan(`${options.spanPrefix}.update`, {
-          captureStackTrace: false,
           attributes: { id, data },
         })
       );
@@ -214,40 +234,33 @@ export const makeRepository = <
     const getByIdSchema = Fetch.findOne({
       Request: idSchema,
       Result: Model,
-      execute: (id: string) =>
+      execute: (id) =>
         firestore
           .get(`${options.collectionPath}/${id}`)
           .pipe(
-            Effect.flatMap(Option.map((value) => [structFromSnapshot(value)]))
+            Effect.map((opt) =>
+              Option.isSome(opt)
+                ? ([structFromSnapshot(opt.value)] as ReadonlyArray<unknown>)
+                : ([] as ReadonlyArray<unknown>)
+            )
           ),
     });
 
-    const getById = (
-      id: Schema.Schema.Type<IdSchema>
-    ): Effect.Effect<
-      Option.Option<S['Type']>,
-      ModelError,
-      S['Context'] | Schema.Schema.Context<S['fields'][Id]>
-    > =>
+    const getById = (id: IdSchema['Type']) =>
       getByIdSchema(id).pipe(
         Effect.withSpan(`${options.spanPrefix}.findById`, {
-          captureStackTrace: false,
           attributes: { id },
         })
       );
 
     const deleteSchema = Fetch.void({
       Request: idSchema,
-      execute: (id: string) =>
-        firestore.remove(`${options.collectionPath}/${id}`),
+      execute: (id) => firestore.remove(`${options.collectionPath}/${id}`),
     });
 
-    const deleteById = (
-      id: Schema.Schema.Type<IdSchema>
-    ): Effect.Effect<void, ModelError, S['Context']> =>
+    const deleteById = (id: IdSchema['Type']) =>
       deleteSchema(id).pipe(
         Effect.withSpan(`${options.spanPrefix}.deleteById`, {
-          captureStackTrace: false,
           attributes: { id },
         })
       );
@@ -264,31 +277,21 @@ export const makeRepository = <
           .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot))),
     });
 
-    const query = (
-      constraints: RepositoryQuery<S>
-    ): Effect.Effect<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
+    const query = (constraints: RepositoryQuery<S>) =>
       querySchema(constraints as ReadonlyArray<unknown>).pipe(
-        Effect.withSpan(`${options.spanPrefix}.query`, {
-          captureStackTrace: false,
-        })
+        Effect.withSpan(`${options.spanPrefix}.query`, {})
       );
 
     const getByIdStreamSchema = Fetch.streamOne({
       Request: idSchema,
       Result: Model,
-      execute: (id: string) =>
+      execute: (id: unknown) =>
         firestore
-          .streamDoc(`${options.collectionPath}/${id}`)
+          .streamDoc(`${options.collectionPath}/${id as string}`)
           .pipe(Stream.map(Option.map((value) => structFromSnapshot(value)))),
     });
 
-    const getByIdStream = (
-      id: Schema.Schema.Type<IdSchema>
-    ): Stream.Stream<
-      Option.Option<S['Type']>,
-      ModelError,
-      S['Context'] | Schema.Schema.Context<S['fields'][Id]>
-    > =>
+    const getByIdStream = (id: IdSchema['Type']) =>
       getByIdStreamSchema(id).pipe(
         Stream.tap(() =>
           Effect.logTrace(`${options.spanPrefix}.streamById`, { id })
@@ -307,9 +310,7 @@ export const makeRepository = <
           .pipe(Stream.map((snapshots) => snapshots.map(structFromSnapshot))),
     });
 
-    const queryStream = (
-      constraints: RepositoryQuery<S>
-    ): Stream.Stream<ReadonlyArray<S['Type']>, ModelError, S['Context']> =>
+    const queryStream = (constraints: RepositoryQuery<S>) =>
       queryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
         Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
       );

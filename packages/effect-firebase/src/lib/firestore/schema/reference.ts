@@ -6,6 +6,18 @@ const isPathValid = (path: string) => {
 };
 
 /**
+ * Structural interface for the Reference class fields.
+ * Used to break the TypeScript circular-base-type error that arises from
+ * Schema.Class<Reference> when the struct contains a self-referential suspend.
+ * TypeScript handles recursive `interface` types lazily, unlike class types.
+ */
+interface ReferenceShape {
+  readonly id: string;
+  readonly path: string;
+  readonly parent?: ReferenceShape;
+}
+
+/**
  * Class representing a DocumentReference in Firestore.
  */
 export class Reference extends Schema.Class<Reference>('Reference')(
@@ -13,7 +25,7 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     id: Schema.String,
     path: Schema.String,
     parent: Schema.optional(
-      Schema.suspend((): Schema.Schema<Reference> => Reference)
+      Schema.suspend((): Schema.Codec<ReferenceShape> => Reference)
     ),
   }).check(
     Schema.makeFilter(

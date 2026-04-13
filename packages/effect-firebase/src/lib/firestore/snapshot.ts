@@ -1,4 +1,4 @@
-import { Option, Data } from 'effect';
+import { Option, Tuple } from 'effect';
 import { type FirestoreDataOptions } from './firestore-service.js';
 
 export type Ref = {
@@ -37,7 +37,7 @@ export function makeSnapshotPacker(
     const ref =
       typeof snapshot.ref === 'function' ? snapshot.ref() : snapshot.ref;
     return Option.some(
-      Data.tuple({ id: ref.id, path: ref.path }, Data.struct(converter(data)))
+      Tuple.make({ id: ref.id, path: ref.path }, converter(data))
     );
   };
 }
