@@ -1,4 +1,11 @@
-import { DateTime, ParseResult, Schema } from 'effect';
+import {
+  DateTime,
+  Effect,
+  Option,
+  Schema,
+  SchemaGetter,
+  SchemaIssue,
+} from 'effect';
 
 /**
  * Class representing a Timestamp in Firestore.
@@ -22,7 +29,7 @@ export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
   }
 
   static fromDateTime(date: DateTime.Utc): Timestamp {
-    return this.fromMillis(date.epochMillis);
+    return this.fromMillis(DateTime.toEpochMillis(date));
   }
 
   toDate(): Date {
@@ -43,14 +50,15 @@ export const TimestampInstance = Schema.instanceOf(Timestamp);
 /**
  * Schema representing a timestamp as a DateTime.Utc.
  */
-export const TimestampDateTimeUtc = Schema.transform(
-  TimestampInstance,
-  Schema.DateTimeUtcFromSelf,
-  {
-    decode: (ts) => DateTime.unsafeMake(ts.toMillis()),
-    encode: (date) => Timestamp.fromMillis(date.epochMillis),
-    strict: true,
-  }
+export const TimestampDateTimeUtc = TimestampInstance.pipe(
+  Schema.decodeTo(Schema.DateTimeUtc, {
+    decode: SchemaGetter.transform((ts: Timestamp) =>
+      DateTime.makeUnsafe(ts.toMillis())
+    ),
+    encode: SchemaGetter.transform((date: DateTime.Utc) =>
+      Timestamp.fromMillis(DateTime.toEpochMillis(date))
+    ),
+  })
 );
 
 /**
@@ -66,23 +74,25 @@ export class ServerTimestamp extends Schema.Class<ServerTimestamp>(
  */
 export const ServerTimestampInstance = Schema.instanceOf(ServerTimestamp);
 
-export const AnyTimestampDateTimeUtc = Schema.transformOrFail(
-  Schema.Union(TimestampInstance, ServerTimestampInstance),
-  Schema.DateTimeUtcFromSelf,
-  {
-    strict: true,
-    decode: (input, _, ast) => {
-      if (input instanceof Timestamp) {
-        return ParseResult.succeed(DateTime.unsafeMake(input.toMillis()));
+export const AnyTimestampDateTimeUtc = Schema.Union([
+  TimestampInstance,
+  ServerTimestampInstance,
+]).pipe(
+  Schema.decodeTo(Schema.DateTimeUtc, {
+    decode: SchemaGetter.transformOrFail(
+      (input: Timestamp | ServerTimestamp) => {
+        if (input instanceof Timestamp) {
+          return Effect.succeed(DateTime.makeUnsafe(input.toMillis()));
+        }
+        return Effect.fail(
+          new SchemaIssue.Forbidden(Option.some(input), {
+            message: 'ServerTimestamp cannot be decoded to DateTime',
+          })
+        );
       }
-      return ParseResult.fail(
-        new ParseResult.Forbidden(
-          ast,
-          input,
-          'ServerTimestamp cannot be decoded to DateTime'
-        )
-      );
-    },
-    encode: (dt) => ParseResult.succeed(Timestamp.fromDateTime(dt)),
-  }
+    ),
+    encode: SchemaGetter.transform((dt: DateTime.Utc) =>
+      Timestamp.fromMillis(DateTime.toEpochMillis(dt))
+    ),
+  })
 );
