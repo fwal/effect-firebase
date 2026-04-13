@@ -1,6 +1,5 @@
 import { Effect, pipe, Schema } from 'effect';
 import { Request, Response } from 'express';
-import { ParseError } from 'effect/ParseResult';
 
 /**
  * Parse the request body using a schema.
@@ -16,18 +15,18 @@ import { ParseError } from 'effect/ParseResult';
  * ```
  */
 export const parseBody =
-  <S extends Schema.Schema.Any>(schema: S) =>
+  <S extends Schema.Top>(schema: S) =>
   (
     request: Request
   ): Effect.Effect<
     Schema.Schema.Type<S>,
-    ParseError,
-    Schema.Schema.Context<S>
+    Schema.SchemaError,
+    S['DecodingServices']
   > =>
-    Schema.decodeUnknown(schema)(request.body) as Effect.Effect<
+    Schema.decodeUnknownEffect(schema)(request.body) as Effect.Effect<
       Schema.Schema.Type<S>,
-      ParseError,
-      Schema.Schema.Context<S>
+      Schema.SchemaError,
+      S['DecodingServices']
     >;
 
 /**
@@ -44,18 +43,18 @@ export const parseBody =
  * ```
  */
 export const parseQuery =
-  <S extends Schema.Schema.Any>(schema: S) =>
+  <S extends Schema.Top>(schema: S) =>
   (
     request: Request
   ): Effect.Effect<
     Schema.Schema.Type<S>,
-    ParseError,
-    Schema.Schema.Context<S>
+    Schema.SchemaError,
+    S['DecodingServices']
   > =>
-    Schema.decodeUnknown(schema)(request.query) as Effect.Effect<
+    Schema.decodeUnknownEffect(schema)(request.query) as Effect.Effect<
       Schema.Schema.Type<S>,
-      ParseError,
-      Schema.Schema.Context<S>
+      Schema.SchemaError,
+      S['DecodingServices']
     >;
 
 /**
@@ -72,18 +71,18 @@ export const parseQuery =
  * ```
  */
 export const parseParams =
-  <S extends Schema.Schema.Any>(schema: S) =>
+  <S extends Schema.Top>(schema: S) =>
   (
     request: Request
   ): Effect.Effect<
     Schema.Schema.Type<S>,
-    ParseError,
-    Schema.Schema.Context<S>
+    Schema.SchemaError,
+    S['DecodingServices']
   > =>
-    Schema.decodeUnknown(schema)(request.params) as Effect.Effect<
+    Schema.decodeUnknownEffect(schema)(request.params) as Effect.Effect<
       Schema.Schema.Type<S>,
-      ParseError,
-      Schema.Schema.Context<S>
+      Schema.SchemaError,
+      S['DecodingServices']
     >;
 
 /**
@@ -99,15 +98,15 @@ export const parseParams =
  * ```
  */
 export const sendJson =
-  <S extends Schema.Schema.Any>(response: Response, schema: S, status = 200) =>
+  <S extends Schema.Top>(response: Response, schema: S, status = 200) =>
   (
     output: Schema.Schema.Type<S>
-  ): Effect.Effect<void, ParseError, Schema.Schema.Context<S>> =>
+  ): Effect.Effect<void, Schema.SchemaError, S['EncodingServices']> =>
     pipe(
-      Schema.encodeUnknown(schema)(output) as Effect.Effect<
-        Schema.Schema.Encoded<S>,
-        ParseError,
-        Schema.Schema.Context<S>
+      Schema.encodeUnknownEffect(schema)(output) as Effect.Effect<
+        Schema.Codec.Encoded<S>,
+        Schema.SchemaError,
+        S['EncodingServices']
       >,
       Effect.andThen((encoded) =>
         Effect.sync(() => {
@@ -155,7 +154,7 @@ export const sendJsonRaw =
  * ```
  */
 export const withBodySchema =
-  <B extends Schema.Schema.Any>(bodySchema: B) =>
+  <B extends Schema.Top>(bodySchema: B) =>
   <R, E, T>(
     handler: (
       body: Schema.Schema.Type<B>,
@@ -164,7 +163,7 @@ export const withBodySchema =
   ) =>
   (
     request: Request
-  ): Effect.Effect<T, E | ParseError, R | Schema.Schema.Context<B>> =>
+  ): Effect.Effect<T, E | Schema.SchemaError, R | B['DecodingServices']> =>
     pipe(
       parseBody(bodySchema)(request),
       Effect.andThen((body) => handler(body, request))
@@ -188,7 +187,7 @@ export const withBodySchema =
  * ```
  */
 export const withJsonEndpoint =
-  <B extends Schema.Schema.Any, O extends Schema.Schema.Any>(
+  <B extends Schema.Top, O extends Schema.Top>(
     bodySchema: B,
     responseSchema: O,
     successStatus = 200
@@ -205,8 +204,8 @@ export const withJsonEndpoint =
     response: Response
   ): Effect.Effect<
     void,
-    E | ParseError,
-    R | Schema.Schema.Context<B> | Schema.Schema.Context<O>
+    E | Schema.SchemaError,
+    R | B['DecodingServices'] | O['EncodingServices']
   > =>
     pipe(
       parseBody(bodySchema)(request),

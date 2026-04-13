@@ -1,6 +1,5 @@
 import { Effect, pipe, Schema } from 'effect';
 import { CallableRequest } from 'firebase-functions/https';
-import { ParseError } from 'effect/ParseResult';
 
 /**
  * Metadata from the callable request (auth, raw request, etc.)
@@ -40,18 +39,18 @@ export const extractContext = (request: CallableRequest): CallableContext => ({
  * ```
  */
 export const decodeInput =
-  <I extends Schema.Schema.Any>(schema: I) =>
+  <I extends Schema.Top>(schema: I) =>
   (
     request: CallableRequest
   ): Effect.Effect<
     Schema.Schema.Type<I>,
-    ParseError,
-    Schema.Schema.Context<I>
+    Schema.SchemaError,
+    I['DecodingServices']
   > =>
-    Schema.decodeUnknown(schema)(request.data) as Effect.Effect<
+    Schema.decodeUnknownEffect(schema)(request.data) as Effect.Effect<
       Schema.Schema.Type<I>,
-      ParseError,
-      Schema.Schema.Context<I>
+      Schema.SchemaError,
+      I['DecodingServices']
     >;
 
 /**
@@ -67,18 +66,18 @@ export const decodeInput =
  * ```
  */
 export const encodeOutput =
-  <O extends Schema.Schema.Any>(schema: O) =>
+  <O extends Schema.Top>(schema: O) =>
   (
     output: Schema.Schema.Type<O>
   ): Effect.Effect<
-    Schema.Schema.Encoded<O>,
-    ParseError,
-    Schema.Schema.Context<O>
+    Schema.Codec.Encoded<O>,
+    Schema.SchemaError,
+    O['EncodingServices']
   > =>
-    Schema.encodeUnknown(schema)(output) as Effect.Effect<
-      Schema.Schema.Encoded<O>,
-      ParseError,
-      Schema.Schema.Context<O>
+    Schema.encodeUnknownEffect(schema)(output) as Effect.Effect<
+      Schema.Codec.Encoded<O>,
+      Schema.SchemaError,
+      O['EncodingServices']
     >;
 
 /**
@@ -102,7 +101,7 @@ export const encodeOutput =
  * ```
  */
 export const withSchemas =
-  <I extends Schema.Schema.Any, O extends Schema.Schema.Any>(
+  <I extends Schema.Top, O extends Schema.Top>(
     inputSchema: I,
     outputSchema: O
   ) =>
@@ -115,9 +114,9 @@ export const withSchemas =
   (
     request: CallableRequest
   ): Effect.Effect<
-    Schema.Schema.Encoded<O>,
-    E | ParseError,
-    R | Schema.Schema.Context<I> | Schema.Schema.Context<O>
+    Schema.Codec.Encoded<O>,
+    E | Schema.SchemaError,
+    R | I['DecodingServices'] | O['EncodingServices']
   > =>
     pipe(
       decodeInput(inputSchema)(request),
@@ -141,7 +140,7 @@ export const withSchemas =
  * ```
  */
 export const withInputSchema =
-  <I extends Schema.Schema.Any>(inputSchema: I) =>
+  <I extends Schema.Top>(inputSchema: I) =>
   <R, E, T>(
     handler: (
       input: Schema.Schema.Type<I>,
@@ -150,7 +149,7 @@ export const withInputSchema =
   ) =>
   (
     request: CallableRequest
-  ): Effect.Effect<T, E | ParseError, R | Schema.Schema.Context<I>> =>
+  ): Effect.Effect<T, E | Schema.SchemaError, R | I['DecodingServices']> =>
     pipe(
       decodeInput(inputSchema)(request),
       Effect.andThen((input) => handler(input, extractContext(request)))
@@ -171,7 +170,7 @@ export const withInputSchema =
  * ```
  */
 export const withOutputSchema =
-  <O extends Schema.Schema.Any>(outputSchema: O) =>
+  <O extends Schema.Top>(outputSchema: O) =>
   <R, E>(
     handler: (
       request: CallableRequest
@@ -180,8 +179,8 @@ export const withOutputSchema =
   (
     request: CallableRequest
   ): Effect.Effect<
-    Schema.Schema.Encoded<O>,
-    E | ParseError,
-    R | Schema.Schema.Context<O>
+    Schema.Codec.Encoded<O>,
+    E | Schema.SchemaError,
+    R | O['EncodingServices']
   > =>
     pipe(handler(request), Effect.andThen(encodeOutput(outputSchema)));

@@ -17,10 +17,10 @@ import { decodeDocumentData } from './decode-document-data.js';
 interface DocumentWrittenEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
-  runtime: Runtime<R | Schema.Schema.Context<S>>;
+  runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
 }
@@ -43,7 +43,7 @@ export interface TypedWrittenChange<A> {
 export function onDocumentWrittenEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
@@ -98,7 +98,7 @@ export function onDocumentWrittenEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentWritten', {
         inner: error,
@@ -118,7 +118,7 @@ export function onDocumentWrittenEffect<
 export function onDocumentWrittenWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
@@ -170,7 +170,7 @@ export function onDocumentWrittenWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentWrittenWithAuthContext', {
         inner: error,

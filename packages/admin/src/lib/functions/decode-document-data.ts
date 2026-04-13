@@ -11,18 +11,18 @@ import { firestoreDecode } from '../firestore/converter.js';
  * @param idField - Optional field name to inject the document ID
  * @returns An Effect that resolves to the decoded data
  */
-export const decodeDocumentData = <S extends Schema.Schema.Any>(
+export const decodeDocumentData = <S extends Schema.Top>(
   rawData: Record<string, unknown> | undefined,
   docId: string | undefined,
   schema: S,
   idField?: string
-): Effect.Effect<Schema.Schema.Type<S>, never, Schema.Schema.Context<S>> => {
+): Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']> => {
   const convertedData = firestoreDecode(rawData ?? {});
   const dataWithId = idField
     ? { ...convertedData, [idField]: docId }
     : convertedData;
-  return Schema.decodeUnknown(schema)(dataWithId).pipe(
+  return Schema.decodeUnknownEffect(schema)(dataWithId).pipe(
     Effect.orDie,
     Effect.withSpan('decodeDocumentData')
-  ) as Effect.Effect<Schema.Schema.Type<S>, never, Schema.Schema.Context<S>>;
+  ) as Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']>;
 };

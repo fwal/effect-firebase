@@ -16,10 +16,10 @@ import { decodeDocumentData } from './decode-document-data.js';
 interface DocumentDeletedEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
-  runtime: Runtime<R | Schema.Schema.Context<S>>;
+  runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
 }
@@ -33,7 +33,7 @@ interface DocumentDeletedEffectOptions<
 export function onDocumentDeletedEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentDeletedEffectOptions<R, Document, S, IdField>,
@@ -62,7 +62,7 @@ export function onDocumentDeletedEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentDeleted', {
         inner: error,
@@ -82,7 +82,7 @@ export function onDocumentDeletedEffect<
 export function onDocumentDeletedWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentDeletedEffectOptions<R, Document, S, IdField>,
@@ -114,7 +114,7 @@ export function onDocumentDeletedWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentDeletedWithAuthContext', {
         inner: error,

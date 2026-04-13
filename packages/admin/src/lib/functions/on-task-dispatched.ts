@@ -12,23 +12,23 @@ interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;
 }
 
-interface TaskDispatchedEffectOptionsWithSchema<R, S extends Schema.Schema.Any>
-  extends TaskDispatchedEffectOptions<R | Schema.Schema.Context<S>> {
+interface TaskDispatchedEffectOptionsWithSchema<R, S extends Schema.Top>
+  extends TaskDispatchedEffectOptions<R | S['DecodingServices']> {
   schema: S;
 }
 
 /**
  * Decode task payload JSON data using the provided schema.
  */
-function decodeTaskData<S extends Schema.Schema.Any>(
+function decodeTaskData<S extends Schema.Top>(
   schema: S,
   request: Request<unknown>
-): Effect.Effect<Schema.Schema.Type<S>, Error, Schema.Schema.Context<S>> {
-  return Schema.decodeUnknown(schema)(request.data).pipe(
+): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
+  return Schema.decodeUnknownEffect(schema)(request.data).pipe(
     Effect.mapError(
       (error) => new Error(`Failed to decode task payload: ${error.message}`)
     )
-  ) as Effect.Effect<Schema.Schema.Type<S>, Error, Schema.Schema.Context<S>>;
+  ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
 }
 
 /**
@@ -39,13 +39,13 @@ function decodeTaskData<S extends Schema.Schema.Any>(
  * @returns The Firebase Functions Cloud Tasks trigger.
  */
 // Overload: with payload schema
-export function onTaskDispatchedEffect<R, S extends Schema.Schema.Any, E>(
+export function onTaskDispatchedEffect<R, S extends Schema.Top, E>(
   options: TaskDispatchedEffectOptionsWithSchema<R, S>,
   handler: (
     data: Schema.Schema.Type<S>,
-    request: Request<Schema.Schema.Encoded<S>>
+    request: Request<Schema.Codec.Encoded<S>>
   ) => Effect.Effect<void, E, R>
-): TaskQueueFunction<Schema.Schema.Encoded<S>>;
+): TaskQueueFunction<Schema.Codec.Encoded<S>>;
 
 // Overload: without payload schema (full control)
 export function onTaskDispatchedEffect<R, T, E>(
@@ -56,7 +56,7 @@ export function onTaskDispatchedEffect<R, T, E>(
 // Implementation
 export function onTaskDispatchedEffect<R>(
   options: TaskDispatchedEffectOptions<R> & {
-    schema?: Schema.Schema.Any;
+    schema?: Schema.Top;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<void, unknown, R>

@@ -16,10 +16,10 @@ import { decodeDocumentData } from './decode-document-data.js';
 interface DocumentCreatedEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
-  runtime: Runtime<R | Schema.Schema.Context<S>>;
+  runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
 }
@@ -33,7 +33,7 @@ interface DocumentCreatedEffectOptions<
 export function onDocumentCreatedEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentCreatedEffectOptions<R, Document, S, IdField>,
@@ -65,7 +65,7 @@ export function onDocumentCreatedEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentCreated', {
         inner: error,
@@ -85,7 +85,7 @@ export function onDocumentCreatedEffect<
 export function onDocumentCreatedWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentCreatedEffectOptions<R, Document, S, IdField>,
@@ -117,7 +117,7 @@ export function onDocumentCreatedWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentCreatedWithAuthContext', {
         inner: error,

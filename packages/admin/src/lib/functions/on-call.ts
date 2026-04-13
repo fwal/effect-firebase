@@ -19,20 +19,20 @@ interface CallEffectOptions<R> extends CallableOptions {
   runtime: Runtime<R>;
 }
 
-interface CallEffectOptionsWithInput<R, I extends Schema.Schema.Any>
+interface CallEffectOptionsWithInput<R, I extends Schema.Top>
   extends CallEffectOptions<R> {
   inputSchema: I;
 }
 
-interface CallEffectOptionsWithOutput<R, O extends Schema.Schema.Any>
+interface CallEffectOptionsWithOutput<R, O extends Schema.Top>
   extends CallEffectOptions<R> {
   outputSchema: O;
 }
 
 interface CallEffectOptionsWithBoth<
   R,
-  I extends Schema.Schema.Any,
-  O extends Schema.Schema.Any
+  I extends Schema.Top,
+  O extends Schema.Top
 > extends CallEffectOptions<R> {
   inputSchema: I;
   outputSchema: O;
@@ -45,36 +45,31 @@ interface CallEffectOptionsWithBoth<
  * @param handler - The handler function that runs the effect.
  * @returns The Firebase Functions callable trigger.
  */
-export function onCallEffect<
-  R,
-  I extends Schema.Schema.Any,
-  O extends Schema.Schema.Any,
-  E
->(
+export function onCallEffect<R, I extends Schema.Top, O extends Schema.Top, E>(
   options: CallEffectOptionsWithBoth<R, I, O>,
   handler: (
     input: Schema.Schema.Type<I>,
     context: CallableContext
   ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
-): CallableFunction<Schema.Schema.Encoded<O>, Schema.Schema.Encoded<I>>;
+): CallableFunction<Schema.Codec.Encoded<O>, Schema.Codec.Encoded<I>>;
 
 // Overload: only input schema
-export function onCallEffect<R, T, I extends Schema.Schema.Any, E>(
+export function onCallEffect<R, T, I extends Schema.Top, E>(
   options: CallEffectOptionsWithInput<R, I>,
   handler: (
     input: Schema.Schema.Type<I>,
     context: CallableContext
   ) => Effect.Effect<T, E, R>
-): CallableFunction<T, Schema.Schema.Encoded<I>>;
+): CallableFunction<T, Schema.Codec.Encoded<I>>;
 
 // Overload: only output schema
-export function onCallEffect<R, O extends Schema.Schema.Any, E>(
+export function onCallEffect<R, O extends Schema.Top, E>(
   options: CallEffectOptionsWithOutput<R, O>,
   handler: (
     request: CallableRequest,
     response?: CallableResponse
   ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
-): CallableFunction<Schema.Schema.Encoded<O>, unknown>;
+): CallableFunction<Schema.Codec.Encoded<O>, unknown>;
 
 // Overload: no schemas
 export function onCallEffect<R, T, E>(
@@ -88,8 +83,8 @@ export function onCallEffect<R, T, E>(
 // Implementation
 export function onCallEffect<R>(
   options: CallEffectOptions<R> & {
-    inputSchema?: Schema.Schema.Any;
-    outputSchema?: Schema.Schema.Any;
+    inputSchema?: Schema.Top;
+    outputSchema?: Schema.Top;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>

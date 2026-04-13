@@ -14,12 +14,12 @@ interface RequestEffectOptions<R> extends HttpsOptions {
   runtime: Runtime<R>;
 }
 
-interface RequestEffectOptionsWithBody<R, B extends Schema.Schema.Any>
+interface RequestEffectOptionsWithBody<R, B extends Schema.Top>
   extends RequestEffectOptions<R> {
   bodySchema: B;
 }
 
-interface RequestEffectOptionsWithResponse<R, O extends Schema.Schema.Any>
+interface RequestEffectOptionsWithResponse<R, O extends Schema.Top>
   extends RequestEffectOptions<R> {
   responseSchema: O;
   successStatus?: number;
@@ -27,8 +27,8 @@ interface RequestEffectOptionsWithResponse<R, O extends Schema.Schema.Any>
 
 interface RequestEffectOptionsWithBoth<
   R,
-  B extends Schema.Schema.Any,
-  O extends Schema.Schema.Any
+  B extends Schema.Top,
+  O extends Schema.Top
 > extends RequestEffectOptions<R> {
   bodySchema: B;
   responseSchema: O;
@@ -45,8 +45,8 @@ interface RequestEffectOptionsWithBoth<
 // Overload: both body and response schemas (JSON API endpoint)
 export function onRequestEffect<
   R,
-  B extends Schema.Schema.Any,
-  O extends Schema.Schema.Any,
+  B extends Schema.Top,
+  O extends Schema.Top,
   E
 >(
   options: RequestEffectOptionsWithBoth<R, B, O>,
@@ -58,7 +58,7 @@ export function onRequestEffect<
 ): HttpsFunction;
 
 // Overload: only body schema
-export function onRequestEffect<R, B extends Schema.Schema.Any, E>(
+export function onRequestEffect<R, B extends Schema.Top, E>(
   options: RequestEffectOptionsWithBody<R, B>,
   handler: (
     body: Schema.Schema.Type<B>,
@@ -68,7 +68,7 @@ export function onRequestEffect<R, B extends Schema.Schema.Any, E>(
 ): HttpsFunction;
 
 // Overload: only response schema
-export function onRequestEffect<R, O extends Schema.Schema.Any, E>(
+export function onRequestEffect<R, O extends Schema.Top, E>(
   options: RequestEffectOptionsWithResponse<R, O>,
   handler: (
     request: Request,
@@ -85,8 +85,8 @@ export function onRequestEffect<R, E>(
 // Implementation
 export function onRequestEffect<R>(
   options: RequestEffectOptions<R> & {
-    bodySchema?: Schema.Schema.Any;
-    responseSchema?: Schema.Schema.Any;
+    bodySchema?: Schema.Top;
+    responseSchema?: Schema.Top;
     successStatus?: number;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

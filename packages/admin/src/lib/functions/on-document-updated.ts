@@ -17,10 +17,10 @@ import { decodeDocumentData } from './decode-document-data.js';
 interface DocumentUpdatedEffectOptions<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 > extends DocumentOptions<Document> {
-  runtime: Runtime<R | Schema.Schema.Context<S>>;
+  runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
 }
@@ -42,7 +42,7 @@ export interface TypedChange<A> {
 export function onDocumentUpdatedEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
@@ -89,7 +89,7 @@ export function onDocumentUpdatedEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentUpdated', {
         inner: error,
@@ -109,7 +109,7 @@ export function onDocumentUpdatedEffect<
 export function onDocumentUpdatedWithAuthContextEffect<
   R,
   Document extends string,
-  S extends Schema.Schema.Any = Schema.Schema<unknown>,
+  S extends Schema.Top = Schema.Schema<unknown>,
   IdField extends keyof Schema.Schema.Type<S> & string = never
 >(
   options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
@@ -154,7 +154,7 @@ export function onDocumentUpdatedWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | Schema.Schema.Context<S>>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>
     ).catch((error) => {
       logger.error('Defect in onDocumentUpdatedWithAuthContext', {
         inner: error,

@@ -12,26 +12,24 @@ interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
 }
 
-interface MessagePublishedEffectOptionsWithSchema<
-  R,
-  S extends Schema.Schema.Any
-> extends MessagePublishedEffectOptions<R> {
+interface MessagePublishedEffectOptionsWithSchema<R, S extends Schema.Top>
+  extends MessagePublishedEffectOptions<R> {
   messageSchema: S;
 }
 
 /**
  * Decode the message JSON data using the provided schema.
  */
-function decodeMessageData<S extends Schema.Schema.Any>(
+function decodeMessageData<S extends Schema.Top>(
   schema: S,
   event: CloudEvent<MessagePublishedData<unknown>>
-): Effect.Effect<Schema.Schema.Type<S>, Error, Schema.Schema.Context<S>> {
+): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
   const messageData = event.data.message.json;
-  return Schema.decodeUnknown(schema)(messageData).pipe(
+  return Schema.decodeUnknownEffect(schema)(messageData).pipe(
     Effect.mapError(
       (error) => new Error(`Failed to decode Pub/Sub message: ${error.message}`)
     )
-  ) as Effect.Effect<Schema.Schema.Type<S>, Error, Schema.Schema.Context<S>>;
+  ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
 }
 
 /**
@@ -42,7 +40,7 @@ function decodeMessageData<S extends Schema.Schema.Any>(
  * @returns The Firebase Functions Pub/Sub trigger.
  */
 // Overload: with message schema
-export function onMessagePublishedEffect<R, S extends Schema.Schema.Any, E>(
+export function onMessagePublishedEffect<R, S extends Schema.Top, E>(
   options: MessagePublishedEffectOptionsWithSchema<R, S>,
   handler: (
     message: Schema.Schema.Type<S>,
@@ -61,7 +59,7 @@ export function onMessagePublishedEffect<R, T, E>(
 // Implementation
 export function onMessagePublishedEffect<R>(
   options: MessagePublishedEffectOptions<R> & {
-    messageSchema?: Schema.Schema.Any;
+    messageSchema?: Schema.Top;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<void, unknown, R>
