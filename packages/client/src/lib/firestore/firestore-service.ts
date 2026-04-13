@@ -1,4 +1,13 @@
-import { Effect, Layer, Array as Arr, Option, Stream } from 'effect';
+import {
+  Cause,
+  Effect,
+  Layer,
+  Array as Arr,
+  Option,
+  Queue,
+  Result,
+  Stream,
+} from 'effect';
 import { FirestoreError, FirestoreService } from 'effect-firebase';
 import type { FirestoreDataOptions, Snapshot } from 'effect-firebase';
 import type { FirebaseApp } from 'firebase/app';
@@ -69,22 +78,19 @@ const make = (db: Firestore) => {
         try: async () => {
           const q = buildQuery(db, collectionPath, constraints);
           const snapshot = await getDocs(q);
-          return Arr.filterMap(
-            snapshot.docs,
-            (queryDoc): Option.Option<Snapshot> => {
-              const data = queryDoc.data();
-              if (!data) return Option.none();
-              return Option.some([
-                { id: queryDoc.id, path: queryDoc.ref.path },
-                firestoreDecode(data),
-              ]);
-            }
-          );
+          return Arr.filterMap(snapshot.docs, (queryDoc) => {
+            const data = queryDoc.data();
+            if (!data) return Result.failVoid;
+            return Result.succeed([
+              { id: queryDoc.id, path: queryDoc.ref.path },
+              firestoreDecode(data),
+            ] as const);
+          });
         },
         catch: (error) => FirestoreError.fromError(error),
       }),
     streamDoc: (path, options) =>
-      Stream.asyncScoped<Option.Option<Snapshot>, FirestoreError>((emit) =>
+      Stream.callback<Option.Option<Snapshot>, FirestoreError>((queue) =>
         Effect.acquireRelease(
           Effect.sync(() => {
             const docRef = doc(db, path);
@@ -93,18 +99,22 @@ const make = (db: Firestore) => {
               (snapshot) => {
                 const data = snapshot.data(dataOptions(options));
                 if (!data) {
-                  emit.single(Option.none());
+                  Queue.offerUnsafe(queue, Option.none());
                 } else {
-                  emit.single(
+                  Queue.offerUnsafe(
+                    queue,
                     Option.some([
                       { id: snapshot.id, path: snapshot.ref.path },
                       firestoreDecode(data),
-                    ])
+                    ] as const)
                   );
                 }
               },
               (error) => {
-                emit.fail(FirestoreError.fromError(error));
+                Queue.failCauseUnsafe(
+                  queue,
+                  Cause.fail(FirestoreError.fromError(error))
+                );
               }
             );
           }),
@@ -112,28 +122,28 @@ const make = (db: Firestore) => {
         )
       ),
     streamQuery: (collectionPath, constraints, options) =>
-      Stream.asyncScoped<ReadonlyArray<Snapshot>, FirestoreError>((emit) =>
+      Stream.callback<ReadonlyArray<Snapshot>, FirestoreError>((queue) =>
         Effect.acquireRelease(
           Effect.sync(() => {
             const q = buildQuery(db, collectionPath, constraints);
             return onSnapshot(
               q,
               (snapshot) => {
-                const snapshots = Arr.filterMap(
-                  snapshot.docs,
-                  (queryDoc): Option.Option<Snapshot> => {
-                    const data = queryDoc.data(dataOptions(options));
-                    if (!data) return Option.none();
-                    return Option.some([
-                      { id: queryDoc.id, path: queryDoc.ref.path },
-                      firestoreDecode(data),
-                    ]);
-                  }
-                );
-                emit.single(snapshots);
+                const snapshots = Arr.filterMap(snapshot.docs, (queryDoc) => {
+                  const data = queryDoc.data(dataOptions(options));
+                  if (!data) return Result.failVoid;
+                  return Result.succeed([
+                    { id: queryDoc.id, path: queryDoc.ref.path },
+                    firestoreDecode(data),
+                  ] as const);
+                });
+                Queue.offerUnsafe(queue, snapshots);
               },
               (error) => {
-                emit.fail(FirestoreError.fromError(error));
+                Queue.failCauseUnsafe(
+                  queue,
+                  Cause.fail(FirestoreError.fromError(error))
+                );
               }
             );
           }),

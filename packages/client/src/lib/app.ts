@@ -1,14 +1,13 @@
 import type { FirebaseApp } from 'firebase/app';
-import { Context, Layer } from 'effect';
+import { Layer, Context } from 'effect';
 
 export interface AppService {
   readonly getApp: () => FirebaseApp;
 }
 
-export class App extends Context.Tag('@effect-firebase/client/App')<
-  App,
-  AppService
->() {}
+export class App extends Context.Service<App, AppService>()(
+  '@effect-firebase/client/App'
+) {}
 
 export const layer = (app: FirebaseApp): Layer.Layer<App> =>
   Layer.succeed(App, {
