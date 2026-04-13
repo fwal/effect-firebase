@@ -17,7 +17,7 @@ export interface SendRequestProps<A, I> {
   onSendRequest: (input?: unknown) => Promise<unknown>;
   showInput?: boolean;
   inputPlaceholder?: string;
-  inputSchema?: Schema.Schema<A, I, never>;
+  inputSchema?: Schema.Codec<A, I>;
 }
 
 export default function SendRequest<A, I>({

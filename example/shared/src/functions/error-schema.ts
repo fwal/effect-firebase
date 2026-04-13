@@ -16,5 +16,5 @@ const ParseError = Schema.Struct({
 });
 
 export const ErrorSchema = Schema.Struct({
-  error: Schema.Union(ParseError, BasicError),
+  error: Schema.Union([ParseError, BasicError]),
 });

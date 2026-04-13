@@ -2,7 +2,7 @@ import { PostModel, PostRepository, PostId, AuthorId } from '@example/shared';
 import { Firestore } from '@effect-firebase/client';
 import { getApp } from 'firebase/app';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema, Stream, Fiber, DateTime } from 'effect';
+import { Effect, Option, Schema, Stream, Fiber, DateTime } from 'effect';
 import { useEffect, useState } from 'react';
 import {
   Button,
@@ -43,7 +43,7 @@ function RouteComponent() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Repository instance state
-  const [repo, setRepo] = useState<Effect.Effect.Success<
+  const [repo, setRepo] = useState<Effect.Success<
     typeof PostRepository
   > | null>(null);
 
@@ -71,7 +71,7 @@ function RouteComponent() {
         setLoading(false);
       })
     ).pipe(
-      Effect.catchAll((err) =>
+      Effect.catch((err) =>
         Effect.sync(() => {
           console.error('Error streaming posts:', err);
           setError(String(err));
@@ -109,6 +109,8 @@ function RouteComponent() {
           createdAt: undefined,
           updatedAt: undefined,
           checked: false,
+          optional: Option.none(),
+          list: [],
         });
         await Effect.runPromise(createEffect).catch((err) => {
           console.error('Failed to create post:', err);

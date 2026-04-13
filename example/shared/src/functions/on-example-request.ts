@@ -8,4 +8,4 @@ export const Input = Schema.Struct({
   id: Schema.String,
 });
 
-export const Output = Schema.Union(PostModel.json, ErrorSchema);
+export const Output = Schema.Union([PostModel.json, ErrorSchema]);

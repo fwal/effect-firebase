@@ -16,5 +16,5 @@ export const onPostCreated = onDocumentCreatedEffect(
       yield* Effect.log(`Post updated, setting check for: ${post.id}`);
       const repo = yield* PostRepository;
       yield* repo.update(post.id, { checked: true });
-    }).pipe(Effect.withLogSpan('runtime'), Effect.catchAll(Effect.logError))
+    }).pipe(Effect.withLogSpan('runtime'), Effect.catch(Effect.logError))
 );
