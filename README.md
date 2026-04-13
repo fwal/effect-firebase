@@ -1,58 +1,36 @@
 # Effect Firebase
 
-Type-safe Firebase integration for [Effect](https://effect.website), providing schemas, models, and utilities for building Firebase applications with Effect's powerful ecosystem.
+Firebase integration for [Effect](https://effect.website). Provides schemas, models, repositories, and Cloud Functions helpers built on Effect's type system.
 
 [![npm version](https://img.shields.io/npm/v/effect-firebase.svg)](https://www.npmjs.com/package/effect-firebase)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > [!WARNING]
-> This project is still under heavy development and APIs may change frequently.
-
-## Overview
-
-Effect Firebase is a comprehensive library for integrating Firebase services with Effect, providing:
-
-- 🔒 **Type-Safe APIs** - Leverage TypeScript and Effect schemas for complete type safety
-- 📦 **Model & Repository Pattern** - Clean abstractions for data access with automatic validation
-- 🔍 **Type-Safe Queries** - Fluent query builder with compile-time field validation
-- 🎯 **SDK Agnostic Core** - Works with both Firebase Admin SDK and Client SDK
-- 🧪 **Testable** - Mock implementations for fast, isolated testing
-- 🚀 **Effect Native** - Built on Effect's composition and error handling
+> Under heavy development. APIs may change.
 
 ## Packages
 
-This monorepo contains several packages for different use cases:
+| Package                                       | Description                             |
+| --------------------------------------------- | --------------------------------------- |
+| [effect-firebase](./packages/effect-firebase) | Core schemas, models, and query builder |
+| [@effect-firebase/admin](./packages/admin)    | Firebase Admin SDK + Cloud Functions    |
+| [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
+| [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
 
-| Package                                           | Description                                                 | Version                                                                                                                   |
-| ------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [**effect-firebase**](./packages/effect-firebase) | Core library with schemas, models, and abstractions         | [![npm](https://img.shields.io/npm/v/effect-firebase.svg)](https://www.npmjs.com/package/effect-firebase)                 |
-| [**@effect-firebase/admin**](./packages/admin)    | Firebase Admin SDK implementation + Cloud Functions support | [![npm](https://img.shields.io/npm/v/@effect-firebase/admin.svg)](https://www.npmjs.com/package/@effect-firebase/admin)   |
-| [**@effect-firebase/client**](./packages/client)  | Firebase Client SDK implementation for web/mobile apps      | [![npm](https://img.shields.io/npm/v/@effect-firebase/client.svg)](https://www.npmjs.com/package/@effect-firebase/client) |
-| [**@effect-firebase/mock**](./packages/mock)      | Mock implementation for testing                             | [![npm](https://img.shields.io/npm/v/@effect-firebase/mock.svg)](https://www.npmjs.com/package/@effect-firebase/mock)     |
-
-## Quick Start
-
-### Installation
-
-Choose the packages you need based on your use case:
+## Installation
 
 ```bash
-# Core library (required)
-npm install effect-firebase effect @effect/experimental
+npm install effect-firebase effect
 
-# For server/admin applications or Cloud Functions
+# Pick one or more SDK packages:
 npm install @effect-firebase/admin firebase-admin firebase-functions
-
-# For client applications (web/mobile)
 npm install @effect-firebase/client firebase
-
-# For testing (dev dependency)
 npm install --save-dev @effect-firebase/mock
 ```
 
-### Example: Building a Blog
+## Usage
 
-#### 1. Define Your Model
+### Define a model
 
 ```typescript
 import { Schema } from 'effect';
@@ -60,21 +38,19 @@ import { Model } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
-const AuthorRef = Model.Reference(AuthorId, 'authors');
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
   id: Model.Generated(PostId),
   createdAt: Model.DateTimeInsert,
   updatedAt: Model.DateTimeUpdate,
-  author: AuthorRef,
+  author: Model.Reference(AuthorId, 'authors'),
   title: Schema.String,
   content: Schema.String,
   status: Schema.Literal('draft', 'published'),
-  likes: Schema.Number,
 }) {}
 ```
 
-#### 2. Create a Repository
+### Create a repository
 
 ```typescript
 import { Effect } from 'effect';
@@ -83,13 +59,12 @@ import { Model, Query } from 'effect-firebase';
 export const PostRepository = Model.makeRepository(PostModel, {
   collectionPath: 'posts',
   idField: 'id',
-  spanPrefix: 'app.PostRepository',
+  spanPrefix: 'PostRepository',
 }).pipe(
-  Effect.map((repository) => ({
-    ...repository,
-    // Add custom methods
-    publishedPosts: () =>
-      repository.queryStream(
+  Effect.map((repo) => ({
+    ...repo,
+    published: () =>
+      repo.queryStream(
         Query.and(
           Query.where('status', '==', 'published'),
           Query.orderBy('createdAt', 'desc')
@@ -99,48 +74,36 @@ export const PostRepository = Model.makeRepository(PostModel, {
 );
 ```
 
-#### 3. Use in Your Application
-
-**Client Application:**
+### Client app
 
 ```typescript
 import { Effect } from 'effect';
 import { initializeApp } from 'firebase/app';
 import { Client } from '@effect-firebase/client';
-import { PostRepository } from './repositories/post-repository';
-
-const app = initializeApp({
-  projectId: 'your-project-id',
-});
 
 const program = Effect.gen(function* () {
   const repo = yield* PostRepository;
-
-  // Create a post
   const postId = yield* repo.add({
-    title: 'Hello Effect Firebase',
-    content: 'Building type-safe apps',
-    author: AuthorId.make('author-123'),
-    status: 'published',
-    likes: 0,
+    title: 'Hello',
+    content: '...',
+    status: 'draft',
   });
-
-  // Query posts
   const posts = yield* repo.query(Query.where('status', '==', 'published'));
-
   return { postId, posts };
-}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layer({ app })));
-
-Effect.runPromise(program).then(console.log);
+}).pipe(
+  Effect.provide(PostRepository),
+  Effect.provide(
+    Client.layer({ app: initializeApp({ projectId: 'my-project' }) })
+  )
+);
 ```
 
-**Cloud Function:**
+### Cloud Function
 
 ```typescript
 import { Effect, Layer } from 'effect';
 import { initializeApp } from 'firebase-admin/app';
 import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
-import { PostRepository } from './repositories/post-repository';
 
 const runtime = FunctionsRuntime.make(
   Layer.mergeAll(Admin.layer({ app: initializeApp() }), PostRepository)
@@ -149,269 +112,62 @@ const runtime = FunctionsRuntime.make(
 export const createPost = onCallEffect({ runtime }, (request) =>
   Effect.gen(function* () {
     const repo = yield* PostRepository;
-    const { title, content } = request.data;
-
     const postId = yield* repo.add({
-      title,
-      content,
+      title: request.data.title,
+      content: request.data.content,
       author: AuthorId.make(request.auth!.uid),
       status: 'draft',
-      likes: 0,
     });
-
     return { postId };
   })
 );
 ```
 
-**Testing:**
+### Testing
 
 ```typescript
 import { Effect } from 'effect';
 import { layer as mockFirestore } from '@effect-firebase/mock';
 
-const test = Effect.gen(function* () {
-  const repo = yield* PostRepository;
-
-  const postId = yield* repo.add({
-    title: 'Test Post',
-    content: 'Test Content',
-    author: AuthorId.make('test-author'),
-    status: 'draft',
-    likes: 0,
-  });
-
-  const post = yield* repo.getById(postId);
-  expect(post.title).toBe('Test Post');
-}).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore));
-
-await Effect.runPromise(test);
-```
-
-## Features
-
-### Firestore
-
-#### ✅ Schema Support
-
-Platform-agnostic schemas for Firestore types:
-
-- `Timestamp` (including server timestamps)
-- `GeoPoint`
-- `DocumentReference`
-
-#### ✅ Model & Repository
-
-- Type-safe CRUD operations
-- Automatic schema validation
-- Generated fields (IDs, timestamps)
-- Custom repository methods
-- Real-time streaming support
-
-#### ✅ Type-Safe Queries
-
-- Field validation at compile time
-- Fluent query builder API
-- Support for all Firestore operators
-- Composite queries (AND/OR)
-- Pagination support
-- Ordering and limiting
-
-### Cloud Functions (Admin)
-
-- `onRequest` - HTTP endpoints
-- `onCall` - Callable functions
-- `onDocumentCreated` - Firestore trigger
-- `onDocumentUpdated` - Firestore trigger
-- `onDocumentDeleted` - Firestore trigger
-- `onDocumentWritten` - Firestore trigger
-- `onMessagePublished` - Pub/Sub trigger
-- `onTaskDispatched` - Cloud Tasks trigger
-
-### Planned Features
-
-- 🔄 Firebase Realtime Database support
-- 🔄 Firebase Storage integration
-- 🔄 Firebase Data Connect support
-- 🔄 Additional Cloud Functions triggers
-
-## Documentation
-
-Each package has comprehensive documentation:
-
-- **[effect-firebase](./packages/effect-firebase/README.md)** - Core classes, schemas, models, queries
-- **[@effect-firebase/admin](./packages/admin/README.md)** - Server-side usage i.e. Cloud Functions
-- **[@effect-firebase/client](./packages/client/README.md)** - Client-side usage
-- **[@effect-firebase/mock](./packages/mock/README.md)** - Testing guide
-
-## Why Effect Firebase?
-
-### Type Safety
-
-Traditional Firebase code:
-
-```typescript
-// ❌ No type safety
-const posts = await db
-  .collection('posts')
-  .where('staus', '==', 'published') // Typo! Runtime error
-  .get();
-
-posts.forEach((doc) => {
-  const data = doc.data(); // any type
-  console.log(data.titel); // Typo! No error
-});
-```
-
-With Effect Firebase:
-
-```typescript
-// ✅ Compile-time type safety
-const posts =
-  yield *
-  repo.query(
-    Query.where('status', '==', 'published') // Compile error if field doesn't exist
-  );
-
-posts.forEach((post) => {
-  console.log(post.title); // Fully typed - IDE autocomplete works
-  // post.titel // Compile error
-});
-```
-
-### Error Handling
-
-Traditional Firebase:
-
-```typescript
-// ❌ Error handling is manual and inconsistent
-try {
-  const doc = await db.collection('posts').doc(id).get();
-  if (!doc.exists) {
-    throw new Error('Not found');
-  }
-  const data = doc.data();
-  // What if data is invalid?
-} catch (error) {
-  // What type is error?
-  console.error(error);
-}
-```
-
-With Effect Firebase:
-
-```typescript
-// ✅ Structured error handling with Effect
-const program = repo.getById(id).pipe(
-  Effect.catchTag('NoSuchElementException', () => Effect.succeed(null)),
-  Effect.catchTag('ParseError', (error) =>
-    Effect.fail(new ValidationError({ cause: error }))
-  ),
-  Effect.catchTag('FirestoreError', (error) =>
-    Effect.fail(new DatabaseError({ cause: error }))
-  )
+await Effect.runPromise(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    const postId = yield* repo.add({
+      title: 'Test',
+      content: '...',
+      status: 'draft',
+    });
+    const post = yield* repo.getById(postId);
+    expect(post.title).toBe('Test');
+  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore))
 );
 ```
 
-### Composability
+## Cloud Functions
 
-```typescript
-// ✅ Compose operations easily with Effect
-const program = Effect.gen(function* () {
-  const postRepo = yield* PostRepository;
-  const userRepo = yield* UserRepository;
+`@effect-firebase/admin` provides Effect wrappers for all major Cloud Functions trigger types:
 
-  // Get user and their posts in parallel
-  const [user, posts] = yield* Effect.all(
-    [
-      userRepo.getById(userId),
-      postRepo.query(Query.where('authorId', '==', userId)),
-    ],
-    { concurrency: 'unbounded' }
-  );
-
-  return { user, posts };
-});
-```
+- `onRequestEffect` — HTTP
+- `onCallEffect` — Callable
+- `onDocumentCreatedEffect`, `onDocumentUpdatedEffect`, `onDocumentDeletedEffect`, `onDocumentWrittenEffect` — Firestore triggers
+- `onMessagePublishedEffect` — Pub/Sub
+- `onTaskDispatchedEffect` — Cloud Tasks
 
 ## Development
 
-This project uses [Nx](https://nx.dev) for monorepo management.
-
-### Setup
-
 ```bash
-# Clone the repository
-git clone https://github.com/fwal/effect-firebase.git
-cd effect-firebase
-
-# Install dependencies
 pnpm install
+pnpm nx run-many -t build
+pnpm nx run-many -t test
 ```
 
-### Build
+The repo includes a full example app with Firebase emulator support:
 
 ```bash
-# Build all packages
-nx run-many -t build
-
-# Build specific package
-nx build effect-firebase
+pnpm example:emulator   # Terminal 1
+pnpm example:hosting    # Terminal 2
 ```
-
-### Test
-
-```bash
-# Run all tests
-nx run-many -t test
-
-# Test specific package
-nx test effect-firebase
-```
-
-### Example Application
-
-The repository includes a full example application demonstrating all features:
-
-```bash
-# Terminal 1: Start Firebase emulators
-pnpm example:emulator
-
-# Terminal 2: Start the example app
-pnpm example:hosting
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
-MIT
-
-## Resources
-
-- [Effect Documentation](https://effect.website)
-- [Firebase Documentation](https://firebase.google.com/docs)
-- [Repository](https://github.com/fwal/effect-firebase)
-- [Issue Tracker](https://github.com/fwal/effect-firebase/issues)
-
-## Acknowledgments
-
-Built with:
-
-- [Effect](https://effect.website) - Powerful TypeScript framework
-- [Firebase](https://firebase.google.com) - Application development platform
-- [Nx](https://nx.dev) - Smart monorepo tooling
-
-The Model and Repository pattern is heavily inspired by the excellent [`@effect/sql`](https://github.com/Effect-TS/effect/tree/main/packages/sql) family of packages, adapted for Firestore's document-based paradigm.
-
----
-
-**Questions or feedback?** Open an issue on [GitHub](https://github.com/fwal/effect-firebase/issues)!
+MIT. The Model/Repository pattern is adapted from [`@effect/sql`](https://github.com/Effect-TS/effect/tree/main/packages/sql).
