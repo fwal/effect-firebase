@@ -181,7 +181,7 @@ export const makeRepository = <
       return { ...data, [options.idField]: ref.id };
     };
 
-    const addSchema = Fetch.single({
+    const addSchema = Fetch.findOne({
       Request: Model.insert,
       Result: idSchema,
       execute: (data: unknown) =>
@@ -233,7 +233,7 @@ export const makeRepository = <
         })
       );
 
-    const getByIdSchema = Fetch.findOne({
+    const getByIdSchema = Fetch.findOneOption({
       Request: idSchema,
       Result: Model,
       execute: (id) =>

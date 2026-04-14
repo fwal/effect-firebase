@@ -1,4 +1,4 @@
-import { Cause, Effect, Option, Schema, Stream } from 'effect';
+import { Array as Arr, Cause, Effect, Option, Schema, Stream } from 'effect';
 
 /**
  * Find all records in the collection.
@@ -16,17 +16,49 @@ export const findAll = <
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
-  const decode = Schema.decodeUnknownEffect(Schema.Array(options.Result));
+  const decode = Schema.decodeUnknownEffect(
+    Schema.mutable(Schema.Array(options.Result))
+  );
   return (
     request: Req['Type']
   ): Effect.Effect<
-    ReadonlyArray<Res['Type']>,
+    Array<Res['Type']>,
     E | Schema.SchemaError,
     R | Req['EncodingServices'] | Res['DecodingServices']
   > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
       decode
+    );
+};
+
+/**
+ * Find all records in the collection, failing with NoSuchElementError if the result is empty.
+ */
+export const findNonEmpty = <
+  Req extends Schema.Top,
+  Res extends Schema.Top,
+  E,
+  R
+>(options: {
+  readonly Request: Req;
+  readonly Result: Res;
+  readonly execute: (
+    request: Req['Encoded']
+  ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
+}) => {
+  const find = findAll(options);
+  return (
+    request: Req['Type']
+  ): Effect.Effect<
+    Arr.NonEmptyArray<Res['Type']>,
+    E | Schema.SchemaError | Cause.NoSuchElementError,
+    R | Req['EncodingServices'] | Res['DecodingServices']
+  > =>
+    Effect.flatMap(find(request), (results) =>
+      Arr.isArrayNonEmpty(results)
+        ? Effect.succeed(results)
+        : Effect.fail(new Cause.NoSuchElementError())
     );
 };
 
@@ -47,9 +79,9 @@ const _void = <Req extends Schema.Top, E, R>(options: {
 export { _void as void };
 
 /**
- * Run a query with a request schema and a result schema and return the first result.
+ * Run a query and return the first result as an Option.
  */
-export const findOne = <
+export const findOneOption = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
@@ -72,18 +104,23 @@ export const findOne = <
   > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
-      (arr) =>
-        Array.isArray(arr) && arr.length > 0
+      (
+        arr
+      ): Effect.Effect<
+        Option.Option<Res['Type']>,
+        Schema.SchemaError,
+        Res['DecodingServices']
+      > =>
+        Arr.isReadonlyArrayNonEmpty(arr)
           ? Effect.asSome(decode(arr[0]))
           : Effect.succeedNone
     );
 };
 
 /**
- * Run a query with a request schema and a result schema and return the first result.
- * @throws NoSuchElementError if the result is empty.
+ * Run a query and return the first result, failing with NoSuchElementError if empty.
  */
-export const single = <
+export const findOne = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
@@ -113,7 +150,7 @@ export const single = <
         Schema.SchemaError | Cause.NoSuchElementError,
         Res['DecodingServices']
       > =>
-        Array.isArray(arr) && arr.length > 0
+        Arr.isReadonlyArrayNonEmpty(arr)
           ? decode(arr[0])
           : Effect.fail(new Cause.NoSuchElementError())
     );
@@ -171,11 +208,13 @@ export const streamAll = <
   ) => Stream.Stream<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
-  const decode = Schema.decodeUnknownEffect(Schema.Array(options.Result));
+  const decode = Schema.decodeUnknownEffect(
+    Schema.mutable(Schema.Array(options.Result))
+  );
   return (
     request: Req['Type']
   ): Stream.Stream<
-    ReadonlyArray<Res['Type']>,
+    Array<Res['Type']>,
     E | Schema.SchemaError,
     R | Req['EncodingServices'] | Res['DecodingServices']
   > =>
