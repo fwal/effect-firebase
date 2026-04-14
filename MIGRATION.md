@@ -58,7 +58,126 @@ If you use Schema functions that return `Effect` (rather than throwing), these h
 
 The sync variants are **unchanged**: `Schema.encodeSync`, `Schema.decodeUnknownSync`, `Schema.decodeSync`.
 
-### 4. Update VariantSchema import (advanced usage only)
+### 4. Model class and field helpers
+
+The `Model` namespace is no longer exported from `effect-firebase`. The model class is now provided by Effect itself, and `effect-firebase` only exports Firestore-specific field types under a new `Firestore` namespace.
+
+**Before:**
+
+```ts
+import { Model } from 'effect-firebase';
+
+class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
+  id: Model.Generated(AuthorId),
+  createdAt: Model.DateTimeInsert,
+  updatedAt: Model.DateTimeUpdate,
+  author: Model.Reference(AuthorId, 'authors'),
+  optional: Model.OptionalDeletable(Schema.String),
+  list: Model.Array(Schema.String),
+}) {}
+
+const AuthorRepository = Model.makeRepository(AuthorModel, {
+  collectionPath: 'authors',
+  idField: 'id',
+  spanPrefix: 'example.AuthorRepository',
+});
+```
+
+**After:**
+
+```ts
+import { Model } from 'effect/unstable/schema';
+import { Firestore } from 'effect-firebase';
+
+class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
+  id: Model.Generated(AuthorId), // generic helpers from Effect's Model
+  createdAt: Firestore.DateTimeInsert, // Firestore-specific helpers from effect-firebase
+  updatedAt: Firestore.DateTimeUpdate,
+  author: Firestore.Reference(AuthorId, 'authors'),
+  optional: Firestore.OptionalDeletable(Schema.String),
+  list: Firestore.Array(Schema.String),
+}) {}
+
+const AuthorRepository = Firestore.makeRepository(AuthorModel, {
+  collectionPath: 'authors',
+  idField: 'id',
+  spanPrefix: 'example.AuthorRepository',
+});
+```
+
+Generic field helpers that no longer need the `effect-firebase` import:
+
+| Field helper           | Now from                 |
+| ---------------------- | ------------------------ |
+| `Model.Class`          | `effect/unstable/schema` |
+| `Model.Generated`      | `effect/unstable/schema` |
+| `Model.GeneratedByApp` | `effect/unstable/schema` |
+| `Model.Sensitive`      | `effect/unstable/schema` |
+| `Model.FieldOption`    | `effect/unstable/schema` |
+| `Model.JsonFromString` | `effect/unstable/schema` |
+
+Firestore-specific field helpers remain under the `Firestore` namespace in `effect-firebase`:
+
+| Field helper                  | Namespace       |
+| ----------------------------- | --------------- |
+| `Firestore.DateTimeInsert`    | effect-firebase |
+| `Firestore.DateTimeUpdate`    | effect-firebase |
+| `Firestore.DateTime`          | effect-firebase |
+| `Firestore.Reference`         | effect-firebase |
+| `Firestore.ReferenceOptional` | effect-firebase |
+| `Firestore.ReferencePath`     | effect-firebase |
+| `Firestore.OptionalDeletable` | effect-firebase |
+| `Firestore.Optional`          | effect-firebase |
+| `Firestore.OptionalNull`      | effect-firebase |
+| `Firestore.Array`             | effect-firebase |
+| `Firestore.WithArrayFields`   | effect-firebase |
+| `Firestore.makeRepository`    | effect-firebase |
+| `Firestore.delete`            | effect-firebase |
+| `Firestore.arrayUnion`        | effect-firebase |
+| `Firestore.arrayRemove`       | effect-firebase |
+
+**Variant name changes (advanced usage only)**
+
+If you access schema variants directly (e.g. for custom repository logic or field definitions), the variant names have changed to align with Effect's Model:
+
+| Old variant name | New variant name    |
+| ---------------- | ------------------- |
+| `.add`           | `.insert`           |
+| `.jsonAdd`       | `.jsonCreate`       |
+| `.get` (default) | `.select` (default) |
+
+```ts
+// Before
+const encoded = Schema.encodeSync(MyModel.add)(data);
+
+// After
+const encoded = Schema.encodeSync(MyModel.insert)(data);
+```
+
+### 5. Update `FirestoreField` import (converter usage)
+
+If you use the Firestore data converter helpers (`Delete`, `ArrayUnion`, `ArrayRemove`), these have moved from `FirestoreField` to the unified `Firestore` namespace:
+
+```ts
+// Before
+import { FirestoreField } from 'effect-firebase';
+if (data instanceof FirestoreField.Delete) { ... }
+if (data instanceof FirestoreField.ArrayUnion) { ... }
+
+// After
+import { Firestore } from 'effect-firebase';
+if (data instanceof Firestore.Delete) { ... }
+if (data instanceof Firestore.ArrayUnion) { ... }
+```
+
+Note: If you import `Firestore` from a Firebase SDK in the same file, you will need to alias one of them:
+
+```ts
+import { Firestore as FirebaseFirestore } from 'firebase/firestore';
+import { Firestore } from 'effect-firebase';
+```
+
+### 6. Update VariantSchema import (advanced usage only)
 
 If you build custom model fields using `VariantSchema` directly, update the import path:
 
@@ -70,9 +189,7 @@ import { VariantSchema } from '@effect/experimental';
 import { VariantSchema } from 'effect/unstable/schema';
 ```
 
-Standard field helpers (`Model.Field`, `Model.DateTime`, `Model.DateTimeInsert`, etc.) are unaffected.
-
-### 5. Other Effect v4 renames
+### 7. Other Effect v4 renames
 
 Additional Effect v4 breaking changes you may encounter in your own code:
 

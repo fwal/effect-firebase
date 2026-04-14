@@ -1,8 +1,8 @@
-import { Model } from 'effect-firebase';
+import { Firestore } from 'effect-firebase';
 import { AuthorModel } from './author.js';
 import { Effect } from 'effect';
 
-export const AuthorRepository = Model.makeRepository(AuthorModel, {
+export const AuthorRepository = Firestore.makeRepository(AuthorModel, {
   collectionPath: 'authors',
   idField: 'id',
   spanPrefix: 'example.AuthorRepository',
