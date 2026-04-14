@@ -6,20 +6,19 @@ import {
   SchemaGetter,
   SchemaIssue,
 } from 'effect';
-import { VariantSchema } from 'effect/unstable/schema';
-import { Field } from './core.js';
+import { Model, VariantSchema } from 'effect/unstable/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
 export type DateTime = VariantSchema.Field<{
-  get: typeof FirestoreSchema.TimestampDateTimeUtc;
-  add: typeof FirestoreSchema.TimestampDateTimeUtc;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof FirestoreSchema.TimestampDateTimeUtc;
   update: typeof FirestoreSchema.TimestampDateTimeUtc;
   json: typeof Schema.DateTimeUtcFromString;
 }>;
 
-export const DateTime: DateTime = Field({
-  get: FirestoreSchema.TimestampDateTimeUtc,
-  add: FirestoreSchema.TimestampDateTimeUtc,
+export const DateTime: DateTime = Model.Field({
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: FirestoreSchema.TimestampDateTimeUtc,
   update: FirestoreSchema.TimestampDateTimeUtc,
   json: Schema.DateTimeUtcFromString,
 });
@@ -62,37 +61,37 @@ const ServerDateTimeSchema = Schema.Union([
 );
 
 export type ServerDateTime = VariantSchema.Field<{
-  get: typeof FirestoreSchema.AnyTimestampDateTimeUtc;
-  add: typeof ServerDateTimeSchema;
+  select: typeof FirestoreSchema.AnyTimestampDateTimeUtc;
+  insert: typeof ServerDateTimeSchema;
   update: typeof ServerDateTimeSchema;
   json: typeof Schema.DateTimeUtcFromString;
 }>;
 
-export const ServerDateTime: ServerDateTime = Field({
-  get: FirestoreSchema.AnyTimestampDateTimeUtc,
-  add: ServerDateTimeSchema,
+export const ServerDateTime: ServerDateTime = Model.Field({
+  select: FirestoreSchema.AnyTimestampDateTimeUtc,
+  insert: ServerDateTimeSchema,
   update: ServerDateTimeSchema,
   json: Schema.DateTimeUtcFromString,
 });
 
 export type DateTimeInsert = VariantSchema.Field<{
-  get: typeof FirestoreSchema.TimestampDateTimeUtc;
-  add: typeof ServerDateTimeSchema;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof ServerDateTimeSchema;
   json: typeof Schema.DateTimeUtcFromString;
 }>;
 
 /**
  * A field that represents the date and time when the model was created.
  */
-export const DateTimeInsert: DateTimeInsert = Field({
-  get: FirestoreSchema.TimestampDateTimeUtc,
-  add: ServerDateTimeSchema,
+export const DateTimeInsert: DateTimeInsert = Model.Field({
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: ServerDateTimeSchema,
   json: Schema.DateTimeUtcFromString,
 });
 
 export type DateTimeUpdate = VariantSchema.Field<{
-  get: typeof FirestoreSchema.TimestampDateTimeUtc;
-  add: typeof ServerDateTimeSchema;
+  select: typeof FirestoreSchema.TimestampDateTimeUtc;
+  insert: typeof ServerDateTimeSchema;
   update: typeof ServerDateTimeSchema;
   json: typeof Schema.DateTimeUtcFromString;
 }>;
@@ -100,9 +99,9 @@ export type DateTimeUpdate = VariantSchema.Field<{
 /**
  * A field that represents the date and time when the model was last updated.
  */
-export const DateTimeUpdate: DateTimeUpdate = Field({
-  get: FirestoreSchema.TimestampDateTimeUtc,
-  add: ServerDateTimeSchema,
+export const DateTimeUpdate: DateTimeUpdate = Model.Field({
+  select: FirestoreSchema.TimestampDateTimeUtc,
+  insert: ServerDateTimeSchema,
   update: ServerDateTimeSchema,
   json: Schema.DateTimeUtcFromString,
 });

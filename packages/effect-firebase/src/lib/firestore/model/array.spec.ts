@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { Class } from './core.js';
+import { Model } from 'effect/unstable/schema';
 import { WithArrayFields, Array } from './array.js';
 import {
   ArrayUnion,
@@ -10,7 +10,7 @@ import {
 } from '../fields/array.js';
 
 describe('WithArrayFields', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
+  class TestModel extends Model.Class<TestModel>('TestModel')({
     name: Schema.String,
     tags: WithArrayFields(Schema.Array(Schema.String)),
   }) {}
@@ -99,7 +99,7 @@ describe('WithArrayFields', () => {
 });
 
 describe('Array', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
+  class TestModel extends Model.Class<TestModel>('TestModel')({
     name: Schema.String,
     tags: Array(Schema.String),
   }) {}

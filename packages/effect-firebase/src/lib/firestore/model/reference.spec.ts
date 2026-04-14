@@ -8,14 +8,14 @@ import {
   ReferencePath,
   ReferenceOptional,
 } from './reference.js';
-import { Class, Generated } from './core.js';
+import { Model } from 'effect/unstable/schema';
 import { Reference as SchemaReference } from '../schema/reference.js';
 
 describe('Model.AnyIdReference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     authorId: AnyIdReference,
   }) {}
 
@@ -36,7 +36,7 @@ describe('Model.AnyIdReference', () => {
 
   describe('add variant', () => {
     it('should decode Reference to ID string', () => {
-      const decode = Schema.decodeSync(TestModel.add);
+      const decode = Schema.decodeSync(TestModel.insert);
       const result = decode({
         authorId: SchemaReference.make({
           id: 'author-123',
@@ -74,8 +74,8 @@ describe('Model.AnyIdReference', () => {
 describe('Model.AnyPathReference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     authorPath: AnyPathReference,
   }) {}
 
@@ -96,7 +96,7 @@ describe('Model.AnyPathReference', () => {
 
   describe('add variant', () => {
     it('should encode path string to Reference class instance', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({
         authorPath: 'authors/author-123',
       });
@@ -134,8 +134,8 @@ describe('Model.Reference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     author: Reference(AuthorId, 'authors'),
   }) {}
 
@@ -156,7 +156,7 @@ describe('Model.Reference', () => {
 
   describe('add variant', () => {
     it('should encode branded ID to Reference class instance', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const authorId = 'author-123' as typeof AuthorId.Type;
       const result = encode({
         author: authorId,
@@ -209,13 +209,13 @@ describe('Model.Reference', () => {
   describe('with nested collection path', () => {
     const CommentId = Schema.String.pipe(Schema.brand('CommentId'));
 
-    class CommentModel extends Class<CommentModel>('CommentModel')({
-      id: Generated(CommentId),
+    class CommentModel extends Model.Class<CommentModel>('CommentModel')({
+      id: Model.Generated(CommentId),
       replyTo: Reference(CommentId, 'posts/post-1/comments'),
     }) {}
 
     it('should encode to nested path', () => {
-      const encode = Schema.encodeSync(CommentModel.add);
+      const encode = Schema.encodeSync(CommentModel.insert);
       const commentId = 'comment-123' as typeof CommentId.Type;
       const result = encode({
         replyTo: commentId,
@@ -232,8 +232,8 @@ describe('Model.ReferenceAsInstance', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     author: ReferenceAsInstance(AuthorId, 'authors'),
   }) {}
 
@@ -257,7 +257,7 @@ describe('Model.ReferenceAsInstance', () => {
 
   describe('add variant', () => {
     it('should encode Reference instance to Reference instance (passthrough)', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const authorRef = SchemaReference.make({
         id: 'author-123',
         path: 'authors/author-123',
@@ -339,8 +339,8 @@ describe('Model.ReferenceAsInstance', () => {
 describe('Model.ReferencePath', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     authorPath: ReferencePath('authors'),
   }) {}
 
@@ -361,7 +361,7 @@ describe('Model.ReferencePath', () => {
 
   describe('add variant', () => {
     it('should encode path string to Reference class instance', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({
         authorPath: 'authors/author-123',
       });
@@ -410,8 +410,8 @@ describe('Model.ReferenceOptional', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     author: ReferenceOptional(AuthorId, 'authors'),
   }) {}
 
@@ -443,7 +443,7 @@ describe('Model.ReferenceOptional', () => {
 
   describe('add variant', () => {
     it('should encode Option.some to Reference class instance', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const authorId = 'author-123' as typeof AuthorId.Type;
       const result = encode({
         author: Option.some(authorId),
@@ -455,7 +455,7 @@ describe('Model.ReferenceOptional', () => {
     });
 
     it('should encode Option.none to null', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({
         author: Option.none(),
       });
@@ -507,7 +507,7 @@ describe('Model.ReferenceOptional', () => {
 
   describe('jsonAdd variant', () => {
     it('should decode null to Option.none', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.jsonAdd);
+      const decode = Schema.decodeUnknownSync(TestModel.jsonCreate);
       const result = decode({
         author: null,
       });
@@ -516,7 +516,7 @@ describe('Model.ReferenceOptional', () => {
     });
 
     it('should encode Option.none by omitting the key', () => {
-      const encode = Schema.encodeSync(TestModel.jsonAdd);
+      const encode = Schema.encodeSync(TestModel.jsonCreate);
       const result = encode({
         author: Option.none(),
       });

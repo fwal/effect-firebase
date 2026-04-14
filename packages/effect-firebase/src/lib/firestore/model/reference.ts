@@ -1,5 +1,5 @@
 import { Schema, SchemaGetter } from 'effect';
-import { Field } from './core.js';
+import { Model } from 'effect/unstable/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
 /**
@@ -20,12 +20,12 @@ type StringBasedSchema = Schema.Top & { readonly Type: string };
  * }) {}
  * ```
  */
-export const AnyIdReference = Field({
-  get: FirestoreSchema.AnyReferenceId,
-  add: FirestoreSchema.AnyReferenceId,
+export const AnyIdReference = Model.Field({
+  select: FirestoreSchema.AnyReferenceId,
+  insert: FirestoreSchema.AnyReferenceId,
   update: FirestoreSchema.AnyReferenceId,
   json: Schema.String,
-  jsonAdd: Schema.String,
+  jsonCreate: Schema.String,
   jsonUpdate: Schema.String,
 });
 
@@ -42,12 +42,12 @@ export const AnyIdReference = Field({
  * }) {}
  * ```
  */
-export const AnyPathReference = Field({
-  get: FirestoreSchema.AnyReferencePath,
-  add: FirestoreSchema.AnyReferencePath,
+export const AnyPathReference = Model.Field({
+  select: FirestoreSchema.AnyReferencePath,
+  insert: FirestoreSchema.AnyReferencePath,
   update: FirestoreSchema.AnyReferencePath,
   json: Schema.String,
-  jsonAdd: Schema.String,
+  jsonCreate: Schema.String,
   jsonUpdate: Schema.String,
 });
 
@@ -79,12 +79,12 @@ export const Reference = <Id extends StringBasedSchema>(
 ) => {
   const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 
-  return Field({
-    get: typedRefSchema,
-    add: typedRefSchema,
+  return Model.Field({
+    select: typedRefSchema,
+    insert: typedRefSchema,
     update: typedRefSchema,
     json: idSchema,
-    jsonAdd: idSchema,
+    jsonCreate: idSchema,
     jsonUpdate: idSchema,
   });
 };
@@ -142,12 +142,12 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
     })
   );
 
-  return Field({
-    get: dbSchema,
-    add: dbSchema,
+  return Model.Field({
+    select: dbSchema,
+    insert: dbSchema,
     update: dbSchema,
     json: jsonSchema,
-    jsonAdd: jsonSchema,
+    jsonCreate: jsonSchema,
     jsonUpdate: jsonSchema,
   });
 };
@@ -180,12 +180,12 @@ export const ReferencePath = (collectionPath: string) => {
     )
   );
 
-  return Field({
-    get: dbRefSchema,
-    add: dbRefSchema,
+  return Model.Field({
+    select: dbRefSchema,
+    insert: dbRefSchema,
     update: dbRefSchema,
     json: pathSchema,
-    jsonAdd: pathSchema,
+    jsonCreate: pathSchema,
     jsonUpdate: pathSchema,
   });
 };
@@ -208,12 +208,12 @@ export const ReferenceOptional = <Id extends StringBasedSchema>(
 ) => {
   const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 
-  return Field({
-    get: Schema.OptionFromNullOr(typedRefSchema),
-    add: Schema.OptionFromNullOr(typedRefSchema),
+  return Model.Field({
+    select: Schema.OptionFromNullOr(typedRefSchema),
+    insert: Schema.OptionFromNullOr(typedRefSchema),
     update: Schema.OptionFromNullOr(typedRefSchema),
     json: Schema.OptionFromOptional(idSchema),
-    jsonAdd: Schema.OptionFromOptionalNullOr(idSchema),
+    jsonCreate: Schema.OptionFromOptionalNullOr(idSchema),
     jsonUpdate: Schema.OptionFromOptionalNullOr(idSchema),
   });
 };

@@ -6,7 +6,7 @@ import {
   Timestamp as AdminTimestamp,
 } from 'firebase-admin/firestore';
 import { firestoreDecode, firestoreEncode } from './converter.js';
-import { FirestoreSchema, FirestoreField } from 'effect-firebase';
+import { FirestoreSchema, Firestore as FirestoreHelper } from 'effect-firebase';
 
 describe('Firestore Converter', () => {
   describe('firestoreDecode', () => {
@@ -128,7 +128,7 @@ describe('Firestore Converter', () => {
 
     it('should convert Delete to Firestore field value', () => {
       const fakeFirestore = {} as unknown as Firestore;
-      const result = firestoreEncode(fakeFirestore, FirestoreField.delete());
+      const result = firestoreEncode(fakeFirestore, FirestoreHelper.delete());
 
       expect(result).toStrictEqual(FieldValue.delete());
     });
@@ -137,7 +137,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayUnion(['a', 'b'])
+        FirestoreHelper.arrayUnion(['a', 'b'])
       );
       expect(result).toStrictEqual(FieldValue.arrayUnion('a', 'b'));
     });
@@ -146,7 +146,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayRemove(['a'])
+        FirestoreHelper.arrayRemove(['a'])
       );
       expect(result).toStrictEqual(FieldValue.arrayRemove('a'));
     });
@@ -156,7 +156,7 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayUnion([ts])
+        FirestoreHelper.arrayUnion([ts])
       );
       const expected = FieldValue.arrayUnion(
         AdminTimestamp.fromMillis(1705315800000)
@@ -169,7 +169,7 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayRemove([ts])
+        FirestoreHelper.arrayRemove([ts])
       );
       const expected = FieldValue.arrayRemove(
         AdminTimestamp.fromMillis(1705315800000)
@@ -190,7 +190,7 @@ describe('Firestore Converter', () => {
         },
         updates: [
           FirestoreSchema.Timestamp.fromMillis(1705315800123),
-          FirestoreField.delete(),
+          FirestoreHelper.delete(),
           null,
         ],
       });

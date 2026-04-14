@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Schema, DateTime } from 'effect';
-import { Class, DateTimeInsert, DateTimeUpdate, Generated } from './index.js';
+import { Model } from 'effect/unstable/schema';
+import { DateTimeInsert, DateTimeUpdate } from './datetime.js';
 import * as FirestoreSchema from '../schema/schema.js';
 
 describe('Repository - DateTimeInsert encoding', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class PostModel extends Class<PostModel>('PostModel')({
-    id: Generated(PostId),
+  class PostModel extends Model.Class<PostModel>('PostModel')({
+    id: Model.Generated(PostId),
     createdAt: DateTimeInsert,
     updatedAt: DateTimeUpdate,
     title: Schema.String,
@@ -15,7 +16,7 @@ describe('Repository - DateTimeInsert encoding', () => {
 
   describe('add variant encoding', () => {
     it('should convert undefined createdAt to ServerTimestamp', () => {
-      const encode = Schema.encodeSync(PostModel.add);
+      const encode = Schema.encodeSync(PostModel.insert);
 
       const result = encode({
         title: 'Test Post',
@@ -30,7 +31,7 @@ describe('Repository - DateTimeInsert encoding', () => {
     });
 
     it('should handle DateTime.Utc values', () => {
-      const encode = Schema.encodeSync(PostModel.add);
+      const encode = Schema.encodeSync(PostModel.insert);
       const millis = 1705315800000;
       const now = DateTime.makeUnsafe(millis);
 

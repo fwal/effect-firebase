@@ -1,12 +1,12 @@
 import { Option, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { Class } from './core.js';
+import { Model } from 'effect/unstable/schema';
 
 import { Optional, OptionalNull, OptionalDeletable } from './optional.js';
 import { Delete, delete as deleteField } from '../fields/delete.js';
 
 describe('Optional', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
+  class TestModel extends Model.Class<TestModel>('TestModel')({
     name: Schema.String,
     bio: Optional(Schema.String),
   }) {}
@@ -73,7 +73,7 @@ describe('Optional', () => {
 });
 
 describe('OptionalNull', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
+  class TestModel extends Model.Class<TestModel>('TestModel')({
     name: Schema.String,
     bio: OptionalNull(Schema.String),
   }) {}
@@ -139,7 +139,7 @@ describe('OptionalNull', () => {
 });
 
 describe('OptionalDeletable', () => {
-  class TestModel extends Class<TestModel>('TestModel')({
+  class TestModel extends Model.Class<TestModel>('TestModel')({
     name: Schema.String,
     bio: OptionalDeletable(Schema.String),
   }) {}

@@ -1,6 +1,5 @@
 import { Schema } from 'effect';
-import { VariantSchema } from 'effect/unstable/schema';
-import { fieldEvolve } from './core.js';
+import { Model, VariantSchema } from 'effect/unstable/schema';
 import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
 
 /**
@@ -25,13 +24,13 @@ import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
  * ```
  */
 export type WithArrayFields<S extends Schema.Top> = VariantSchema.Field<{
-  readonly get: S;
-  readonly add: S;
+  readonly select: S;
+  readonly insert: S;
   readonly update: Schema.Union<
     readonly [S, typeof ArrayUnionInstance, typeof ArrayRemoveInstance]
   >;
   readonly json: S;
-  readonly jsonAdd: S;
+  readonly jsonCreate: S;
   readonly jsonUpdate: S;
 }>;
 
@@ -57,13 +56,13 @@ export const WithArrayFields: <
           : S[K]
         : never;
     }>
-  : never = fieldEvolve({
-  get: identity,
-  add: identity,
+  : never = Model.fieldEvolve({
+  select: identity,
+  insert: identity,
   update: (s: Schema.Top) =>
     Schema.Union([s, ArrayUnionInstance, ArrayRemoveInstance]),
   json: identity,
-  jsonAdd: identity,
+  jsonCreate: identity,
   jsonUpdate: identity,
 }) as any;
 

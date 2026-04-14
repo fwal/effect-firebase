@@ -2,12 +2,12 @@ import {
   DocumentData,
   DocumentReference,
   FieldValue,
-  Firestore,
+  Firestore as FirebaseFirestore,
   FirestoreDataConverter,
   GeoPoint,
   Timestamp,
 } from 'firebase-admin/firestore';
-import { FirestoreSchema, FirestoreField } from 'effect-firebase';
+import { FirestoreSchema, Firestore } from 'effect-firebase';
 
 /**
  * Encode a value to Firestore admin sdk format.
@@ -15,7 +15,10 @@ import { FirestoreSchema, FirestoreField } from 'effect-firebase';
  * @param data The value to encode.
  * @returns The encoded value.
  */
-export const firestoreEncode = (db: Firestore, data: unknown): unknown => {
+export const firestoreEncode = (
+  db: FirebaseFirestore,
+  data: unknown
+): unknown => {
   if (
     data === null ||
     data instanceof Timestamp ||
@@ -38,15 +41,15 @@ export const firestoreEncode = (db: Firestore, data: unknown): unknown => {
   if (data instanceof FirestoreSchema.ServerTimestamp) {
     return FieldValue.serverTimestamp();
   }
-  if (data instanceof FirestoreField.Delete) {
+  if (data instanceof Firestore.Delete) {
     return FieldValue.delete();
   }
-  if (data instanceof FirestoreField.ArrayUnion) {
+  if (data instanceof Firestore.ArrayUnion) {
     return FieldValue.arrayUnion(
       ...data.values.map((v) => firestoreEncode(db, v))
     );
   }
-  if (data instanceof FirestoreField.ArrayRemove) {
+  if (data instanceof Firestore.ArrayRemove) {
     return FieldValue.arrayRemove(
       ...data.values.map((v) => firestoreEncode(db, v))
     );
@@ -92,7 +95,7 @@ export const firestoreDecode = (data: DocumentData): DocumentData => {
 };
 
 export const makeConverter = (
-  db: Firestore
+  db: FirebaseFirestore
 ): FirestoreDataConverter<DocumentData, DocumentData> => ({
   toFirestore: (modelObject) =>
     firestoreEncode(db, modelObject) as DocumentData,

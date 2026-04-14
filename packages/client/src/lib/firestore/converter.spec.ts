@@ -9,7 +9,7 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { firestoreDecode, firestoreEncode } from './converter.js';
-import { FirestoreSchema, FirestoreField } from 'effect-firebase';
+import { FirestoreSchema, Firestore as FirestoreHelper } from 'effect-firebase';
 
 describe('Firestore Converter', () => {
   describe('firestoreDecode', () => {
@@ -110,14 +110,14 @@ describe('Firestore Converter', () => {
     });
 
     it('should convert Delete to Firestore field value', () => {
-      const result = firestoreEncode(fakeFirestore, FirestoreField.delete());
+      const result = firestoreEncode(fakeFirestore, FirestoreHelper.delete());
       expect(result).toStrictEqual(deleteField());
     });
 
     it('should convert ArrayUnion to arrayUnion FieldValue', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayUnion(['a', 'b'])
+        FirestoreHelper.arrayUnion(['a', 'b'])
       );
       expect(result).toStrictEqual(arrayUnion('a', 'b'));
     });
@@ -125,7 +125,7 @@ describe('Firestore Converter', () => {
     it('should convert ArrayRemove to arrayRemove FieldValue', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayRemove(['a'])
+        FirestoreHelper.arrayRemove(['a'])
       );
       expect(result).toStrictEqual(arrayRemove('a'));
     });
@@ -134,7 +134,7 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayUnion([ts])
+        FirestoreHelper.arrayUnion([ts])
       );
       expect(result).toStrictEqual(
         arrayUnion(FirebaseTimestamp.fromMillis(1705315800000))
@@ -145,7 +145,7 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreField.arrayRemove([ts])
+        FirestoreHelper.arrayRemove([ts])
       );
       expect(result).toStrictEqual(
         arrayRemove(FirebaseTimestamp.fromMillis(1705315800000))
@@ -160,7 +160,7 @@ describe('Firestore Converter', () => {
         },
         updates: [
           FirestoreSchema.Timestamp.fromMillis(1705315800123),
-          FirestoreField.delete(),
+          FirestoreHelper.delete(),
           null,
         ],
       });

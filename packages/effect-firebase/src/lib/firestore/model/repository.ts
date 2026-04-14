@@ -1,9 +1,9 @@
 import { Effect, Option, Schema, Stream, Struct } from 'effect';
+import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
-import { Any } from './core.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
 
@@ -18,7 +18,7 @@ export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
 };
 
 export type Repository<
-  S extends Any,
+  S extends Model.Any,
   Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
   IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
@@ -30,11 +30,13 @@ export type Repository<
    * @returns The ID of the added document model.
    */
   readonly add: (
-    data: S['add']['Type']
+    data: S['insert']['Type']
   ) => Effect.Effect<
     IdSchema['Type'],
     ModelError,
-    S['DecodingServices'] | S['EncodingServices'] | S['add']['EncodingServices']
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['insert']['EncodingServices']
   >;
 
   /**
@@ -156,7 +158,7 @@ export type Repository<
  * ```
  */
 export const makeRepository = <
-  S extends Any,
+  S extends Model.Any,
   Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
   IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
@@ -180,7 +182,7 @@ export const makeRepository = <
     };
 
     const addSchema = Fetch.single({
-      Request: Model.add,
+      Request: Model.insert,
       Result: idSchema,
       execute: (data: unknown) =>
         firestore
@@ -188,7 +190,7 @@ export const makeRepository = <
           .pipe(Effect.map((value) => [value.id])),
     });
 
-    const add = (data: S['add']['Type']) =>
+    const add = (data: S['insert']['Type']) =>
       addSchema(data).pipe(
         Effect.withSpan(`${options.spanPrefix}.add`, {
           attributes: { data },

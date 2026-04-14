@@ -1,14 +1,14 @@
 import { DateTime as EffectDateTime, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
+import { Model } from 'effect/unstable/schema';
 import { DateTime, DateTimeInsert, DateTimeUpdate } from './datetime.js';
-import { Class, Generated } from './core.js';
 import { Timestamp } from '../schema/timestamp.js';
 
 describe('Model.DateTime', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     createdAt: DateTime,
   }) {}
 
@@ -44,7 +44,7 @@ describe('Model.DateTime', () => {
 
   describe('add variant', () => {
     it('should decode Timestamp to DateTime.Utc', () => {
-      const decode = Schema.decodeUnknownSync(TestModel.add);
+      const decode = Schema.decodeUnknownSync(TestModel.insert);
       const result = decode({
         createdAt: Timestamp.fromMillis(1705315800000),
       });
@@ -53,7 +53,7 @@ describe('Model.DateTime', () => {
     });
 
     it('should encode DateTime.Utc to Timestamp', () => {
-      const encode = Schema.encodeSync(TestModel.add);
+      const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({
         createdAt: EffectDateTime.makeUnsafe(1705315800000),
       });
@@ -93,8 +93,8 @@ describe('Model.DateTime', () => {
 describe('Model.DateTimeInsert', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     createdAt: DateTimeInsert,
   }) {}
 
@@ -135,8 +135,8 @@ describe('Model.DateTimeInsert', () => {
 describe('Model.DateTimeUpdate', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class TestModel extends Class<TestModel>('TestModel')({
-    id: Generated(PostId),
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.Generated(PostId),
     updatedAt: DateTimeUpdate,
   }) {}
 
