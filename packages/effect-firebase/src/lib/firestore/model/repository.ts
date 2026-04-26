@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, Stream, Struct } from 'effect';
+import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
@@ -120,6 +120,32 @@ export type Repository<
     constraints: RepositoryQuery<S>
   ) => Stream.Stream<
     ReadonlyArray<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
+   * Query the database and return the first result.
+   * @param constraints - The constraints to apply to the query.
+   * @returns The first result of the query, or `None` if no results.
+   */
+  readonly getByQuery: (
+    constraints: RepositoryQuery<S>
+  ) => Effect.Effect<
+    Option.Option<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
+   * Stream the first result of a query.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the first result and any updates to it.
+   */
+  readonly getByQueryStream: (
+    constraints: RepositoryQuery<S>
+  ) => Stream.Stream<
+    Option.Option<S['Type']>,
     ModelError,
     S['DecodingServices'] | S['EncodingServices']
   >;
@@ -317,6 +343,46 @@ export const makeRepository = <
         Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`))
       );
 
+    const getByQuerySchema = Fetch.findOneOption({
+      Request: Schema.Array(Schema.Any),
+      Result: Model,
+      execute: (constraints: ReadonlyArray<unknown>) =>
+        firestore
+          .query(
+            options.collectionPath,
+            constraints as ReadonlyArray<QueryConstraint>
+          )
+          .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot))),
+    });
+
+    const getByQuery = (constraints: RepositoryQuery<S>) =>
+      getByQuerySchema(constraints as ReadonlyArray<unknown>).pipe(
+        Effect.withSpan(`${options.spanPrefix}.getByQuery`, {})
+      );
+
+    const getByQueryStreamSchema = Fetch.streamOne({
+      Request: Schema.Array(Schema.Any),
+      Result: Model,
+      execute: (constraints: ReadonlyArray<unknown>) =>
+        firestore
+          .streamQuery(
+            options.collectionPath,
+            constraints as ReadonlyArray<QueryConstraint>
+          )
+          .pipe(
+            Stream.map((snapshots) =>
+              Arr.head(snapshots.map(structFromSnapshot))
+            )
+          ),
+    });
+
+    const getByQueryStream = (constraints: RepositoryQuery<S>) =>
+      getByQueryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
+        Stream.tap(() =>
+          Effect.logTrace(`${options.spanPrefix}.getByQueryStream`)
+        )
+      );
+
     return {
       add,
       update,
@@ -325,5 +391,7 @@ export const makeRepository = <
       delete: deleteById,
       query,
       queryStream,
+      getByQuery,
+      getByQueryStream,
     };
   });
