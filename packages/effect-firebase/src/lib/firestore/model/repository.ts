@@ -99,6 +99,24 @@ export type Repository<
   >;
 
   /**
+   * Recursively delete a document model and all its subcollections.
+   *
+   * **Admin SDK only.** This will cause a defect (`Effect.die`) if the
+   * repository is run against the client SDK layer. Only use this in
+   * admin / server-side contexts.
+   *
+   * @param id - The ID of the document model to delete.
+   * @returns A unit value.
+   */
+  readonly deleteRecursive: (
+    id: IdSchema['Type']
+  ) => Effect.Effect<
+    void,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
    * Query the database.
    * @param constraints - The constraints to apply to the query.
    * @returns A list of the results of the query.
@@ -283,12 +301,25 @@ export const makeRepository = <
 
     const deleteSchema = Fetch.void({
       Request: idSchema,
-      execute: (id) => firestore.remove(`${options.collectionPath}/${id}`),
+      execute: (id) => firestore.delete(`${options.collectionPath}/${id}`),
     });
 
     const deleteById = (id: IdSchema['Type']) =>
       deleteSchema(id).pipe(
         Effect.withSpan(`${options.spanPrefix}.deleteById`, {
+          attributes: { id },
+        })
+      );
+
+    const deleteRecursiveSchema = Fetch.void({
+      Request: idSchema,
+      execute: (id) =>
+        firestore.deleteRecursive(`${options.collectionPath}/${id}`),
+    });
+
+    const deleteRecursiveById = (id: IdSchema['Type']) =>
+      deleteRecursiveSchema(id).pipe(
+        Effect.withSpan(`${options.spanPrefix}.deleteRecursiveById`, {
           attributes: { id },
         })
       );
@@ -389,6 +420,7 @@ export const makeRepository = <
       getById,
       getByIdStream,
       delete: deleteById,
+      deleteRecursive: deleteRecursiveById,
       query,
       queryStream,
       getByQuery,

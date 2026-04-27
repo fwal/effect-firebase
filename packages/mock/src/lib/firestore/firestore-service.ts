@@ -22,8 +22,11 @@ export const MockFirestoreService = (
     update: () => {
       throw new Error('MockFirestoreService.update not implemented.');
     },
-    remove: () => {
-      throw new Error('MockFirestoreService.remove not implemented.');
+    delete: () => {
+      throw new Error('MockFirestoreService.delete not implemented.');
+    },
+    deleteRecursive: () => {
+      throw new Error('MockFirestoreService.deleteRecursive not implemented.');
     },
     query: () => {
       throw new Error('MockFirestoreService.query not implemented.');

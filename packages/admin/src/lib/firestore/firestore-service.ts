@@ -120,9 +120,14 @@ const make = (db: Firestore) => {
         try: () => db.doc(path).update(converter.toFirestore(data)),
         catch: (error) => mapError(error),
       }),
-    remove: (path) =>
+    delete: (path) =>
       Effect.tryPromise({
         try: () => db.doc(path).withConverter(converter).delete(),
+        catch: (error) => mapError(error),
+      }),
+    deleteRecursive: (path) =>
+      Effect.tryPromise({
+        try: () => db.recursiveDelete(db.doc(path)),
         catch: (error) => mapError(error),
       }),
     query: (collectionPath, constraints) =>
