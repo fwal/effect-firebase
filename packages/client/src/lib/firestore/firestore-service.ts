@@ -64,6 +64,10 @@ const make = (db: Firestore) => {
         try: () => deleteDoc(doc(db, path).withConverter(converter)),
         catch: (error) => FirestoreError.fromError(error),
       }),
+    deleteRecursive: (_path) =>
+      Effect.die(
+        new Error('deleteRecursive is not supported by the client SDK')
+      ),
     query: (collectionPath, constraints) =>
       Effect.tryPromise({
         try: async () => {

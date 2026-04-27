@@ -63,6 +63,19 @@ type FirestoreCRUD = {
   readonly remove: (
     path: string
   ) => Effect.Effect<void, FirestoreError | UnknownException>;
+
+  /**
+   * Recursively delete a document and all its subcollections.
+   *
+   * **Admin SDK only.** Calling this method with the client SDK layer will
+   * cause a defect (`Effect.die`). Repositories and models that use this
+   * method must only be run in an admin context.
+   *
+   * @param path - The path to the document.
+   */
+  readonly deleteRecursive: (
+    path: string
+  ) => Effect.Effect<void, FirestoreError | UnknownException>;
 };
 
 type FirestoreQuery = {
