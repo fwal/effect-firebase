@@ -1,80 +1,175 @@
-import { describe, expect, it } from 'vitest';
-import { Schema, DateTime } from 'effect';
+import { describe, expect, it, vi } from 'vitest';
+import { Effect, Layer, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
-import { DateTimeInsert, DateTimeUpdate } from './datetime.js';
-import * as FirestoreSchema from '../schema/schema.js';
+import { makeRepository } from './repository.js';
+import { FirestoreService } from '../firestore-service.js';
+import type { FirestoreServiceShape } from '../firestore-service.js';
+import type { Snapshot } from '../snapshot.js';
 
-describe('Repository - DateTimeInsert encoding', () => {
-  const PostId = Schema.String.pipe(Schema.brand('PostId'));
+const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
-  class PostModel extends Model.Class<PostModel>('PostModel')({
-    id: Model.Generated(PostId),
-    createdAt: DateTimeInsert,
-    updatedAt: DateTimeUpdate,
-    title: Schema.String,
-  }) {}
+class PostModel extends Model.Class<PostModel>('PostModel')({
+  id: Model.Generated(PostId),
+  title: Schema.String,
+}) {}
 
-  describe('add variant encoding', () => {
-    it('should convert undefined createdAt to ServerTimestamp', () => {
-      const encode = Schema.encodeSync(PostModel.insert);
+const notMocked = (name: string) => (): never => {
+  throw new Error(`FirestoreService.${name}: not mocked`);
+};
 
-      const result = encode({
-        title: 'Test Post',
-        createdAt: undefined,
-        updatedAt: undefined,
-      });
+const makeLayer = (overrides: Partial<FirestoreServiceShape>) =>
+  Layer.succeed(FirestoreService, {
+    get: notMocked('get'),
+    add: notMocked('add'),
+    set: notMocked('set'),
+    update: notMocked('update'),
+    delete: notMocked('delete'),
+    deleteRecursive: notMocked('deleteRecursive'),
+    query: notMocked('query'),
+    streamDoc: notMocked('streamDoc'),
+    streamQuery: notMocked('streamQuery'),
+    ...overrides,
+  } as FirestoreServiceShape);
 
-      // createdAt should be ServerTimestamp, not null or undefined
-      expect(result.createdAt).toBeDefined();
-      expect(result.createdAt).not.toBeNull();
-      expect(result.createdAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
-    });
+const makeRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(PostModel, {
+    collectionPath: 'posts',
+    idField: 'id',
+    spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
 
-    it('should handle DateTime.Utc values', () => {
-      const encode = Schema.encodeSync(PostModel.insert);
-      const millis = 1705315800000;
-      const now = DateTime.makeUnsafe(millis);
+const snap = (id: string, data: Record<string, unknown>): Snapshot =>
+  [{ id, path: `posts/${id}` }, data] as const;
 
-      const result = encode({
-        title: 'Test Post',
-        createdAt: now as any,
-        updatedAt: undefined,
-      });
+describe('Repository', () => {
+  describe('add', () => {
+    it('calls firestore.add with the collection path and encoded data', async () => {
+      const addMock = vi.fn(() =>
+        Effect.succeed({ id: 'new-id', path: 'posts/new-id' })
+      );
+      const repo = await Effect.runPromise(makeRepo({ add: addMock }));
+      const id = await Effect.runPromise(repo.add({ title: 'Hello' }));
 
-      // Should be converted to Timestamp, not ServerTimestamp
-      expect(result.createdAt).toBeDefined();
-      expect(result.createdAt?.seconds).toBe(Math.floor(millis / 1000));
-      expect(result.createdAt?.nanoseconds).toBe(0);
+      expect(addMock).toHaveBeenCalledWith('posts', { title: 'Hello' });
+      expect(id).toBe('new-id');
     });
   });
 
-  describe('update variant encoding', () => {
-    it('should not include createdAt in update', () => {
-      const encode = Schema.encodeSync(PostModel.update);
+  describe('getById', () => {
+    it('returns Some with the decoded model when the document exists', async () => {
+      const getMock = vi.fn(() =>
+        Effect.succeed(Option.some(snap('post-1', { title: 'Hello' })))
+      );
+      const repo = await Effect.runPromise(makeRepo({ get: getMock }));
+      const result = await Effect.runPromise(
+        repo.getById(PostId.make('post-1'))
+      );
 
-      const result = encode({
-        id: PostId.make('post-1'),
-        title: 'Updated Post',
-        updatedAt: undefined,
+      expect(getMock).toHaveBeenCalledWith('posts/post-1');
+      expect(Option.isSome(result)).toBe(true);
+      expect(Option.getOrThrow(result)).toMatchObject({
+        id: 'post-1',
+        title: 'Hello',
       });
-
-      // createdAt should not be present in update
-      expect((result as Record<string, unknown>).createdAt).toBeUndefined();
     });
 
-    it('should convert undefined updatedAt to ServerTimestamp', () => {
-      const encode = Schema.encodeSync(PostModel.update);
+    it('returns None when the document does not exist', async () => {
+      const getMock = vi.fn(() => Effect.succeed(Option.none()));
+      const repo = await Effect.runPromise(makeRepo({ get: getMock }));
+      const result = await Effect.runPromise(
+        repo.getById(PostId.make('post-1'))
+      );
 
-      const result = encode({
-        id: PostId.make('post-1'),
-        title: 'Updated Post',
-        updatedAt: undefined,
+      expect(Option.isNone(result)).toBe(true);
+    });
+  });
+
+  describe('update', () => {
+    it('calls firestore.update with the correct path and partial data', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ update: updateMock }));
+      await Effect.runPromise(
+        repo.update(PostId.make('post-1'), { title: 'Updated' })
+      );
+
+      expect(updateMock).toHaveBeenCalledWith('posts/post-1', {
+        title: 'Updated',
       });
+    });
+  });
 
-      // updatedAt should be ServerTimestamp
-      expect(result.updatedAt).toBeDefined();
-      expect(result.updatedAt).not.toBeNull();
-      expect(result.updatedAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+  describe('delete', () => {
+    it('calls firestore.delete with the correct path', async () => {
+      const deleteMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ delete: deleteMock }));
+      await Effect.runPromise(repo.delete(PostId.make('post-1')));
+
+      expect(deleteMock).toHaveBeenCalledWith('posts/post-1');
+    });
+  });
+
+  describe('deleteRecursive', () => {
+    it('calls firestore.deleteRecursive with the correct path', async () => {
+      const deleteRecursiveMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(
+        makeRepo({ deleteRecursive: deleteRecursiveMock })
+      );
+      await Effect.runPromise(repo.deleteRecursive(PostId.make('post-1')));
+
+      expect(deleteRecursiveMock).toHaveBeenCalledWith('posts/post-1');
+    });
+  });
+
+  describe('query', () => {
+    it('calls firestore.query with the collection path and constraints', async () => {
+      const queryMock = vi.fn(() =>
+        Effect.succeed([
+          snap('post-1', { title: 'First' }),
+          snap('post-2', { title: 'Second' }),
+        ])
+      );
+      const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
+      const results = await Effect.runPromise(repo.query([]));
+
+      expect(queryMock).toHaveBeenCalledWith('posts', []);
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({ id: 'post-1', title: 'First' });
+      expect(results[1]).toMatchObject({ id: 'post-2', title: 'Second' });
+    });
+
+    it('returns an empty array when there are no results', async () => {
+      const queryMock = vi.fn(() => Effect.succeed([]));
+      const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
+      const results = await Effect.runPromise(repo.query([]));
+
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  describe('getByQuery', () => {
+    it('returns Some with the first result when results exist', async () => {
+      const queryMock = vi.fn(() =>
+        Effect.succeed([
+          snap('post-1', { title: 'First' }),
+          snap('post-2', { title: 'Second' }),
+        ])
+      );
+      const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
+      const result = await Effect.runPromise(repo.getByQuery([]));
+
+      expect(Option.isSome(result)).toBe(true);
+      expect(Option.getOrThrow(result)).toMatchObject({
+        id: 'post-1',
+        title: 'First',
+      });
+    });
+
+    it('returns None when there are no results', async () => {
+      const queryMock = vi.fn(() => Effect.succeed([]));
+      const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
+      const result = await Effect.runPromise(repo.getByQuery([]));
+
+      expect(Option.isNone(result)).toBe(true);
     });
   });
 });

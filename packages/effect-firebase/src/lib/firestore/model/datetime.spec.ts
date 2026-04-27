@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Model } from 'effect/unstable/schema';
 import { DateTime, DateTimeInsert, DateTimeUpdate } from './datetime.js';
 import { Timestamp } from '../schema/timestamp.js';
+import * as FirestoreSchema from '../schema/schema.js';
 
 describe('Model.DateTime', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -122,6 +123,26 @@ describe('Model.DateTimeInsert', () => {
     });
   });
 
+  describe('insert variant', () => {
+    it('should encode undefined to ServerTimestamp', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const result = encode({ createdAt: undefined });
+
+      expect(result.createdAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should encode a DateTime.Utc value to Timestamp', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const millis = 1705315800000;
+      const result = encode({ createdAt: EffectDateTime.makeUnsafe(millis) });
+
+      expect(result.createdAt).toEqual({
+        seconds: Math.floor(millis / 1000),
+        nanoseconds: 0,
+      });
+    });
+  });
+
   describe('update variant', () => {
     it('should not include createdAt in update variant', () => {
       const decode = Schema.decodeUnknownSync(TestModel.update);
@@ -173,6 +194,16 @@ describe('Model.DateTimeUpdate', () => {
       });
 
       expect(EffectDateTime.isDateTime(result.updatedAt)).toBe(true);
+    });
+
+    it('should encode undefined to ServerTimestamp', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const result = encode({
+        id: 'post-1' as typeof PostId.Type,
+        updatedAt: undefined,
+      });
+
+      expect(result.updatedAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
     });
   });
 });
