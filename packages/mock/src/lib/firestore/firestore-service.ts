@@ -28,6 +28,9 @@ export const MockFirestoreService = (
     deleteRecursive: () => {
       throw new Error('MockFirestoreService.deleteRecursive not implemented.');
     },
+    deleteRecursive: () => {
+      throw new Error('MockFirestoreService.deleteRecursive not implemented.');
+    },
     query: () => {
       throw new Error('MockFirestoreService.query not implemented.');
     },
