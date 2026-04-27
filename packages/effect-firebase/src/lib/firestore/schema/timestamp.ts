@@ -45,7 +45,17 @@ export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
  * Schema where Timestamp class instance is both Type and Encoded.
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
-export const TimestampInstance = Schema.instanceOf(Timestamp);
+export const TimestampInstance = Schema.instanceOf(Timestamp, {
+  jsonSchema: {
+    type: 'object',
+    required: ['seconds', 'nanoseconds'],
+    properties: {
+      seconds: { type: 'number' },
+      nanoseconds: { type: 'number' },
+    },
+    additionalProperties: false,
+  },
+});
 
 /**
  * Schema representing a timestamp as a DateTime.Utc.
@@ -72,7 +82,9 @@ export class ServerTimestamp extends Schema.Class<ServerTimestamp>(
  * Schema where ServerTimestamp class instance is both Type and Encoded.
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
-export const ServerTimestampInstance = Schema.instanceOf(ServerTimestamp);
+export const ServerTimestampInstance = Schema.instanceOf(ServerTimestamp, {
+  jsonSchema: { type: 'object', additionalProperties: false },
+});
 
 export const AnyTimestampDateTimeUtc = Schema.Union([
   TimestampInstance,

@@ -64,7 +64,16 @@ export class Reference extends Schema.Class<Reference>('Reference')(
  * Schema where Reference class instance is both Type and Encoded.
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
-export const ReferenceInstance = Schema.instanceOf(Reference);
+export const ReferenceInstance = Schema.instanceOf(Reference, {
+  jsonSchema: {
+    type: 'object',
+    required: ['id', 'path'],
+    properties: {
+      id: { type: 'string' },
+      path: { type: 'string' },
+    },
+  },
+});
 
 /**
  * Schema that transforms Reference to just its ID string.
