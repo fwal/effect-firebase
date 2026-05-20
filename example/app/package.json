@@ -18,6 +18,7 @@
     "react": "19.2.4",
     "@nx/react": "22.4.5",
     "@tanstack/react-router": "^1.139.3",
+    "@tanstack/react-form": "^1.32.0",
     "react-dom": "19.2.4",
     "@tanstack/react-router-devtools": "^1.139.3",
     "vite": "7.1.8",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@effect-firebase/client": "workspace:*",
+    "@effect-firebase/mock": "workspace:*",
     "@example/shared": "workspace:*",
     "effect-firebase": "workspace:*",
     "vite": "7.1.8"
