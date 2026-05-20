@@ -5,7 +5,7 @@ import {
   MessagePublishedData,
 } from 'firebase-functions/v2/pubsub';
 import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
-import { run, Runtime } from './run.js';
+import { run, Runtime } from 'effect-firebase';
 import { logger } from 'firebase-functions';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {

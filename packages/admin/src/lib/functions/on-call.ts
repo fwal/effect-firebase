@@ -6,7 +6,7 @@ import {
   CallableRequest,
   CallableResponse,
 } from 'firebase-functions/https';
-import { run, Runtime } from './run.js';
+import { run, Runtime } from 'effect-firebase';
 import { logger } from 'firebase-functions';
 import {
   CallableContext,

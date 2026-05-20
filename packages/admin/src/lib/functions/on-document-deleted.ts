@@ -9,7 +9,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import { CloudFunction } from 'firebase-functions/v2';
 import { ParamsOf } from 'firebase-functions';
-import { run, Runtime } from './run.js';
+import { run, Runtime } from 'effect-firebase';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
 
