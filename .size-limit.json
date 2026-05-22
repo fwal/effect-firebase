@@ -1,0 +1,28 @@
+[
+  {
+    "name": "effect-firebase",
+    "path": "packages/effect-firebase/src/index.ts",
+    "ignore": ["effect"]
+  },
+  {
+    "name": "@effect-firebase/admin",
+    "path": "packages/admin/src/index.ts",
+    "ignore": [
+      "effect",
+      "effect-firebase",
+      "firebase-admin",
+      "firebase-functions",
+      "express"
+    ]
+  },
+  {
+    "name": "@effect-firebase/client",
+    "path": "packages/client/src/index.ts",
+    "ignore": ["effect", "effect-firebase", "firebase"]
+  },
+  {
+    "name": "@effect-firebase/mock",
+    "path": "packages/mock/src/index.ts",
+    "ignore": ["effect", "effect-firebase"]
+  }
+]
