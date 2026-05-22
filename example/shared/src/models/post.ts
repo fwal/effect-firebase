@@ -7,7 +7,7 @@ export const PostId = Schema.String.pipe(Schema.brand('PostId'));
 export const PostRef = Firestore.Reference(PostId, 'posts');
 
 export class PostModel extends Model.Class<PostModel>('PostModel')({
-  id: Model.Generated(PostId),
+  id: Model.GeneratedByDb(PostId),
   createdAt: Firestore.DateTimeInsert,
   updatedAt: Firestore.DateTimeUpdate,
   author: AuthorRef,

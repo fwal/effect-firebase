@@ -9,7 +9,7 @@ describe('Model.DateTime', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     createdAt: DateTime,
   }) {}
 
@@ -81,7 +81,7 @@ describe('Model.DateTime', () => {
       const encode = Schema.encodeSync(TestModel.json);
       const dt = EffectDateTime.makeUnsafe(1705315800123);
       const result = encode({
-        id: 'post-1',
+        id: PostId.make('post-1'),
         createdAt: dt,
       });
 
@@ -95,7 +95,7 @@ describe('Model.DateTimeInsert', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     createdAt: DateTimeInsert,
   }) {}
 
@@ -157,7 +157,7 @@ describe('Model.DateTimeUpdate', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     updatedAt: DateTimeUpdate,
   }) {}
 
@@ -189,7 +189,6 @@ describe('Model.DateTimeUpdate', () => {
     it('should include updatedAt field', () => {
       const decode = Schema.decodeUnknownSync(TestModel.update);
       const result = decode({
-        id: 'post-1',
         updatedAt: Timestamp.fromMillis(1705315800000),
       });
 
@@ -199,7 +198,6 @@ describe('Model.DateTimeUpdate', () => {
     it('should encode undefined to ServerTimestamp', () => {
       const encode = Schema.encodeSync(TestModel.update);
       const result = encode({
-        id: 'post-1' as typeof PostId.Type,
         updatedAt: undefined,
       });
 

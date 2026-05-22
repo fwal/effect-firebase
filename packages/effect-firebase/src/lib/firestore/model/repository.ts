@@ -19,7 +19,7 @@ export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
 
 export type Repository<
   S extends Model.Any,
-  Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
+  Id extends keyof S['Type'] & keyof S['fields'],
   IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
     : never
@@ -203,7 +203,7 @@ export type Repository<
  */
 export const makeRepository = <
   S extends Model.Any,
-  Id extends keyof S['Type'] & keyof S['update']['Type'] & keyof S['fields'],
+  Id extends keyof S['Type'] & keyof S['fields'],
   IdSchema extends S['fields'][Id] extends Schema.String
     ? S['fields'][Id]
     : never

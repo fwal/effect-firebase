@@ -6,7 +6,7 @@ export const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 export const AuthorRef = Firestore.Reference(AuthorId, 'authors');
 
 export class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
-  id: Model.Generated(AuthorId),
+  id: Model.GeneratedByDb(AuthorId),
   createdAt: Firestore.DateTimeInsert,
   updatedAt: Firestore.DateTimeUpdate,
   name: Schema.String,

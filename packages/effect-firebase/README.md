@@ -22,7 +22,7 @@ import { Model } from 'effect-firebase';
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
-  id: Model.Generated(PostId), // excluded from add, required in update
+  id: Model.GeneratedByDb(PostId), // excluded from add and update
   createdAt: Model.DateTimeInsert, // set on create, excluded from update
   updatedAt: Model.DateTimeUpdate, // set on every write
   author: Model.Reference(AuthorId, 'authors'), // stored as DocumentReference
@@ -36,7 +36,7 @@ Built-in field helpers:
 
 | Helper                                      | Behaviour                                                             |
 | ------------------------------------------- | --------------------------------------------------------------------- |
-| `Model.Generated(schema)`                   | Auto-generated (e.g. IDs). Excluded from `add`, required in `update`. |
+| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`.          |
 | `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.                   |
 | `Model.DateTimeUpdate`                      | Server timestamp on every write.                                      |
 | `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.                  |
