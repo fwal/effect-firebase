@@ -11,7 +11,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "effect": "^3.19.19",
+    "effect": "^3.20.0",
     "@effect/platform-browser": "^0.74.0",
     "firebase": "^12.8.0",
     "tailwind-merge": "^3.4.0",
