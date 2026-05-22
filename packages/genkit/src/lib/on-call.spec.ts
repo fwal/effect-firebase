@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
-import { genkit } from 'genkit';
+import { genkit, GenkitError } from 'genkit';
 import { onCallGenkitEffect } from './on-call.js';
 
 const runtime = () => ManagedRuntime.make(Layer.empty);
@@ -61,6 +61,30 @@ describe('onCallGenkitEffect', () => {
     await expect(
       findFlow(ai, 'strict')({ n: 'not-a-number' })
     ).rejects.toThrow();
+  });
+
+  it('passes a user-thrown GenkitError through unchanged (no FiberFailure wrapper)', async () => {
+    const ai = genkit({});
+    const userError = new GenkitError({
+      status: 'PERMISSION_DENIED',
+      message: 'not allowed',
+    });
+    onCallGenkitEffect(
+      ai,
+      {
+        name: 'denied',
+        runtime: runtime(),
+        inputSchema: Schema.Struct({ x: Schema.Number }),
+        outputSchema: Schema.Struct({ x: Schema.Number }),
+      },
+      () => Effect.fail(userError)
+    );
+
+    const rejection = await findFlow(ai, 'denied')({ x: 1 }).catch(
+      (e: unknown) => e
+    );
+    expect(rejection).toBe(userError);
+    expect((rejection as GenkitError).status).toBe('PERMISSION_DENIED');
   });
 
   it('accepts a handler with no schemas (raw input pass-through)', async () => {

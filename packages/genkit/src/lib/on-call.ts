@@ -4,9 +4,9 @@ import {
   type CallableFunction,
   type CallableOptions,
 } from 'firebase-functions/https';
-import { run, type Runtime } from 'effect-firebase';
-import { logger } from 'firebase-functions';
+import { type Runtime } from 'effect-firebase';
 import { z, type Genkit, type ToolArgument } from 'genkit';
+import { runOrThrow } from './run.js';
 
 interface CallGenkitEffectOptions<R> extends CallableOptions {
   name: string;
@@ -125,19 +125,16 @@ export function onCallGenkitEffect<R>(
           outputSchema
             ? Schema.encodeUnknownEffect(outputSchema)(output)
             : Effect.succeed(output)
+        ),
+        Effect.tapCause((cause) =>
+          Effect.logError(`Error in flow '${name}'`, cause)
         )
       ).pipe(Effect.withSpan('onCallGenkitEffect'));
 
-      return await run(
+      return await runOrThrow(
         options.runtime,
-        effect as Effect.Effect<unknown, never, R>
-      ).catch((error) => {
-        logger.error('Defect in onCallGenkitEffect', {
-          inner: error,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
-        throw error;
-      });
+        effect as Effect.Effect<unknown, unknown, R>
+      );
     }
   );
 

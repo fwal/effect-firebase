@@ -78,22 +78,61 @@ describe('makeTool', () => {
     });
   });
 
-  it('reports defects as INTERNAL GenkitError', async () => {
+  it('passes a user-thrown GenkitError through unchanged', async () => {
+    const ai = genkit({});
+    const Lookup = Tool.make('lookup', {
+      parameters: Schema.Struct({ id: Schema.String }),
+      success: Schema.Struct({ value: Schema.String }),
+    });
+
+    const userError = new GenkitError({
+      status: 'NOT_FOUND',
+      message: 'no such id',
+      detail: { id: 'missing' },
+    });
+
+    const tool = makeTool(
+      ai,
+      Lookup,
+      () => Effect.fail(userError),
+      { runtime: runtime() }
+    );
+
+    const rejection = await tool({ id: 'missing' }).catch((e: unknown) => e);
+    expect(rejection).toBe(userError);
+    expect((rejection as GenkitError).status).toBe('NOT_FOUND');
+  });
+
+  it('throws the original Error for a defect, unwrapped from FiberFailure', async () => {
     const ai = genkit({});
     const Broken = Tool.make('broken', {
       parameters: Schema.Struct({ x: Schema.Number }),
       success: Schema.Struct({ y: Schema.Number }),
     });
 
-    const tool = makeTool(
-      ai,
-      Broken,
-      () => Effect.die(new Error('boom')),
-      { runtime: runtime() }
-    );
+    const boom = new Error('boom');
+    const tool = makeTool(ai, Broken, () => Effect.die(boom), {
+      runtime: runtime(),
+    });
+
+    const rejection = await tool({ x: 1 }).catch((e: unknown) => e);
+    expect(rejection).toBe(boom);
+  });
+
+  it('wraps non-Error defects in an INTERNAL GenkitError', async () => {
+    const ai = genkit({});
+    const Broken = Tool.make('broken', {
+      parameters: Schema.Struct({ x: Schema.Number }),
+      success: Schema.Struct({ y: Schema.Number }),
+    });
+
+    const tool = makeTool(ai, Broken, () => Effect.die('string defect'), {
+      runtime: runtime(),
+    });
 
     const rejection = await tool({ x: 1 }).catch((e: unknown) => e);
     expect(rejection).toBeInstanceOf(GenkitError);
     expect((rejection as GenkitError).status).toBe('INTERNAL');
+    expect((rejection as GenkitError).detail).toBe('string defect');
   });
 });
