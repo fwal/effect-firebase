@@ -6,9 +6,10 @@ import {
   initializeFirestore,
 } from 'firebase/firestore';
 import { Client } from '@effect-firebase/client';
+import { RegistryProvider } from '@effect/atom-react';
 import SideMenu from '../components/menu/side-menu.js';
 import MenuItem from '../components/menu/menu-item.js';
-import { RuntimeProvider } from '../lib/effect-react.js';
+import { firestoreLayerAtom } from '../lib/atoms.js';
 
 interface AppProps {
   children: React.ReactNode;
@@ -28,8 +29,13 @@ export function App({ children }: AppProps) {
     return Client.layer({ firestore });
   }, []);
 
+  const initialValues = useMemo(
+    () => [[firestoreLayerAtom, layer] as const] as const,
+    [layer],
+  );
+
   return (
-    <RuntimeProvider layer={layer}>
+    <RegistryProvider initialValues={initialValues}>
       <div className="flex min-h-screen bg-gray-50">
         <SideMenu>
           <MenuItem icon="🏠" label="Home" to="/" />
@@ -42,7 +48,7 @@ export function App({ children }: AppProps) {
           <div className="max-w-4xl mx-auto">{children}</div>
         </main>
       </div>
-    </RuntimeProvider>
+    </RegistryProvider>
   );
 }
 

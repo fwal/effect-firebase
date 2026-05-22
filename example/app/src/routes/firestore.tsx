@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Option, Schema, Stream, DateTime } from 'effect';
+import { Cause, DateTime, Option, Schema } from 'effect';
+import { AsyncResult } from 'effect/unstable/reactivity';
 import { useForm } from '@tanstack/react-form';
-import {
-  PostRepository,
-  PostModel,
-  PostId,
-  AuthorId,
-} from '@example/shared';
+import { useAtomValue, useAtomSet } from '@effect/atom-react';
+import { PostId, PostModel, AuthorId } from '@example/shared';
 import {
   Button,
   Card,
@@ -18,35 +15,23 @@ import {
   Spinner,
   TextArea,
 } from '../components/core';
-import { useEffectMutation, useEffectStream } from '../lib/effect-react.js';
+import {
+  latestPostsAtom,
+  addPostAtom,
+  updatePostAtom,
+  deletePostAtom,
+} from '../lib/atoms.js';
 
 export const Route = createFileRoute('/firestore')({
   component: RouteComponent,
 });
 
 type Post = typeof PostModel.Type;
-type PostInsert = typeof PostModel.insert.Type;
-type PostUpdate = typeof PostModel.update.Type;
-type EditingPost = { readonly id: typeof PostId.Type; readonly title: string; readonly content: string };
-
-// Repository operations — the repository is itself an Effect, so we
-// flatMap through it. The FirestoreService is supplied by the runtime layer.
-const latestPostsStream = () =>
-  Stream.unwrap(PostRepository.pipe(Effect.map((r) => r.latestPosts())));
-
-const addPost = (data: PostInsert) =>
-  PostRepository.pipe(Effect.flatMap((r) => r.add(data)));
-
-const updatePost = (input: {
+type EditingPost = {
   readonly id: typeof PostId.Type;
-  readonly data: Partial<Omit<PostUpdate, 'id'>>;
-}) =>
-  PostRepository.pipe(
-    Effect.flatMap((r) => r.update(input.id, input.data)),
-  );
-
-const deletePost = (id: typeof PostId.Type) =>
-  PostRepository.pipe(Effect.flatMap((r) => r.delete(id)));
+  readonly title: string;
+  readonly content: string;
+};
 
 const PostFormSchema = Schema.Struct({
   title: Schema.NonEmptyString,
@@ -69,8 +54,8 @@ function PostForm({
   editing: EditingPost | null;
   onDone: () => void;
 }) {
-  const create = useEffectMutation(addPost);
-  const update = useEffectMutation(updatePost);
+  const create = useAtomSet(addPostAtom, { mode: 'promise' });
+  const update = useAtomSet(updatePostAtom, { mode: 'promise' });
 
   const form = useForm({
     defaultValues: editing
@@ -79,12 +64,12 @@ function PostForm({
     validators: { onChange: Schema.toStandardSchemaV1(PostFormSchema) },
     onSubmit: async ({ value }) => {
       if (editing) {
-        await update.mutate({
+        await update({
           id: editing.id,
           data: { title: value.title, content: value.content },
         });
       } else {
-        await create.mutate({
+        await create({
           title: value.title,
           content: value.content,
           author: AuthorId.make('1'),
@@ -180,60 +165,66 @@ export function PostList({
 }: {
   onEdit: (post: Post) => void;
 }) {
-  const result = useEffectStream(latestPostsStream, []);
-  const remove = useEffectMutation(deletePost);
+  const result = useAtomValue(latestPostsAtom);
+  const remove = useAtomSet(deletePostAtom, { mode: 'promise' });
 
-  if (result._tag === 'Initial') {
-    return (
+  return AsyncResult.builder(result)
+    .onInitial(() => (
       <div className="flex justify-center p-8">
         <Spinner size="lg" />
       </div>
-    );
-  }
-  if (result._tag === 'Failure') {
-    return <EmptyState message={`Error: ${String(result.error)}`} />;
-  }
-  if (result.value.length === 0) {
-    return <EmptyState message="No posts found. Create one above!" />;
-  }
-
-  return (
-    <>
-      {result.value.map((post) => (
-        <Card key={post.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="text-lg font-bold text-gray-900">{post.title}</h4>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onEdit(post)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => remove.mutate(post.id)}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-            <p className="text-gray-600 whitespace-pre-wrap">{post.content}</p>
-            <div className="mt-4 text-xs text-gray-400">
-              ID: {post.id}
-              {post.createdAt && (
-                <span className="ml-2">• {formatDateTime(post.createdAt)}</span>
-              )}
-              {post.checked && <span className="ml-2">• Checked</span>}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </>
-  );
+    ))
+    .onFailure((cause) => (
+      <EmptyState message={`Error: ${Cause.pretty(cause)}`} />
+    ))
+    .onSuccess((posts) =>
+      posts.length === 0 ? (
+        <EmptyState message="No posts found. Create one above!" />
+      ) : (
+        <>
+          {posts.map((post) => (
+            <Card key={post.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-lg font-bold text-gray-900">
+                    {post.title}
+                  </h4>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onEdit(post)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => remove(post.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-gray-600 whitespace-pre-wrap">
+                  {post.content}
+                </p>
+                <div className="mt-4 text-xs text-gray-400">
+                  ID: {post.id}
+                  {post.createdAt && (
+                    <span className="ml-2">
+                      • {formatDateTime(post.createdAt)}
+                    </span>
+                  )}
+                  {post.checked && <span className="ml-2">• Checked</span>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </>
+      ),
+    )
+    .render();
 }
 
 function RouteComponent() {

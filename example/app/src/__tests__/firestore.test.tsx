@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { Stream } from 'effect';
 import { MockFirestoreService } from '@effect-firebase/mock';
+import { RegistryProvider } from '@effect/atom-react';
 import { describe, it, expect } from 'vitest';
-import { RuntimeProvider } from '../lib/effect-react.js';
+import { firestoreLayerAtom } from '../lib/atoms.js';
 import { PostList } from '../routes/firestore.js';
 
 describe('PostList', () => {
@@ -12,9 +13,9 @@ describe('PostList', () => {
     });
 
     render(
-      <RuntimeProvider layer={layer}>
+      <RegistryProvider initialValues={[[firestoreLayerAtom, layer] as const]}>
         <PostList onEdit={() => undefined} />
-      </RuntimeProvider>,
+      </RegistryProvider>,
     );
 
     expect(await screen.findByText(/No posts found/i)).toBeTruthy();

@@ -198,6 +198,9 @@ importers:
 
   example/app:
     dependencies:
+      '@effect/atom-react':
+        specifier: 4.0.0-beta.70
+        version: 4.0.0-beta.70(effect@4.0.0-beta.70)(react@19.2.4)(scheduler@0.27.0)
       '@effect/platform-browser':
         specifier: ^4.0.0-beta.70
         version: 4.0.0-beta.70(effect@4.0.0-beta.70)
@@ -231,6 +234,9 @@ importers:
       effect:
         specifier: ^4.0.0-beta.70
         version: 4.0.0-beta.70
+      effect-firebase:
+        specifier: workspace:*
+        version: link:../../packages/effect-firebase
       firebase:
         specifier: ^12.8.0
         version: 12.8.0
@@ -256,9 +262,6 @@ importers:
       '@example/shared':
         specifier: workspace:*
         version: link:../shared
-      effect-firebase:
-        specifier: workspace:*
-        version: link:../../packages/effect-firebase
 
   example/backend:
     dependencies:
@@ -1001,6 +1004,13 @@ packages:
 
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
+
+  '@effect/atom-react@4.0.0-beta.70':
+    resolution: {integrity: sha512-G8fZHLBclfD9mZZY+9ltvJMZOMy4cJPa0wGoQcpevcvlpJoXlrugAosQ0ggiQ//HtVUsJ7K1ri9i28WX+d/a1Q==}
+    peerDependencies:
+      effect: ^4.0.0-beta.70
+      react: ^19.2.4
+      scheduler: '*'
 
   '@effect/platform-browser@4.0.0-beta.70':
     resolution: {integrity: sha512-m5MYc2DY6TC+LkgaGnAwn7M2Xr1hDYgN1lrhl2braitd0LlqYG8SrjaraJJC5KcPXavr0BSWdrwaDwiNA1CEQA==}
@@ -4227,6 +4237,7 @@ packages:
   basic-ftp@5.0.5:
     resolution: {integrity: sha512-4Bcg1P8xhUuqcii/S0Z9wiHIrQVPMermM1any+MX5GeGD7faD3/msQUDGLol9wOcz4/jbg/WJnGqoJF6LiBdtg==}
     engines: {node: '>=10.0.0'}
+    deprecated: Security vulnerability fixed in 5.2.1, please upgrade
 
   bcrypt-pbkdf@1.0.2:
     resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
@@ -5705,6 +5716,7 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@10.5.0:
@@ -8921,6 +8933,7 @@ packages:
   whatwg-encoding@2.0.0:
     resolution: {integrity: sha512-p41ogyeMUrw3jWclHWTQg1k05DSVXPLcVxRTYsXUk+ZooOCZLcoYgPZ/HL/D/N+uQPOtcp1me1WhBEaX02mhWg==}
     engines: {node: '>=12'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-fetch@3.6.20:
     resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
@@ -9973,6 +9986,12 @@ snapshots:
       colorspace: 1.1.4
       enabled: 2.0.0
       kuler: 2.0.0
+
+  '@effect/atom-react@4.0.0-beta.70(effect@4.0.0-beta.70)(react@19.2.4)(scheduler@0.27.0)':
+    dependencies:
+      effect: 4.0.0-beta.70
+      react: 19.2.4
+      scheduler: 0.27.0
 
   '@effect/platform-browser@4.0.0-beta.70(effect@4.0.0-beta.70)':
     dependencies:
