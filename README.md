@@ -15,6 +15,7 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 | [effect-firebase](./packages/effect-firebase) | Core schemas, models, and query builder |
 | [@effect-firebase/admin](./packages/admin)    | Firebase Admin SDK + Cloud Functions    |
 | [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
+| [@effect-firebase/genkit](./packages/genkit)  | Genkit + `onCallGenkit` bridge          |
 | [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
 
 ## Installation
@@ -25,6 +26,7 @@ npm install effect-firebase effect
 # Pick one or more SDK packages:
 npm install @effect-firebase/admin firebase-admin firebase-functions
 npm install @effect-firebase/client firebase
+npm install @effect-firebase/genkit genkit firebase-functions
 npm install --save-dev @effect-firebase/mock
 ```
 

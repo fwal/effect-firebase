@@ -1,3 +1,5 @@
+export * from './lib/runtime.js';
+
 export * as FirestoreSchema from './lib/firestore/schema/schema.js';
 export * as Firestore from './lib/firestore/firestore.js';
 export * from './lib/firestore/firestore-service.js';

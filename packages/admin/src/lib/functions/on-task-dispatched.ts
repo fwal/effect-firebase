@@ -6,7 +6,7 @@ import {
   TaskQueueOptions,
 } from 'firebase-functions/v2/tasks';
 import { logger } from 'firebase-functions';
-import { run, Runtime } from './run.js';
+import { run, Runtime } from 'effect-firebase';
 
 interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;

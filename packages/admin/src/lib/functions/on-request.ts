@@ -6,7 +6,7 @@ import {
   Request,
 } from 'firebase-functions/https';
 import { type Response } from 'express';
-import { run, Runtime } from './run.js';
+import { run, Runtime } from 'effect-firebase';
 import { logger } from 'firebase-functions';
 import { parseBody, sendJson } from './on-request-helpers.js';
 
