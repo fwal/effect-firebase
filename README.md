@@ -40,7 +40,7 @@ const PostId = Schema.String.pipe(Schema.brand('PostId'));
 const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
-  id: Model.Generated(PostId),
+  id: Model.GeneratedByDb(PostId),
   createdAt: Model.DateTimeInsert,
   updatedAt: Model.DateTimeUpdate,
   author: Model.Reference(AuthorId, 'authors'),

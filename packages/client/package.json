@@ -29,12 +29,12 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^4.0.0-beta.43",
+    "effect": "^4.0.0-beta.70",
     "effect-firebase": "workspace:*",
     "firebase": "^12.9.0"
   },
   "peerDependencies": {
-    "effect": "^4.0.0-beta.43",
+    "effect": "^4.0.0-beta.70",
     "effect-firebase": "workspace:*",
     "firebase": "^12.0.0"
   },

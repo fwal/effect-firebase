@@ -67,7 +67,7 @@ export const AnyPathReference = Model.Field({
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
- *   id: Model.Generated(PostId),
+ *   id: Model.GeneratedByDb(PostId),
  *   // App gets AuthorId, DB stores DocumentReference
  *   author: Model.Reference(AuthorId, 'authors'),
  * }) {}
@@ -107,7 +107,7 @@ export const Reference = <Id extends StringBasedSchema>(
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
- *   id: Model.Generated(PostId),
+ *   id: Model.GeneratedByDb(PostId),
  *   // App gets DocumentReference, JSON is AuthorId
  *   author: Model.ReferenceAsInstance(AuthorId, 'authors'),
  * }) {}
@@ -162,7 +162,7 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
  * import { Model } from 'effect-firebase';
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
- *   id: Model.Generated(PostId),
+ *   id: Model.GeneratedByDb(PostId),
  *   // Reference - JSON will be the full path string
  *   authorPath: Model.ReferencePath('authors'),
  * }) {}

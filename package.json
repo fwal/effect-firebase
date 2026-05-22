@@ -17,7 +17,7 @@
   "private": true,
   "dependencies": {
     "@google-cloud/functions-framework": "^5.0.2",
-    "effect": "^4.0.0-beta.43",
+    "effect": "^4.0.0-beta.70",
     "firebase": "^12.10.0",
     "firebase-admin": "^13.7.0",
     "firebase-functions": "^7.1.0",
@@ -25,8 +25,8 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@effect/platform-browser": "^4.0.0-beta.43",
-    "@effect/vitest": "^4.0.0-beta.43",
+    "@effect/platform-browser": "^4.0.0-beta.70",
+    "@effect/vitest": "^4.0.0-beta.70",
     "@eslint/js": "^9.8.0",
     "@nx/esbuild": "22.5.4",
     "@nx/eslint": "22.5.4",
