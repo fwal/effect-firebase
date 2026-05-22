@@ -90,7 +90,7 @@ import { Model } from 'effect/unstable/schema';
 import { Firestore } from 'effect-firebase';
 
 class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
-  id: Model.Generated(AuthorId), // generic helpers from Effect's Model
+  id: Model.GeneratedByDb(AuthorId), // generic helpers from Effect's Model
   createdAt: Firestore.DateTimeInsert, // Firestore-specific helpers from effect-firebase
   updatedAt: Firestore.DateTimeUpdate,
   author: Firestore.Reference(AuthorId, 'authors'),
@@ -110,7 +110,7 @@ Generic field helpers that no longer need the `effect-firebase` import:
 | Field helper           | Now from                 |
 | ---------------------- | ------------------------ |
 | `Model.Class`          | `effect/unstable/schema` |
-| `Model.Generated`      | `effect/unstable/schema` |
+| `Model.GeneratedByDb`  | `effect/unstable/schema` |
 | `Model.GeneratedByApp` | `effect/unstable/schema` |
 | `Model.Sensitive`      | `effect/unstable/schema` |
 | `Model.FieldOption`    | `effect/unstable/schema` |

@@ -9,7 +9,7 @@ import type { Snapshot } from '../snapshot.js';
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
-  id: Model.Generated(PostId),
+  id: Model.GeneratedByDb(PostId),
   title: Schema.String,
 }) {}
 

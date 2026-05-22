@@ -15,7 +15,7 @@ describe('Model.AnyIdReference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     authorId: AnyIdReference,
   }) {}
 
@@ -75,7 +75,7 @@ describe('Model.AnyPathReference', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     authorPath: AnyPathReference,
   }) {}
 
@@ -135,7 +135,7 @@ describe('Model.Reference', () => {
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     author: Reference(AuthorId, 'authors'),
   }) {}
 
@@ -173,7 +173,6 @@ describe('Model.Reference', () => {
       const encode = Schema.encodeSync(TestModel.update);
       const authorId = 'author-456' as typeof AuthorId.Type;
       const result = encode({
-        id: 'post-1' as typeof PostId.Type,
         author: authorId,
       });
 
@@ -210,7 +209,7 @@ describe('Model.Reference', () => {
     const CommentId = Schema.String.pipe(Schema.brand('CommentId'));
 
     class CommentModel extends Model.Class<CommentModel>('CommentModel')({
-      id: Model.Generated(CommentId),
+      id: Model.GeneratedByDb(CommentId),
       replyTo: Reference(CommentId, 'posts/post-1/comments'),
     }) {}
 
@@ -233,7 +232,7 @@ describe('Model.ReferenceAsInstance', () => {
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     author: ReferenceAsInstance(AuthorId, 'authors'),
   }) {}
 
@@ -280,7 +279,6 @@ describe('Model.ReferenceAsInstance', () => {
         path: 'authors/author-456',
       });
       const result = encode({
-        id: 'post-1' as typeof PostId.Type,
         author: authorRef,
       });
 
@@ -340,7 +338,7 @@ describe('Model.ReferencePath', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     authorPath: ReferencePath('authors'),
   }) {}
 
@@ -411,7 +409,7 @@ describe('Model.ReferenceOptional', () => {
   const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
   class TestModel extends Model.Class<TestModel>('TestModel')({
-    id: Model.Generated(PostId),
+    id: Model.GeneratedByDb(PostId),
     author: ReferenceOptional(AuthorId, 'authors'),
   }) {}
 
