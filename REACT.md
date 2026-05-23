@@ -20,7 +20,8 @@ released against.
 4. [Mutations](#4-mutations)
 5. [Forms with validation](#5-forms-with-validation)
 6. [Testing with a mock layer](#6-testing-with-a-mock-layer)
-7. [Caveats](#7-caveats)
+7. [Why atoms over TanStack Query?](#7-why-atoms-over-tanstack-query)
+8. [Caveats](#8-caveats)
 
 ---
 
@@ -269,7 +270,149 @@ The components under test never change between production and test — only the
 layer at the registry boundary differs. Vitest needs `environment: 'jsdom'`;
 see the `test` block in [`example/app/vite.config.ts`](./example/app/vite.config.ts).
 
-## 7. Caveats
+## 7. Why atoms over TanStack Query?
+
+[TanStack Query](https://tanstack.com/query/latest) is the dominant React data-
+fetching library and is what most teams reach for first. It's a reasonable
+choice for an Effect app — but for a Firestore app whose data layer is
+already entirely in Effect, atoms fit better. Here's the honest comparison.
+
+### What each looks like for the live-posts pattern
+
+```ts
+// With @effect/atom-react
+export const latestPostsAtom = clientRuntime.atom(
+  Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
+);
+
+function PostList() {
+  const result = useAtomValue(latestPostsAtom);
+  return AsyncResult.builder(result)
+    .onInitial(/* ... */)
+    .onFailure(/* ... */)
+    .onSuccess(/* ... */)
+    .render();
+}
+```
+
+```ts
+// With TanStack Query
+function usePostsLive() {
+  const qc = useQueryClient();
+  const runtime = useRuntime();
+  const query = useQuery({
+    queryKey: ['posts', 'live'],
+    queryFn: () => new Promise<Post[]>(() => {}), // never resolves; setQueryData feeds it
+    staleTime: Infinity,
+  });
+  useEffect(() => {
+    const fiber = runtime.runFork(
+      Stream.runForEach(latestPostsStream(), (posts) =>
+        Effect.sync(() => qc.setQueryData(['posts', 'live'], posts)),
+      ),
+    );
+    return () => { runtime.runFork(Fiber.interrupt(fiber)); };
+  }, [qc, runtime]);
+  return query;
+}
+
+function PostList() {
+  const { data, isPending, error } = usePostsLive();
+  if (isPending) return <Spinner />;
+  if (error) return <Error message={String(error)} />;
+  // ...
+}
+```
+
+The Query version is fighting the abstraction: `queryFn` resolves once, but a
+Stream emits forever, so the standard pattern is a never-resolving promise
+plus a side `useEffect` that pushes emissions into the cache via
+`setQueryData`. Query has no concept of the underlying stream, so cleanup,
+refcounting, and dedup across components is all your responsibility.
+
+### Where TanStack Query wins
+
+- **Ecosystem and familiarity.** Most React engineers already know it.
+  Onboarding is faster, references are everywhere, AI tools know it cold.
+- **DevTools.** `@tanstack/react-query-devtools` shows the cache, query
+  state, and mutation history. There's no equivalent for atoms today.
+- **Cross-source caching.** If your app fetches from Firestore *and* REST
+  APIs *and* a non-Effect SDK, Query unifies them under one cache. Atoms
+  only help with Effect-based sources.
+- **Battle-tested cache controls.** Stale-while-revalidate, refetch on
+  focus / reconnect / interval, retry-with-backoff, prefetching,
+  pagination/infinite-query helpers, query cancellation via `AbortSignal`,
+  SSR hydration with Next.js or TanStack Start.
+- **Familiar mutation patterns.** `useMutation` + `onSuccess: invalidate(...)`
+  is a well-known idiom. Optimistic updates are a documented pattern.
+
+### Where atoms win
+
+- **Streams are first-class.** `runtime.atom(stream)` and `runtime.atom(effect)`
+  have the same shape. Refcounted subscription, idle TTL, automatic cleanup
+  on last-unsubscriber — all in the library, not in your `useEffect`.
+- **No Effect ↔ Promise boundary.** Atoms keep the typed `E` channel and the
+  full `Cause` end-to-end. Query erases both into `unknown` / a thrown JS
+  value at the `queryFn` boundary.
+- **Layer composition is the runtime model.** `clientRuntime = Atom.runtime((get) => get(layerAtom))`
+  is the test seam, the dependency-injection mechanism, and the multi-tenancy
+  story all at once. Query has no equivalent — you `Effect.provide(layer)` at
+  every call site, or hoist a runtime to context and remember to thread it.
+- **One state machine.** `AsyncResult<A, E>` mirrors `Exit` and carries the
+  same semantics. With Query you reason about `isPending` / `isFetching` /
+  `isError` / `isStale` *and* the Effect's own success/failure separately.
+- **Family atoms for keyed reads.** `Atom.family((id) => atom)` returns
+  stable identity per key with `Equal`-based equality. Branded ids and
+  Effect-native data types work out of the box; Query asks you to choose a
+  string serialization for `queryKey`.
+- **Less code per repository.** Define `byId`, `byIdLive`, `list`,
+  `listLive`, and mutation atoms once at module scope. Query needs a
+  `useXxx()` hook wrapper per operation.
+- **Reactive composition between atoms.** `runtime.atom((get) => /* read other atoms */)`.
+  Query has `enabled: !!data` + `getQueryData(...)`, which works but is more
+  ceremony.
+
+### Where it's a wash
+
+- **Devtools** for Query are great today; for atoms they're early-days.
+  This may matter a lot or a little depending on team habits.
+- **Mutation invalidation.** Query's `invalidateQueries` is more familiar;
+  atoms use `Reactivity` keys + `withReactivity`. Different API, similar
+  capability.
+- **Suspense.** Both support it. `useAtomSuspense` vs. `useSuspenseQuery`.
+- **TypeScript inference.** Both are strong; atoms thread `A | E` through
+  `AsyncResult`, Query threads `A` and surfaces `E` as `unknown` by default
+  but supports a typed error generic if you discipline yourself.
+
+### Recommendation
+
+**For an `effect-firebase` consumer specifically: use atoms.** The data layer
+is already `Effect` + `Stream` end-to-end; Query forces a round-trip through
+`Promise<A>` that throws away half of Effect's vocabulary. Live Firestore
+queries are streams by nature, and Query's `queryFn` contract genuinely does
+not fit them — you end up writing custom stream-subscription glue per query.
+Atoms eliminate that glue.
+
+**For a mixed-source app** (Firestore + REST + a third-party SDK), the answer
+is less clear. If most of your reads still come from Effect, atoms are still
+the better fit and you wrap non-Effect calls in `Effect.tryPromise`. If most
+of your reads are non-Effect HTTP, Query is justified for those and you can
+bridge atoms in for the Firestore parts via the never-resolving-`queryFn`
+trick above — but at that point you have two cache systems and should pick
+one.
+
+**For a team unfamiliar with Effect** and rolling out Effect gradually: Query
+is the safer onboarding path. Adopt it for now, migrate to atoms once the
+team is fluent in Effect and the Atom API has stabilized out of `unstable/`.
+
+**For maximum stability today:** Query. It's 1.x, has years of production
+mileage, and isn't gated on Effect v4 going stable. Atoms are pre-1.0 and
+lockstep-pinned to Effect betas — expect to bump them together and re-read
+release notes.
+
+---
+
+## 8. Caveats
 
 - **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
   `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump
