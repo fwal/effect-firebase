@@ -11,19 +11,19 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "effect": "^3.19.19",
-    "@effect/platform-browser": "^0.74.0",
-    "firebase": "^12.8.0",
-    "tailwind-merge": "^3.4.0",
-    "react": "19.2.4",
+    "effect": "^3.21.2",
+    "@effect/platform-browser": "^0.76.0",
+    "firebase": "^12.13.0",
+    "tailwind-merge": "^3.6.0",
+    "react": "19.2.6",
     "@nx/react": "22.4.5",
-    "@tanstack/react-router": "^1.139.3",
-    "react-dom": "19.2.4",
-    "@tanstack/react-router-devtools": "^1.139.3",
+    "@tanstack/react-router": "^1.170.8",
+    "react-dom": "19.2.6",
+    "@tanstack/react-router-devtools": "^1.167.0",
     "vite": "7.1.8",
     "@vitejs/plugin-react": "^4.2.0",
     "@nx/vite": "22.5.4",
-    "@tanstack/router-plugin": "^1.139.3"
+    "@tanstack/router-plugin": "^1.168.11"
   },
   "devDependencies": {
     "@effect-firebase/client": "workspace:*",
