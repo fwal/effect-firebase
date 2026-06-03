@@ -47,3 +47,7 @@ jobs:
       # - run: pnpm exec nx-cloud record -- echo Hello World
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: pnpm exec nx affected -t lint test build
+
+      # Verify the published declarations stay portable for downstream packages
+      # that emit their own .d.ts under pnpm's default symlinked layout (TS2742).
+      - run: pnpm test:portability

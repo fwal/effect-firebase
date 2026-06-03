@@ -1,0 +1,17 @@
+{
+  "name": "@effect-firebase-test/declaration-portability-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regression fixture: a downstream consumer that emits declaration files on top of effect-firebase. Used to guard against TS2742 (non-portable inferred types) under pnpm's default symlinked node_modules layout.",
+  "scripts": {
+    "build": "tsc --emitDeclarationOnly"
+  },
+  "dependencies": {
+    "effect": "^3.19.19",
+    "effect-firebase": "EFFECT_FIREBASE_TARBALL"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

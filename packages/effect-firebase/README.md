@@ -471,6 +471,35 @@ See [@effect-firebase/client](../client/README.md) for Firebase Client SDK integ
 - `FirestoreSchema.Reference` - Document reference
 - `FirestoreSchema.ReferenceId` - Branded ID with reference path
 
+## Declaration portability (downstream `.d.ts` emit)
+
+When you build a package that defines models on top of effect-firebase and emit
+declaration files (`declaration: true` / `composite` / `emitDeclarationOnly`):
+
+```ts
+export const JobRef = Model.Reference(JobId, 'jobs');
+export class Job extends Model.Class<Job>('Job')({ /* ... */ }) {}
+```
+
+…the inferred public types reference effect-firebase's schema/field classes
+(`Reference`, `Timestamp`, `Delete`, `ArrayUnion`, …) and a handful of
+`@effect/experimental` `VariantSchema` types. effect-firebase re-exports all of
+these from its entry point as **named** bindings, so they are nameable through
+the bare `effect-firebase` specifier. As a result, downstream packages emit
+declarations cleanly under **pnpm's default (symlinked) `node_modules` layout** —
+no `TS2742` ("inferred type … is likely not portable") and **no need** for the
+`node-linker=hoisted` workaround (which reintroduces phantom-dependency risk).
+
+You do **not** need to add `@effect/experimental` as a direct dependency just to
+emit declarations — the `VariantSchema` types are surfaced as
+`effect-firebase`'s `VariantSchema*` aliases (`VariantSchemaField`,
+`VariantSchemaClass`, …).
+
+The following are exported both at the top level (for portable naming) and,
+where applicable, under the `FirestoreSchema` / `FirestoreField` namespaces:
+`Reference`, `Timestamp`, `ServerTimestamp`, `GeoPoint`, `Delete`, `ArrayUnion`,
+`ArrayRemove`.
+
 ## License
 
 MIT

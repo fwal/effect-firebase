@@ -6,6 +6,7 @@
     "format": "nx format:write",
     "lint": "nx run-many -t lint",
     "test": "nx run-many -t test",
+    "test:portability": "node tests/declaration-portability/run.mjs",
     "build": "nx run-many -t build",
     "dev": "nx dev",
     "serve": "nx serve",
