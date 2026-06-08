@@ -1,22 +1,25 @@
 packages:
-  - "packages/*"
-  - "example/*"
-  - "tests"
+  - packages/*
+  - example/*
+  - tests
 
 catalog:
-  "@effect/vitest": "4.0.0-beta.78"
-  "@effect/platform-browser": "4.0.0-beta.78"
+  '@effect/platform-browser': 4.0.0-beta.78
+  '@effect/vitest': 4.0.0-beta.78
   effect: 4.0.0-beta.78
+  express: ^4.0.0
+  firebase: ^12.9.0
   firebase-admin: ^13.6.0
   firebase-functions: ^7.0.0
-  firebase: ^12.9.0
-  express: ^4.0.0
+
+ignoredBuiltDependencies:
+  - msgpackr-extract
 
 onlyBuiltDependencies:
-  - "@firebase/util"
-  - "@swc/core"
-  - "core-js"
-  - "esbuild"
-  - "nx"
-  - "protobufjs"
-  - "re2"
+  - '@firebase/util'
+  - '@swc/core'
+  - core-js
+  - esbuild
+  - nx
+  - protobufjs
+  - re2
