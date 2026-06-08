@@ -12,8 +12,8 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
-    "effect": "^4.0.0-beta.70",
-    "firebase-admin": "^13.6.0",
+    "effect": "catalog:",
+    "firebase-admin": "catalog:",
     "@google-cloud/functions-framework": "^5.0.0",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
