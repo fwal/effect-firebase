@@ -4,9 +4,9 @@ packages:
   - tests
 
 catalog:
-  '@effect/platform-browser': 4.0.0-beta.78
-  '@effect/vitest': 4.0.0-beta.78
-  effect: 4.0.0-beta.78
+  '@effect/platform-browser': 4.0.0-beta.90
+  '@effect/vitest': 4.0.0-beta.90
+  effect: 4.0.0-beta.90
   express: ^4.0.0
   firebase: ^12.9.0
   firebase-admin: ^13.6.0
