@@ -20,7 +20,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "effect": "^3.19.19",
+    "effect": "^3.21.4",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
