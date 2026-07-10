@@ -4,13 +4,13 @@ packages:
   - tests
 
 catalog:
-  '@effect/platform-browser': 4.0.0-beta.90
-  '@effect/vitest': 4.0.0-beta.90
-  effect: 4.0.0-beta.90
+  '@effect/platform-browser': 4.0.0-beta.94
+  '@effect/vitest': 4.0.0-beta.94
+  effect: 4.0.0-beta.94
   express: ^4.0.0
-  firebase: ^12.9.0
-  firebase-admin: ^13.6.0
-  firebase-functions: ^7.0.0
+  firebase: ^12.16.0
+  firebase-admin: ^13.7.0
+  firebase-functions: ^7.2.5
 
 ignoredBuiltDependencies:
   - msgpackr-extract

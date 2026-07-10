@@ -16,7 +16,7 @@
   },
   "private": true,
   "dependencies": {
-    "@google-cloud/functions-framework": "^5.0.2",
+    "@google-cloud/functions-framework": "^5.0.5",
     "effect": "catalog:",
     "firebase": "catalog:",
     "firebase-admin": "catalog:",
@@ -63,7 +63,7 @@
     "eslint-plugin-jsx-a11y": "6.10.1",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
-    "firebase-tools": "^15.5.1",
+    "firebase-tools": "^15.22.4",
     "jiti": "2.4.2",
     "jsdom": "~22.1.0",
     "jsonc-eslint-parser": "^2.1.0",
