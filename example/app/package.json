@@ -11,9 +11,9 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "effect": "^4.0.0-beta.70",
-    "@effect/platform-browser": "^4.0.0-beta.70",
-    "firebase": "^12.8.0",
+    "effect": "catalog:",
+    "@effect/platform-browser": "catalog:",
+    "firebase": "catalog:",
     "tailwind-merge": "^3.4.0",
     "react": "19.2.4",
     "@nx/react": "22.4.5",
