@@ -11,3 +11,6 @@ export * from './model/array.js';
 
 // Repository factory
 export { makeRepository } from './model/repository.js';
+
+// Transaction and batch helpers
+export { withTransaction, withBatch } from './transaction.js';

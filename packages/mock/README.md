@@ -67,7 +67,7 @@ await Effect.runPromise(
 - In-memory only — no persistence between process restarts
 - Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases
 - No security rules evaluation
-- No transaction support
+- `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
 - No multi-client synchronization
 
 For tests that need full Firestore semantics, use the [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite).
