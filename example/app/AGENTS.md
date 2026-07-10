@@ -126,7 +126,7 @@ The following packages are required for the core component system:
 
 - `class-variance-authority`: ^0.7.1
 - `clsx`: ^2.1.1
-- `tailwind-merge`: ^2.5.5
+- `tailwind-merge`: ^3.4.0
 
 ## TypeScript Configuration
 

@@ -14,7 +14,7 @@
   "dependencies": {
     "effect": "catalog:",
     "firebase-admin": "catalog:",
-    "@google-cloud/functions-framework": "^5.0.0",
+    "@google-cloud/functions-framework": "^5.0.5",
     "@effect-firebase/admin": "workspace:*",
     "@example/shared": "workspace:*"
   },
