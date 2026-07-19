@@ -34,16 +34,17 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
 
 Built-in field helpers:
 
-| Helper                                      | Behaviour                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------- |
-| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`.          |
-| `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.                   |
-| `Model.DateTimeUpdate`                      | Server timestamp on every write.                                      |
-| `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.                  |
-| `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.               |
-| `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.             |
-| `Model.Array(schema)`                       | Array field.                                                          |
-| `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                                     |
+| Helper                                      | Behaviour                                                    |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`. |
+| `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.          |
+| `Model.DateTimeUpdate`                      | Server timestamp on every write.                             |
+| `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.         |
+| `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.      |
+| `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.    |
+| `Model.Array(schema)`                       | Array field.                                                 |
+| `Model.GeoPoint`                            | Geographic point with latitude and longitude.                |
+| `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                            |
 
 ## Repository
 
