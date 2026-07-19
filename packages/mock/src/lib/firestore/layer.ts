@@ -341,7 +341,7 @@ const makeFirestore = (
 const makeController = (
   ref: SubscriptionRef.SubscriptionRef<StoreSnapshot>,
   latency: Ref.Ref<Duration.Duration>,
-  initial: { snapshot: StoreSnapshot; latency: Duration.Duration }
+  initial: { ref: Ref.Ref<StoreSnapshot>; latency: Duration.Duration }
 ): MockControllerShape => ({
   setState: (collectionPath, state) =>
     SubscriptionRef.update(ref, (snapshot) => ({
@@ -388,17 +388,109 @@ const makeController = (
 
   setLatency: (input) => Ref.set(latency, Duration.fromInputUnsafe(input)),
 
-  reset: Effect.flatMap(Ref.set(latency, initial.latency), () =>
-    SubscriptionRef.set(ref, initial.snapshot)
-  ),
+  latency: Ref.get(latency),
+
+  reset: Effect.gen(function* () {
+    yield* Ref.set(latency, initial.latency);
+    const snapshot = yield* Ref.get(initial.ref);
+    yield* SubscriptionRef.set(ref, snapshot);
+  }),
 });
+
+/**
+ * A handle to a mock backend: the layer to provide to your program, plus the
+ * controller as a plain value for use outside the Effect runtime — a devtools
+ * panel, a Storybook decorator, or an imperative test helper.
+ */
+export interface MockHandle {
+  /**
+   * Provides `FirestoreService` and {@link MockController}, backed by this
+   * handle's store. Providing it multiple times shares the same store.
+   */
+  readonly layer: Layer.Layer<
+    FirestoreService | MockController,
+    Schema.SchemaError
+  >;
+  /**
+   * Direct access to the controller. All of its effects require no services,
+   * so they can be run with `Effect.runPromise`/`Effect.runFork` anywhere.
+   */
+  readonly controller: MockControllerShape;
+}
+
+/**
+ * Create a mock backend handle. Use this instead of {@link layer} when
+ * something outside the Effect runtime needs to drive the backend — most
+ * notably a devtools panel:
+ *
+ * @example
+ * ```ts
+ * const mock = make({ fixtures: [posts] });
+ *
+ * // Provide mock.layer to your app's runtime...
+ * const runtime = Atom.runtime(mock.layer);
+ *
+ * // ...and hand mock.controller to the devtools panel.
+ * Effect.runPromise(mock.controller.setState('posts', 'loading'));
+ * ```
+ */
+export const make = (options: LayerOptions = {}): MockHandle => {
+  const initialStates = Object.fromEntries(
+    Object.entries(options.states ?? {}).map(([key, input]) => [
+      key,
+      MockState.fromInput(input),
+    ])
+  );
+  const initialLatency = Duration.fromInputUnsafe(options.latency ?? 0);
+  const emptySnapshot: StoreSnapshot = { docs: {}, states: initialStates };
+
+  const ref = Effect.runSync(SubscriptionRef.make(emptySnapshot));
+  const latency = Effect.runSync(Ref.make(initialLatency));
+  const initialRef = Effect.runSync(Ref.make(emptySnapshot));
+  const seeded = Effect.runSync(Ref.make(false));
+
+  const controller = makeController(ref, latency, {
+    ref: initialRef,
+    latency: initialLatency,
+  });
+
+  const seedOnce = Effect.gen(function* () {
+    if (yield* Ref.getAndSet(seeded, true)) {
+      return;
+    }
+    let docs: Record<string, DocData> = {};
+    for (const fixture of options.fixtures ?? []) {
+      docs = { ...docs, ...(yield* fixture.build) };
+    }
+    const snapshot: StoreSnapshot = { docs, states: initialStates };
+    yield* Ref.set(initialRef, snapshot);
+    // Keep anything written before the layer was built (e.g. via the
+    // controller); fixtures only fill in the seeded documents.
+    yield* SubscriptionRef.update(ref, (current) => ({
+      ...current,
+      docs: { ...docs, ...current.docs },
+    }));
+  });
+
+  return {
+    controller,
+    layer: Layer.effectContext(
+      Effect.map(seedOnce, () =>
+        Context.make(FirestoreService, makeFirestore(ref, latency)).pipe(
+          Context.add(MockController, controller)
+        )
+      )
+    ),
+  };
+};
 
 /**
  * An in-memory, reactive `FirestoreService` backend.
  *
  * The returned layer provides both the `FirestoreService` implementation and
  * a {@link MockController} for driving it at runtime. Every `Effect.provide`
- * gets a fresh, isolated store.
+ * gets a fresh, isolated store — use {@link make} instead when external code
+ * (like a devtools panel) needs a shared handle on the store.
  *
  * @example
  * ```ts
@@ -412,27 +504,4 @@ const makeController = (
 export const layer = (
   options: LayerOptions = {}
 ): Layer.Layer<FirestoreService | MockController, Schema.SchemaError> =>
-  Layer.effectContext(
-    Effect.gen(function* () {
-      let docs: Record<string, DocData> = {};
-      for (const fixture of options.fixtures ?? []) {
-        docs = { ...docs, ...(yield* fixture.build) };
-      }
-      const states = Object.fromEntries(
-        Object.entries(options.states ?? {}).map(([key, input]) => [
-          key,
-          MockState.fromInput(input),
-        ])
-      );
-      const initialLatency = Duration.fromInputUnsafe(options.latency ?? 0);
-      const snapshot: StoreSnapshot = { docs, states };
-      const ref = yield* SubscriptionRef.make(snapshot);
-      const latency = yield* Ref.make(initialLatency);
-      return Context.make(FirestoreService, makeFirestore(ref, latency)).pipe(
-        Context.add(
-          MockController,
-          makeController(ref, latency, { snapshot, latency: initialLatency })
-        )
-      );
-    })
-  );
+  Layer.suspend(() => make(options).layer);

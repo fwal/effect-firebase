@@ -18,7 +18,7 @@ import {
 } from 'effect-firebase';
 import { MockController } from './controller.js';
 import { fixture, rawFixture } from './fixture.js';
-import { layer } from './layer.js';
+import { layer, make } from './layer.js';
 import * as MockState from './state.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -441,6 +441,51 @@ describe('layer', () => {
         }),
         { fixtures: [postFixture] }
       ));
+  });
+
+  describe('make', () => {
+    it('exposes a controller that drives the provided layer from outside', async () => {
+      const mock = make({ fixtures: [postFixture] });
+
+      // The controller works before and outside any Effect.provide.
+      await Effect.runPromise(mock.controller.setState('posts', 'empty'));
+
+      const emptied = await Effect.runPromise(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          return yield* firestore.query('posts', []);
+        }).pipe(Effect.provide(mock.layer))
+      );
+      expect(emptied).toEqual([]);
+
+      await Effect.runPromise(mock.controller.setState('posts', 'data'));
+      const restored = await Effect.runPromise(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          return yield* firestore.query('posts', []);
+        }).pipe(Effect.provide(mock.layer))
+      );
+      expect(restored.length).toBe(2);
+    });
+
+    it('shares one store across provides and seeds fixtures once', async () => {
+      const mock = make({ fixtures: [postFixture] });
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          yield* firestore.set('posts/3', { title: 'Gamma', views: 0 });
+        }).pipe(Effect.provide(mock.layer))
+      );
+
+      const count = await Effect.runPromise(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          return (yield* firestore.query('posts', [])).length;
+        }).pipe(Effect.provide(mock.layer))
+      );
+      expect(count).toBe(3);
+    });
   });
 
   describe('repository integration', () => {

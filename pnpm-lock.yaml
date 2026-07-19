@@ -350,6 +350,25 @@ importers:
         specifier: 'catalog:'
         version: 12.16.0
 
+  packages/devtools:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
+      '@effect-firebase/mock':
+        specifier: workspace:*
+        version: link:../mock
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.99
+      effect-firebase:
+        specifier: workspace:*
+        version: link:../effect-firebase
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+
   packages/effect-firebase:
     dependencies:
       tslib:

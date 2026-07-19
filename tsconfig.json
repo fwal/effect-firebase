@@ -22,6 +22,9 @@
       "path": "./packages/mock"
     },
     {
+      "path": "./packages/devtools"
+    },
+    {
       "path": "./example/app"
     }
   ]

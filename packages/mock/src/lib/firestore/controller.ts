@@ -67,6 +67,11 @@ export interface MockControllerShape {
   ) => Effect.Effect<void>;
 
   /**
+   * The currently simulated latency.
+   */
+  readonly latency: Effect.Effect<Duration.Duration>;
+
+  /**
    * Restore the backend to its initial fixtures and states, and reset latency
    * to the value the layer was created with.
    */

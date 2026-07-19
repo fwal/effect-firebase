@@ -113,6 +113,22 @@ const mock = layer({
 });
 ```
 
+## Driving the backend from outside Effect
+
+`make()` returns a handle instead of just a layer: the same options as `layer()`, plus direct access to the controller as a plain value. Every controller effect requires no services, so React components, Storybook decorators or test helpers can run them with `Effect.runPromise` directly. This is what the [`@effect-firebase/devtools`](../devtools) panel builds on:
+
+```typescript
+import { make } from '@effect-firebase/mock';
+
+const mock = make({ fixtures: [posts] });
+
+// Provide mock.layer to your app runtime (all provides share one store)...
+const runtime = Atom.runtime(mock.layer);
+
+// ...and drive the same store from anywhere:
+await Effect.runPromise(mock.controller.setState('posts', 'loading'));
+```
+
 Notes on semantics:
 
 - `empty` affects reads only; writes still land in the store.
