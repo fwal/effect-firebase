@@ -1,4 +1,3 @@
-import { Schema } from 'effect';
 import { Model, VariantSchema } from 'effect/unstable/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
