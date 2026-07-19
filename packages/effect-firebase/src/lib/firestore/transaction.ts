@@ -20,7 +20,7 @@ import { FirestoreService } from './firestore-service.js';
  *
  * @example
  * ```ts
- * import { Effect } from 'effect';
+ * import { Effect, Option } from 'effect';
  * import { Firestore } from 'effect-firebase';
  * import { AccountRepository } from './account-repository.js';
  *
@@ -28,11 +28,11 @@ import { FirestoreService } from './firestore-service.js';
  *   Firestore.withTransaction(
  *     Effect.gen(function* () {
  *       const repo = yield* AccountRepository;
- *       const source = yield* repo.getById(from);
- *       const target = yield* repo.getById(to);
+ *       const source = Option.getOrThrow(yield* repo.getById(from));
+ *       const target = Option.getOrThrow(yield* repo.getById(to));
  *       // ... all reads happen before the first write
- *       yield* repo.update(from, { balance: sourceBalance - amount });
- *       yield* repo.update(to, { balance: targetBalance + amount });
+ *       yield* repo.update(from, { balance: source.balance - amount });
+ *       yield* repo.update(to, { balance: target.balance + amount });
  *     })
  *   );
  * ```
