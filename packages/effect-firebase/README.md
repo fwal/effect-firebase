@@ -43,6 +43,7 @@ Built-in field helpers:
 | `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.      |
 | `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.    |
 | `Model.Array(schema)`                       | Array field.                                                 |
+| `Model.GeoPoint`                            | Geographic point with latitude and longitude.                |
 | `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                            |
 
 ## Repository
