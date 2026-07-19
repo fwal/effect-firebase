@@ -6,7 +6,7 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > [!WARNING]
-> Under heavy development. APIs may change.
+> Main contains the beta for 1.0, currently in active development.
 
 ## Packages
 
