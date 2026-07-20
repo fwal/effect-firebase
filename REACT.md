@@ -20,7 +20,8 @@ released against.
 4. [Mutations](#4-mutations)
 5. [Forms with validation](#5-forms-with-validation)
 6. [Testing with a mock layer](#6-testing-with-a-mock-layer)
-7. [Caveats](#7-caveats)
+7. [Developing against the mock backend](#7-developing-against-the-mock-backend)
+8. [Caveats](#8-caveats)
 
 ---
 
@@ -318,7 +319,52 @@ The components under test never change between production and test — only the
 layer at the registry boundary differs. Vitest needs `environment: 'jsdom'`;
 see the `test` block in [`example/app/vite.config.ts`](./example/app/vite.config.ts).
 
-## 7. Caveats
+## 7. Developing against the mock backend
+
+For building pages, `@effect-firebase/mock` goes further than per-method
+overrides: `make()` returns a full in-memory backend seeded from
+schema-encoded fixtures, with a controller for toggling every collection
+between **data / empty / loading / error** at runtime. Because the layer atom
+is the only seam, the swap is one `initialValues` entry:
+
+```tsx
+// lib/mock.ts — shared by the app runtime and the devtools panel
+export const mockBackend = make({
+  fixtures: [
+    fixture(PostModel, { collectionPath: 'posts', idField: 'id', docs: [...] }),
+  ],
+});
+
+// app.tsx — seed the registry with the mock instead of Client.layer
+<RegistryProvider
+  initialValues={[[firestoreLayerAtom, Layer.orDie(mockBackend.layer)] as const]}
+>
+```
+
+`@effect-firebase/devtools` ships the controller as a TanStack Devtools
+plugin, so the states can be flipped from a panel while the page is running:
+
+```tsx
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { firestoreMockPlugin } from '@effect-firebase/devtools';
+
+<TanStackDevtools
+  plugins={[
+    firestoreMockPlugin(mockBackend.controller, {
+      // Stream errors are terminal (onSnapshot semantics): refresh the
+      // affected atoms after a toggle so they re-subscribe.
+      onStateChange: () => refreshPosts(),
+    }),
+  ]}
+/>;
+```
+
+The example app wires this up behind an env flag — run `pnpm example:mock`
+and open the devtools panel on the Firestore page. See
+[`example/app/src/lib/mock.ts`](./example/app/src/lib/mock.ts) and
+[`example/app/src/app/app.tsx`](./example/app/src/app/app.tsx).
+
+## 8. Caveats
 
 - **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
   `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump

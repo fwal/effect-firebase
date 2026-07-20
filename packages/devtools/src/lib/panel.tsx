@@ -88,6 +88,9 @@ const styles = {
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+    // Explicit height so host-page or devtools-shell CSS resets that stretch
+    // divs cannot distort the layout; same for row/buttonGroup below.
+    height: 'auto',
     paddingBottom: 10,
     borderBottom: '1px solid #2a2d35',
     marginBottom: 10,
@@ -118,6 +121,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    height: 'auto',
     padding: '4px 0',
   } satisfies CSSProperties,
   collection: {
@@ -135,9 +139,11 @@ const styles = {
   buttonGroup: {
     display: 'flex',
     gap: 4,
+    height: 'auto',
   } satisfies CSSProperties,
   emptyMessage: {
     color: '#9ca3af',
+    height: 'auto',
     padding: '8px 0',
   } satisfies CSSProperties,
 };

@@ -335,6 +335,13 @@ const makeFirestore = (
         )
       );
     },
+
+    // The mock has no concurrency or staging semantics, so transactions and
+    // batches simply run the effect: reads and writes hit the store directly,
+    // with no retries, rollback, or staged commits.
+    withTransaction: (self) => self,
+
+    withBatch: (self) => self,
   };
 };
 
