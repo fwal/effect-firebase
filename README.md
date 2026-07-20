@@ -18,6 +18,11 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 | [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
 | [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
 
+## Guides
+
+- [React patterns](./REACT.md) — atoms, live queries, mutations, forms, and testing from React
+- [Migration guide](./MIGRATION.md) — upgrading from earlier versions
+
 ## Installation
 
 ```bash

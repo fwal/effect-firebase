@@ -6,7 +6,7 @@ It documents reference code in [`example/app`](./example/app) — copy what fits
 adapt the rest.
 
 The patterns are built on
-[`@effect/atom-react`](https://github.com/Effect-TS/effect-smol/tree/main/packages/atom/react)
+[`@effect/atom-react`](https://www.npmjs.com/package/@effect/atom-react)
 (official Effect-TS React binding) and `effect`'s built-in
 `unstable/reactivity/Atom` module. Both are part of Effect v4 and ship in
 lockstep — the `react` binding peer-depends on the exact Effect beta it was
@@ -39,11 +39,21 @@ The runtime is composed from two atoms:
 ```ts
 // example/app/src/lib/atoms.ts
 import { Atom } from 'effect/unstable/reactivity';
-import { Layer } from 'effect';
-import type { FirestoreService } from 'effect-firebase';
+import { Effect, Layer } from 'effect';
+import { FirestoreService } from 'effect-firebase';
 
-export const firestoreLayerAtom = Atom.make<Layer.Layer<FirestoreService>>(
-  Layer.empty as unknown as Layer.Layer<FirestoreService>,
+// Atom.keepAlive is required: the registry garbage-collects non-keepAlive
+// atoms with no subscribers, so the seeded layer would be dropped moments
+// after mount whenever the first route reads no atoms.
+export const firestoreLayerAtom = Atom.keepAlive(
+  Atom.make<Layer.Layer<FirestoreService>>(
+    // The default dies with an actionable message on first use, so a
+    // forgotten seed fails loudly instead of being silenced by a cast.
+    Layer.effect(
+      FirestoreService,
+      Effect.die('firestoreLayerAtom must be seeded via RegistryProvider initialValues'),
+    ),
+  ),
 );
 
 export const clientRuntime = Atom.runtime((get) => get(firestoreLayerAtom));
@@ -77,9 +87,14 @@ export function App({ children }) {
 }
 ```
 
-Wrap the layer in `useMemo` — the registry rebuilds the runtime whenever the
-layer identity changes, so a fresh layer per render would tear down every
-stream subscription on every render.
+Wrap the layer in `useMemo` so Firebase initialization doesn't re-run on
+every render. Note that `RegistryProvider` reads `initialValues` only when
+the registry is first created — changing the array (or the layer's identity)
+on a later render is silently ignored. To swap the layer at runtime, set the
+atom's value in the registry instead — `registry.set(firestoreLayerAtom, newLayer)`
+or the setter from `useAtomSet(firestoreLayerAtom)`. The runtime atom rebuilds
+(tearing down every subscription) whenever the layer atom's **value** changes
+in the registry.
 
 ## 2. Repository atoms
 
@@ -93,16 +108,23 @@ import { Effect, Stream } from 'effect';
 import { Atom } from 'effect/unstable/reactivity';
 import { PostId, PostRepository, PostModel } from '@example/shared';
 
-// One-shot by id — keyed atom, one Effect per id
+// One-shot by id — keyed atom, one Effect per id. `withReactivity` re-runs
+// the read whenever a mutation declaring the same reactivity key completes.
 export const postByIdAtom = Atom.family((id: typeof PostId.Type) =>
-  clientRuntime.atom(Effect.flatMap(PostRepository, (r) => r.getById(id))),
+  clientRuntime
+    .atom(Effect.flatMap(PostRepository, (r) => r.getById(id)))
+    .pipe(Atom.withReactivity(['posts'])),
 );
 
-// Live by id — keyed atom, one Stream per id
+// Live by id — keyed atom, one Stream per id. The idle TTL keeps a per-id
+// listener alive briefly after its last subscriber unmounts (cheap
+// back-navigation) without leaking one listener per visited post.
 export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
-  clientRuntime.atom(
-    Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))),
-  ),
+  clientRuntime
+    .atom(
+      Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))),
+    )
+    .pipe(Atom.setIdleTTL('30 seconds')),
 );
 
 // Live list — single shared atom (no family)
@@ -116,6 +138,7 @@ export const addPostAtom = clientRuntime.fn(
     const r = yield* PostRepository;
     return yield* r.add(data);
   }),
+  { concurrent: true, reactivityKeys: ['posts'] },
 );
 
 export const deletePostAtom = clientRuntime.fn(
@@ -123,6 +146,7 @@ export const deletePostAtom = clientRuntime.fn(
     const r = yield* PostRepository;
     yield* r.delete(id);
   }),
+  { concurrent: true, reactivityKeys: ['posts'] },
 );
 ```
 
@@ -136,6 +160,15 @@ Notes:
   overloaded; both produce an `Atom<AsyncResult<A, E>>`.
 - `clientRuntime.fn(effectFn)` produces a writable atom whose value is the
   `AsyncResult` of the last invocation, and whose setter runs the function.
+- **Invalidation:** live (stream) atoms need none — the Firestore snapshot
+  pushes updates. One-shot reads pair `Atom.withReactivity(keys)` on the read
+  side with `reactivityKeys` on mutations: a completed mutation re-runs every
+  read that shares a key.
+- **Concurrency:** without `concurrent: true`, a second invocation of an fn
+  atom *interrupts* the in-flight previous one (latest-wins) and all pending
+  promise-mode awaiters resolve with the last invocation's result. That
+  default suits search-as-you-type reads; for mutations it can silently drop
+  a write, so pass `concurrent: true`.
 
 ## 3. Reading data
 
@@ -156,19 +189,22 @@ function PostList() {
         ? <Empty />
         : <>{posts.map((p) => <PostCard key={p.id} post={p} />)}</>,
     )
-    .render();
+    .exhaustive();
 }
 ```
 
 `AsyncResult<A, E>` is `Initial | Success(value) | Failure(cause: Cause<E>)`.
-The `AsyncResult.builder` helper enforces exhaustive case handling at the type
-level; alternatives like `AsyncResult.match` and a plain `_tag` switch are
-also available.
+The `AsyncResult.builder` helper tracks handled cases at the type level:
+`.exhaustive()` only becomes available once every case is handled, while
+`.render()` is lenient — it compiles with handlers missing, renders `null`
+for an unhandled initial/success and **rethrows** an unhandled failure at
+runtime. Prefer `.exhaustive()`. Alternatives like `AsyncResult.match` and a
+plain `_tag` switch are also available.
 
 For keyed reads, call the family:
 
 ```tsx
-function PostView({ id }: { id: PostId }) {
+function PostView({ id }: { id: typeof PostId.Type }) {
   const result = useAtomValue(postByIdLiveAtom(id));
   // ...
 }
@@ -210,6 +246,7 @@ Schema validator directly. Wrap your schema with `Schema.toStandardSchemaV1`
 and pass it to `validators.onChange`:
 
 ```tsx
+import { useState } from 'react';
 import { Schema } from 'effect';
 import { useForm } from '@tanstack/react-form';
 import { useAtomSet } from '@effect/atom-react';
@@ -219,17 +256,29 @@ const PostFormSchema = Schema.Struct({
   content: Schema.NonEmptyString,
 });
 
+const postFormValidator = Schema.toStandardSchemaV1(PostFormSchema);
+
 function PostForm() {
   const create = useAtomSet(addPostAtom, { mode: 'promise' });
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm({
     defaultValues: { title: '', content: '' },
-    validators: { onChange: Schema.toStandardSchemaV1(PostFormSchema) },
+    validators: { onChange: postFormValidator },
     onSubmit: async ({ value }) => {
-      await create({ ...value, /* fill required fields */ });
-      form.reset();
+      setSubmitError(null);
+      try {
+        await create({ ...value, /* fill required fields */ });
+        form.reset();
+      } catch {
+        // form-core rethrows onSubmit errors out of handleSubmit, so an
+        // unhandled failure here becomes an unhandled promise rejection
+        // with no user-visible feedback.
+        setSubmitError('Failed to save post');
+      }
     },
   });
-  // render <form.Field> children with field.state.meta.errors[0]?.message
+  // render <form.Field> children with field.state.meta.errors[0]?.message,
+  // render submitError, and submit with `void form.handleSubmit()`
 }
 ```
 
@@ -291,7 +340,7 @@ function PostList() {
     .onInitial(/* ... */)
     .onFailure(/* ... */)
     .onSuccess(/* ... */)
-    .render();
+    .exhaustive();
 }
 ```
 
@@ -374,8 +423,6 @@ refcounting, and dedup across components is all your responsibility.
 
 ### Where it's a wash
 
-- **Devtools** for Query are great today; for atoms they're early-days.
-  This may matter a lot or a little depending on team habits.
 - **Mutation invalidation.** Query's `invalidateQueries` is more familiar;
   atoms use `Reactivity` keys + `withReactivity`. Different API, similar
   capability.
@@ -417,15 +464,20 @@ release notes.
 - **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
   `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump
   them together.
-- **Layer identity matters.** The runtime is rebuilt whenever the layer
-  identity changes in the registry. Always memoize the production layer.
+- **The layer atom's value drives the runtime.** The runtime is rebuilt —
+  tearing down every subscription — whenever the layer atom's value changes
+  in the registry (`registry.set` / `useAtomSet`). `initialValues` is read
+  only at registry creation, so it can't be used to swap the layer later.
 - **Atom families key by `Equal` equality.** Branded ids work out of the box;
   object keys need to be either `Equal`-implementing classes or pre-serialized
   to a stable string before passing to a family.
-- **Subscriptions are refcounted.** When the last subscriber to a Stream atom
-  unmounts, the stream is paused after an idle TTL (configurable on
-  `RegistryProvider`). On re-mount within the TTL, the cached value renders
-  immediately while a fresh stream spins up.
+- **Subscriptions are refcounted, and disposal is immediate by default.**
+  When the last subscriber of an atom unmounts, the registry disposes the
+  atom — and its stream — right away. To keep an atom warm across remounts,
+  opt in per atom with `Atom.setIdleTTL('30 seconds')` or `Atom.keepAlive`,
+  or set a registry-wide `defaultIdleTTL` on `RegistryProvider`. During a TTL
+  window the subscription stays live (not paused), and a remount reattaches
+  to it; after the TTL nothing is cached.
 - **`unstable/reactivity` is unstable.** The Atom module lives in Effect's
   `unstable/` namespace until v4 stable. Treat API churn between betas as
   possible — pin tightly and update intentionally.
