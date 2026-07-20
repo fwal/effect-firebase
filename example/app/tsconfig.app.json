@@ -29,6 +29,9 @@
       "path": "../../packages/effect-firebase/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/mock/tsconfig.lib.json"
+    },
+    {
       "path": "../shared/tsconfig.lib.json"
     },
     {
