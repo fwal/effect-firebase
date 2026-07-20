@@ -37,5 +37,10 @@ export const MockFirestoreService = (
     streamQuery: () => {
       throw new Error('MockFirestoreService.streamQuery not implemented.');
     },
+    // The mock has no concurrency or staging semantics, so transactions and
+    // batches simply run the effect: reads and writes hit the overridden
+    // methods directly.
+    withTransaction: (self) => self,
+    withBatch: (self) => self,
     ...overrides,
   });

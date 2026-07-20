@@ -99,6 +99,30 @@ const program = Effect.gen(function* () {
 );
 ```
 
+### Transactions and batches
+
+```typescript
+import { Effect } from 'effect';
+import { Firestore } from 'effect-firebase';
+
+// Atomic read-modify-write across repositories
+Firestore.withTransaction(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    const post = yield* repo.getById(postId);
+    yield* repo.update(postId, { status: 'published' });
+  })
+);
+
+// Stage many writes and commit them atomically
+Firestore.withBatch(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+  })
+);
+```
+
 ### Cloud Function
 
 ```typescript
