@@ -1,6 +1,6 @@
 {
   "name": "effect-firebase",
-  "version": "0.11.0",
+  "version": "1.0.0-beta.3",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -29,10 +29,10 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "effect": "^4.0.0-beta.70"
+    "effect": "catalog:"
   },
   "peerDependencies": {
-    "effect": "^4.0.0-beta.70"
+    "effect": "catalog:"
   },
   "publishConfig": {
     "access": "public",

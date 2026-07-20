@@ -48,8 +48,23 @@ jobs:
       - name: Build packages
         run: pnpm build
 
+      - name: Determine npm dist-tag
+        id: dist_tag
+        shell: bash
+        run: |
+          # For prerelease tags like v1.0.0-beta.1, publish under the
+          # prerelease identifier (e.g. "beta"). Stable releases use "latest".
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            prerelease="${GITHUB_REF_NAME#*-}"
+            tag="${prerelease%%.*}"
+          else
+            tag="latest"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Publishing with dist-tag: ${tag}"
+
       - name: Publish packages
-        run: pnpm nx release publish
+        run: pnpm nx release publish --tag=${{ steps.dist_tag.outputs.tag }}
         shell: bash
         env:
           NPM_CONFIG_PROVENANCE: true

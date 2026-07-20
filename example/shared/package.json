@@ -20,7 +20,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "effect": "^4.0.0-beta.70",
+    "effect": "catalog:",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {

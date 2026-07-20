@@ -4,9 +4,13 @@ export * from './fields/array.js';
 
 // Firestore-specific model field type helpers
 export * from './model/datetime.js';
+export * from './model/geopoint.js';
 export * from './model/reference.js';
 export * from './model/optional.js';
 export * from './model/array.js';
 
 // Repository factory
 export { makeRepository } from './model/repository.js';
+
+// Transaction and batch helpers
+export { withTransaction, withBatch } from './transaction.js';

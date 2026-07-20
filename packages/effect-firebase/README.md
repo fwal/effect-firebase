@@ -34,16 +34,17 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
 
 Built-in field helpers:
 
-| Helper                                      | Behaviour                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------- |
-| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`.          |
-| `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.                   |
-| `Model.DateTimeUpdate`                      | Server timestamp on every write.                                      |
-| `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.                  |
-| `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.               |
-| `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.             |
-| `Model.Array(schema)`                       | Array field.                                                          |
-| `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                                     |
+| Helper                                      | Behaviour                                                    |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`. |
+| `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.          |
+| `Model.DateTimeUpdate`                      | Server timestamp on every write.                             |
+| `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.         |
+| `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.      |
+| `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.    |
+| `Model.Array(schema)`                       | Array field.                                                 |
+| `Model.GeoPoint`                            | Geographic point with latitude and longitude.                |
+| `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                            |
 
 ## Repository
 
@@ -103,6 +104,42 @@ Query.or(
 ```
 
 Fields and operators are validated at compile time against the model.
+
+## Transactions and batches
+
+`Firestore.withTransaction` runs an effect inside a Firestore transaction. Every read and write performed by the effect — including through repositories — is routed through the transaction and committed atomically:
+
+```typescript
+import { Effect } from 'effect';
+import { Firestore } from 'effect-firebase';
+
+Firestore.withTransaction(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    const post = yield* repo.getById(postId); // transactional read
+    // ... all reads must happen before the first write
+    yield* repo.update(postId, { likes: likes + 1 }); // transactional write
+  })
+);
+```
+
+- The SDK retries the transaction on contention, so the effect may run more than once.
+- Firestore requires all transactional reads to happen before the first write.
+- Nested `withTransaction` calls join the ambient transaction.
+- `streamDoc`, `streamQuery`, and `deleteRecursive` cannot be used inside a transaction; the client SDK additionally disallows `query`.
+
+`Firestore.withBatch` stages writes on a write batch and commits them atomically when the effect succeeds. When the effect fails, nothing is committed:
+
+```typescript
+Firestore.withBatch(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+  })
+);
+```
+
+Batches are write-only: reads inside the effect execute immediately against the database and do not see the staged writes. A batch supports at most 500 writes.
 
 ## Schemas
 

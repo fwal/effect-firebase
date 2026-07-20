@@ -2,11 +2,12 @@
 
 Firebase integration for [Effect](https://effect.website). Provides schemas, models, repositories, and Cloud Functions helpers built on Effect's type system.
 
-[![npm version](https://img.shields.io/npm/v/effect-firebase.svg)](https://www.npmjs.com/package/effect-firebase)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://badgen.net/npm/v/effect-firebase/beta)](https://www.npmjs.com/package/effect-firebase)
+[![Effect: v4](https://badgen.net/static/effect/v4/orange?icon=effect)](https://effect.website)
+[![License: MIT](https://badgen.net/github/license/fwal/effect-firebase)](https://opensource.org/licenses/MIT)
 
 > [!WARNING]
-> Under heavy development. APIs may change.
+> Main contains the beta for 1.0, currently in active development.
 
 ## Packages
 
@@ -95,6 +96,30 @@ const program = Effect.gen(function* () {
   Effect.provide(
     Client.layer({ app: initializeApp({ projectId: 'my-project' }) })
   )
+);
+```
+
+### Transactions and batches
+
+```typescript
+import { Effect } from 'effect';
+import { Firestore } from 'effect-firebase';
+
+// Atomic read-modify-write across repositories
+Firestore.withTransaction(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    const post = yield* repo.getById(postId);
+    yield* repo.update(postId, { status: 'published' });
+  })
+);
+
+// Stage many writes and commit them atomically
+Firestore.withBatch(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+  })
 );
 ```
 
