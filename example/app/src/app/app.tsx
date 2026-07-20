@@ -29,13 +29,10 @@ export function App({ children }: AppProps) {
     return Client.layer({ firestore });
   }, []);
 
-  const initialValues = useMemo(
-    () => [[firestoreLayerAtom, layer] as const] as const,
-    [layer],
-  );
-
+  // RegistryProvider reads initialValues only when the registry is first
+  // created, so the array doesn't need a stable identity.
   return (
-    <RegistryProvider initialValues={initialValues}>
+    <RegistryProvider initialValues={[[firestoreLayerAtom, layer] as const]}>
       <div className="flex min-h-screen bg-gray-50">
         <SideMenu>
           <MenuItem icon="🏠" label="Home" to="/" />
