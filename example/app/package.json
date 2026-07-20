@@ -9,8 +9,10 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
+    "@effect-firebase/client": "workspace:*",
     "@effect/atom-react": "catalog:",
     "@effect/platform-browser": "catalog:",
+    "@example/shared": "workspace:*",
     "@nx/react": "22.4.5",
     "@nx/vite": "22.5.4",
     "@tanstack/react-form": "^1.32.0",
@@ -25,17 +27,10 @@
     "firebase": "catalog:",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwind-merge": "^3.4.0",
-    "vite": "7.1.8"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@effect-firebase/client": "workspace:*",
     "@effect-firebase/mock": "workspace:*",
-    "@example/shared": "workspace:*",
     "vite": "7.1.8"
-  },
-  "peerDependencies": {
-    "@effect-firebase/client": "workspace:*",
-    "@example/shared": "workspace:*"
   }
 }
