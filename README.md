@@ -18,6 +18,11 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 | [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
 | [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
 
+## Guides
+
+- [React patterns](./REACT.md) — atoms, live queries, mutations, forms, and testing from React
+- [Migration guide](./MIGRATION.md) — upgrading from earlier versions
+
 ## Installation
 
 ```bash
@@ -96,6 +101,30 @@ const program = Effect.gen(function* () {
   Effect.provide(
     Client.layer({ app: initializeApp({ projectId: 'my-project' }) })
   )
+);
+```
+
+### Transactions and batches
+
+```typescript
+import { Effect } from 'effect';
+import { Firestore } from 'effect-firebase';
+
+// Atomic read-modify-write across repositories
+Firestore.withTransaction(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    const post = yield* repo.getById(postId);
+    yield* repo.update(postId, { status: 'published' });
+  })
+);
+
+// Stage many writes and commit them atomically
+Firestore.withBatch(
+  Effect.gen(function* () {
+    const repo = yield* PostRepository;
+    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+  })
 );
 ```
 

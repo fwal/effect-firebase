@@ -115,6 +115,65 @@ type FirestoreStreaming = {
   ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
 };
 
+type FirestoreTransactions = {
+  /**
+   * Run an effect inside a Firestore transaction.
+   *
+   * Every {@link FirestoreService} read and write performed by the effect —
+   * including reads and writes made through repositories — is routed through
+   * the transaction. The transaction commits when the effect succeeds and
+   * rolls back when it fails.
+   *
+   * Semantics and caveats:
+   * - The SDK may retry the transaction on contention, re-running the effect.
+   *   The effect must therefore be safe to run more than once; non-Firestore
+   *   side effects inside it (logging, HTTP calls, ...) can execute multiple
+   *   times.
+   * - Firestore requires all transactional reads to happen before the first
+   *   write. Violations surface as a {@link FirestoreError} at runtime.
+   * - Nested `withTransaction` calls join the ambient transaction instead of
+   *   starting a new one.
+   * - `streamDoc`, `streamQuery`, and `deleteRecursive` cannot participate in
+   *   a transaction and cause a defect (`Effect.die`) when used inside one.
+   * - With the client SDK, `query` is not supported inside a transaction
+   *   (only document reads are) and causes a defect.
+   * - Forked fibers must not outlive the transaction; all transactional work
+   *   has to complete before the effect finishes.
+   *
+   * @param self - The effect to run inside the transaction.
+   * @returns The result of the effect after the transaction has committed.
+   */
+  readonly withTransaction: <A, E, R>(
+    self: Effect.Effect<A, E, R>
+  ) => Effect.Effect<A, E | FirestoreError | UnknownError, R>;
+
+  /**
+   * Run an effect inside a Firestore write batch.
+   *
+   * Every {@link FirestoreService} write performed by the effect — including
+   * writes made through repositories — is staged on the batch and committed
+   * atomically when the effect succeeds. When the effect fails, nothing is
+   * committed.
+   *
+   * Semantics and caveats:
+   * - Batches are write-only. Reads (`get`, `query`, streams) inside the
+   *   effect execute immediately against the database and do not observe the
+   *   staged writes.
+   * - A batch supports at most 500 write operations.
+   * - Nested `withBatch` calls join the ambient batch. Inside an ambient
+   *   transaction, `withBatch` is a no-op wrapper: writes are already atomic
+   *   through the transaction.
+   * - `deleteRecursive` cannot participate in a batch and causes a defect
+   *   (`Effect.die`) when used inside one.
+   *
+   * @param self - The effect to run inside the batch.
+   * @returns The result of the effect after the batch has committed.
+   */
+  readonly withBatch: <A, E, R>(
+    self: Effect.Effect<A, E, R>
+  ) => Effect.Effect<A, E | FirestoreError | UnknownError, R>;
+};
+
 export interface FirestoreDataOptions {
   /**
    * Controls how intermediate server timestamps are handled on the client when writing data.
@@ -128,7 +187,8 @@ export interface FirestoreDataOptions {
 
 export type FirestoreServiceShape = FirestoreCRUD &
   FirestoreQuery &
-  FirestoreStreaming;
+  FirestoreStreaming &
+  FirestoreTransactions;
 
 export class FirestoreService extends Context.Service<
   FirestoreService,

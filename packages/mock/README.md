@@ -164,7 +164,7 @@ await Effect.runPromise(
 - Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in`/`!=` null semantics are simplified)
 - Simulated states are keyed per collection path (or the `'*'` wildcard), not per query
 - No security rules evaluation
-- No transaction support
+- `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
 - No multi-client synchronization
 
 For tests that need full Firestore semantics, use the [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite).

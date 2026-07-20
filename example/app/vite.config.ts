@@ -36,5 +36,13 @@ export default defineConfig(() => ({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-  }
+  },
+  test: {
+    name: '@example/app',
+    watch: false,
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    reporters: ['default'],
+  },
 }));
