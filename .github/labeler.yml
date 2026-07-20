@@ -1,0 +1,30 @@
+🎉 feature:
+  - head-branch:
+      - '^feature'
+      - 'feature'
+      - '^feat'
+      - 'feat'
+🐛 fix:
+  - head-branch:
+      - '^fix'
+      - 'fix'
+📦 admin:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/admin/**'
+📦 client:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/client/**'
+📦 core:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/effect-firebase/**'
+📦 mock:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/mock/**'
+📖 docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'example/**'
+          - '**/*.md'
+🛠️ config:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
