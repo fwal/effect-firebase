@@ -32,6 +32,9 @@
       "path": "../../packages/mock/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/devtools/tsconfig.lib.json"
+    },
+    {
       "path": "../shared/tsconfig.lib.json"
     },
     {

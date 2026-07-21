@@ -2,13 +2,13 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/packages/mock',
+  cacheDir: '../../node_modules/.vite/packages/devtools',
   plugins: [],
   test: {
-    name: '@effect-firebase/mock',
+    name: '@effect-firebase/devtools',
     watch: false,
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {

@@ -1,0 +1,46 @@
+{
+  "name": "@effect-firebase/devtools",
+  "version": "1.0.0-beta.3",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fwal/effect-firebase",
+    "directory": "packages/devtools"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@effect-firebase/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "nx": {},
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@effect-firebase/mock": "workspace:*",
+    "effect": "catalog:",
+    "effect-firebase": "workspace:*",
+    "react": "19.2.4"
+  },
+  "peerDependencies": {
+    "@effect-firebase/mock": "workspace:*",
+    "effect": "catalog:",
+    "react": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
