@@ -12,7 +12,7 @@ export type Runtime<R> =
  */
 export async function run<A, R>(
   runtime: Runtime<R>,
-  effect: Effect.Effect<A, never, R>
+  effect: Effect.Effect<A, never, R>,
 ): Promise<A> {
   const runner = typeof runtime === 'function' ? runtime() : runtime;
   return await runner.runPromise(effect);
@@ -24,7 +24,7 @@ export async function run<A, R>(
  * @returns True if the value is a runtime, false otherwise.
  */
 export function isRuntime<R>(
-  value: unknown
+  value: unknown,
 ): value is ManagedRuntime.ManagedRuntime<R, never> {
   return (
     typeof value === 'object' &&

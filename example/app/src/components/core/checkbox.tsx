@@ -33,7 +33,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           id={inputId}
           className={cn(
             'h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500',
-            className
+            className,
           )}
           {...props}
         />
@@ -47,7 +47,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 Checkbox.displayName = 'Checkbox';

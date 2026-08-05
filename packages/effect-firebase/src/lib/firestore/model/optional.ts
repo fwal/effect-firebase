@@ -24,20 +24,20 @@ export type OptionalNull<S extends Schema.Top> = VariantSchema.Field<{
  * For the JSON variants, it will also accept missing keys.
  */
 export const OptionalNull: <
-  Field extends VariantSchema.Field<any> | Schema.Top
+  Field extends VariantSchema.Field<any> | Schema.Top,
 >(
-  self: Field
+  self: Field,
 ) => Field extends Schema.Top
   ? OptionalNull<Field>
   : Field extends VariantSchema.Field<infer S>
-  ? VariantSchema.Field<{
-      readonly [K in keyof S]: S[K] extends Schema.Top
-        ? K extends Model.VariantsDatabase
-          ? Schema.OptionFromNullOr<S[K]>
-          : Schema.OptionFromOptionalNullOr<S[K]>
-        : never;
-    }>
-  : never = Model.fieldEvolve({
+    ? VariantSchema.Field<{
+        readonly [K in keyof S]: S[K] extends Schema.Top
+          ? K extends Model.VariantsDatabase
+            ? Schema.OptionFromNullOr<S[K]>
+            : Schema.OptionFromOptionalNullOr<S[K]>
+          : never;
+      }>
+    : never = Model.fieldEvolve({
   select: Schema.OptionFromNullOr,
   insert: Schema.OptionFromNullOr,
   update: Schema.OptionFromNullOr,
@@ -68,18 +68,18 @@ export type Optional<S extends Schema.Top> = VariantSchema.Field<{
  * For the JSON variants, it will also accept missing keys.
  */
 export const Optional: <Field extends VariantSchema.Field<any> | Schema.Top>(
-  self: Field
+  self: Field,
 ) => Field extends Schema.Top
   ? Optional<Field>
   : Field extends VariantSchema.Field<infer S>
-  ? VariantSchema.Field<{
-      readonly [K in keyof S]: S[K] extends Schema.Top
-        ? K extends Model.VariantsDatabase
-          ? Schema.OptionFromNullishOr<S[K]>
-          : Schema.OptionFromOptionalNullOr<S[K]>
-        : never;
-    }>
-  : never = Model.fieldEvolve({
+    ? VariantSchema.Field<{
+        readonly [K in keyof S]: S[K] extends Schema.Top
+          ? K extends Model.VariantsDatabase
+            ? Schema.OptionFromNullishOr<S[K]>
+            : Schema.OptionFromOptionalNullOr<S[K]>
+          : never;
+      }>
+    : never = Model.fieldEvolve({
   select: (s: Schema.Top) =>
     Schema.OptionFromNullishOr(s, { onNoneEncoding: null }),
   insert: (s: Schema.Top) =>
@@ -109,22 +109,22 @@ export type OptionalDeletable<S extends Schema.Top> = VariantSchema.Field<{
 }>;
 
 export const OptionalDeletable: <
-  Field extends VariantSchema.Field<any> | Schema.Top
+  Field extends VariantSchema.Field<any> | Schema.Top,
 >(
-  self: Field
+  self: Field,
 ) => Field extends Schema.Top
   ? OptionalDeletable<Field>
   : Field extends VariantSchema.Field<infer S>
-  ? VariantSchema.Field<{
-      readonly [K in keyof S]: S[K] extends Schema.Top
-        ? K extends Model.VariantsDatabase
-          ? Schema.OptionFromUndefinedOr<S[K]>
-          : Schema.OptionFromUndefinedOr<
-              Schema.Union<readonly [S[K], typeof DeleteInstance]>
-            >
-        : never;
-    }>
-  : never = Model.fieldEvolve({
+    ? VariantSchema.Field<{
+        readonly [K in keyof S]: S[K] extends Schema.Top
+          ? K extends Model.VariantsDatabase
+            ? Schema.OptionFromUndefinedOr<S[K]>
+            : Schema.OptionFromUndefinedOr<
+                Schema.Union<readonly [S[K], typeof DeleteInstance]>
+              >
+          : never;
+      }>
+    : never = Model.fieldEvolve({
   select: Schema.OptionFromOptional,
   insert: Schema.OptionFromOptional,
   update: (s: Schema.Top) =>

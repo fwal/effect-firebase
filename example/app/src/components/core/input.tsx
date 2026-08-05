@@ -34,11 +34,12 @@ const inputVariants = cva(
     defaultVariants: {
       state: 'default',
     },
-  }
+  },
 );
 
 export interface InputProps
-  extends InputHTMLAttributes<HTMLInputElement>,
+  extends
+    InputHTMLAttributes<HTMLInputElement>,
     VariantProps<typeof inputVariants> {
   error?: string;
 }
@@ -61,7 +62,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = 'Input';

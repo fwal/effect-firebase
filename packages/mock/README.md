@@ -27,7 +27,7 @@ await Effect.runPromise(
     });
     const post = yield* repo.getById(postId);
     expect(post.title).toBe('Test');
-  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore))
+  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore)),
 );
 ```
 
@@ -43,7 +43,7 @@ await Effect.runPromise(
     const posts = yield* PostRepository;
     const users = yield* UserRepository;
     // ...
-  }).pipe(Effect.provide(testLayer))
+  }).pipe(Effect.provide(testLayer)),
 );
 ```
 
@@ -57,8 +57,8 @@ await Effect.runPromise(
   }).pipe(
     Effect.provide(PostRepository),
     Effect.provide(mockFirestore),
-    Effect.catchTag('NoSuchElementError', () => Effect.succeed('not found'))
-  )
+    Effect.catchTag('NoSuchElementError', () => Effect.succeed('not found')),
+  ),
 );
 ```
 

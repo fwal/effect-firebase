@@ -45,7 +45,7 @@ describe('Repository', () => {
   describe('add', () => {
     it('calls firestore.add with the collection path and encoded data', async () => {
       const addMock = vi.fn(() =>
-        Effect.succeed({ id: 'new-id', path: 'posts/new-id' })
+        Effect.succeed({ id: 'new-id', path: 'posts/new-id' }),
       );
       const repo = await Effect.runPromise(makeRepo({ add: addMock }));
       const id = await Effect.runPromise(repo.add({ title: 'Hello' }));
@@ -58,11 +58,11 @@ describe('Repository', () => {
   describe('getById', () => {
     it('returns Some with the decoded model when the document exists', async () => {
       const getMock = vi.fn(() =>
-        Effect.succeed(Option.some(snap('post-1', { title: 'Hello' })))
+        Effect.succeed(Option.some(snap('post-1', { title: 'Hello' }))),
       );
       const repo = await Effect.runPromise(makeRepo({ get: getMock }));
       const result = await Effect.runPromise(
-        repo.getById(PostId.make('post-1'))
+        repo.getById(PostId.make('post-1')),
       );
 
       expect(getMock).toHaveBeenCalledWith('posts/post-1');
@@ -77,7 +77,7 @@ describe('Repository', () => {
       const getMock = vi.fn(() => Effect.succeed(Option.none()));
       const repo = await Effect.runPromise(makeRepo({ get: getMock }));
       const result = await Effect.runPromise(
-        repo.getById(PostId.make('post-1'))
+        repo.getById(PostId.make('post-1')),
       );
 
       expect(Option.isNone(result)).toBe(true);
@@ -89,7 +89,7 @@ describe('Repository', () => {
       const updateMock = vi.fn(() => Effect.succeed(undefined));
       const repo = await Effect.runPromise(makeRepo({ update: updateMock }));
       await Effect.runPromise(
-        repo.update(PostId.make('post-1'), { title: 'Updated' })
+        repo.update(PostId.make('post-1'), { title: 'Updated' }),
       );
 
       expect(updateMock).toHaveBeenCalledWith('posts/post-1', {
@@ -112,7 +112,7 @@ describe('Repository', () => {
     it('calls firestore.deleteRecursive with the correct path', async () => {
       const deleteRecursiveMock = vi.fn(() => Effect.succeed(undefined));
       const repo = await Effect.runPromise(
-        makeRepo({ deleteRecursive: deleteRecursiveMock })
+        makeRepo({ deleteRecursive: deleteRecursiveMock }),
       );
       await Effect.runPromise(repo.deleteRecursive(PostId.make('post-1')));
 
@@ -126,7 +126,7 @@ describe('Repository', () => {
         Effect.succeed([
           snap('post-1', { title: 'First' }),
           snap('post-2', { title: 'Second' }),
-        ])
+        ]),
       );
       const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
       const results = await Effect.runPromise(repo.query([]));
@@ -152,7 +152,7 @@ describe('Repository', () => {
         Effect.succeed([
           snap('post-1', { title: 'First' }),
           snap('post-2', { title: 'Second' }),
-        ])
+        ]),
       );
       const repo = await Effect.runPromise(makeRepo({ query: queryMock }));
       const result = await Effect.runPromise(repo.getByQuery([]));

@@ -75,7 +75,7 @@ export const AnyPathReference = Model.Field({
  */
 export const Reference = <Id extends StringBasedSchema>(
   idSchema: Id,
-  collectionPath: string
+  collectionPath: string,
 ) => {
   const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 
@@ -120,7 +120,7 @@ export const Reference = <Id extends StringBasedSchema>(
  */
 export const ReferenceAsInstance = <Id extends StringBasedSchema>(
   idSchema: Id,
-  collectionPath: string
+  collectionPath: string,
 ) => {
   type IdType = Schema.Schema.Type<Id>;
 
@@ -133,13 +133,13 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
     Schema.decodeTo(FirestoreSchema.ReferenceInstance, {
       decode: SchemaGetter.transform((id) =>
         FirestoreSchema.Reference.makeFromPath(
-          `${collectionPath}/${id as string}`
-        )
+          `${collectionPath}/${id as string}`,
+        ),
       ),
       encode: SchemaGetter.transform(
-        (ref) => (ref as FirestoreSchema.Reference).id as IdType
+        (ref) => (ref as FirestoreSchema.Reference).id as IdType,
       ),
-    })
+    }),
   );
 
   return Model.Field({
@@ -175,9 +175,9 @@ export const ReferencePath = (collectionPath: string) => {
       Schema.makeFilter(
         (path: string) =>
           path.startsWith(`${collectionPath}/`) ||
-          `Path must start with "${collectionPath}/"`
-      )
-    )
+          `Path must start with "${collectionPath}/"`,
+      ),
+    ),
   );
 
   return Model.Field({
@@ -204,7 +204,7 @@ export const ReferencePath = (collectionPath: string) => {
  */
 export const ReferenceOptional = <Id extends StringBasedSchema>(
   idSchema: Id,
-  collectionPath: string
+  collectionPath: string,
 ) => {
   const typedRefSchema = FirestoreSchema.ReferenceId(idSchema, collectionPath);
 

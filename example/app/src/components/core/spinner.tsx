@@ -32,7 +32,8 @@ const spinnerVariants = cva('animate-spin', {
 });
 
 export interface SpinnerProps
-  extends Omit<HTMLAttributes<HTMLOrSVGElement>, 'children'>,
+  extends
+    Omit<HTMLAttributes<HTMLOrSVGElement>, 'children'>,
     VariantProps<typeof spinnerVariants> {}
 
 export function Spinner({ className, size, ...props }: SpinnerProps) {

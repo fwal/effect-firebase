@@ -1,6 +1,6 @@
 import { cva } from 'class-variance-authority';
 import { AnchorHTMLAttributes, forwardRef } from 'react';
-import { createLink, type LinkComponent } from '@tanstack/react-router'
+import { createLink, type LinkComponent } from '@tanstack/react-router';
 import { cn } from '../../lib/utils';
 
 const menuItemVariants = cva(
@@ -15,12 +15,13 @@ const menuItemVariants = cva(
     defaultVariants: {
       isActive: false,
     },
-  }
+  },
 );
 
-
-interface MenuItemProps
-  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
+interface MenuItemProps extends Omit<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  'children'
+> {
   icon: string;
   label: string;
   isActive?: boolean;
@@ -42,7 +43,7 @@ const BasicMenuItem = forwardRef<HTMLAnchorElement, MenuItemProps>(
         </a>
       </li>
     );
-  }
+  },
 );
 
 BasicMenuItem.displayName = 'BasicMenuItem';

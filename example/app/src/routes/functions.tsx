@@ -29,7 +29,7 @@ function RouteComponent() {
           inputSchema={OnExampleCall.Input}
           onSendRequest={httpsCallable(
             getFunctions(getApp(), 'europe-north1'),
-            'onExampleCall'
+            'onExampleCall',
           )}
         />
       </div>

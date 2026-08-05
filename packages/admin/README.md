@@ -36,7 +36,7 @@ export const myFunction = onRequestEffect({ runtime }, (request, response) =>
   Effect.gen(function* () {
     const repo = yield* PostRepository;
     response.json({ posts: yield* repo.query() });
-  }).pipe(Effect.provide(PostRepository))
+  }).pipe(Effect.provide(PostRepository)),
 );
 ```
 
@@ -56,7 +56,7 @@ export const createPost = onCallEffect(
       const repo = yield* PostRepository;
       const postId = yield* repo.add({ ...request.data, status: 'draft' });
       return { postId };
-    }).pipe(Effect.provide(PostRepository))
+    }).pipe(Effect.provide(PostRepository)),
 );
 ```
 
@@ -74,7 +74,7 @@ import {
 
 export const onPostCreated = onDocumentCreatedEffect(
   { runtime, document: 'posts/{postId}', schema: PostModel, idField: 'id' },
-  (post) => Effect.log(`Created: ${post.id}`)
+  (post) => Effect.log(`Created: ${post.id}`),
 );
 ```
 
@@ -87,7 +87,7 @@ const MessageSchema = Schema.Struct({ userId: Schema.String });
 
 export const onMessage = onMessagePublishedEffect(
   { runtime, topic: 'my-topic', dataSchema: MessageSchema },
-  (message) => Effect.log(`Received for user: ${message.userId}`)
+  (message) => Effect.log(`Received for user: ${message.userId}`),
 );
 ```
 
@@ -100,7 +100,7 @@ const TaskSchema = Schema.Struct({ email: Schema.String });
 
 export const processEmail = onTaskDispatchedEffect(
   { runtime, retryConfig: { maxAttempts: 5 }, dataSchema: TaskSchema },
-  (task) => Effect.log(`Sending to: ${task.email}`)
+  (task) => Effect.log(`Sending to: ${task.email}`),
 );
 ```
 

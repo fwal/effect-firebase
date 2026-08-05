@@ -131,7 +131,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     },
     runTransaction: async <T>(
       _db: unknown,
-      fn: (tx: unknown) => Promise<T>
+      fn: (tx: unknown) => Promise<T>,
     ) => {
       h.state.runTransactionCalls += 1;
       return fn(h.tx);
@@ -152,7 +152,7 @@ const runExit = <A, E>(effect: Effect.Effect<A, E, FirestoreService>) =>
   Effect.runPromiseExit(effect.pipe(Effect.provide(layerFromFirestore(db))));
 
 const withService = <A, E>(
-  f: (service: FirestoreService['Service']) => Effect.Effect<A, E>
+  f: (service: FirestoreService['Service']) => Effect.Effect<A, E>,
 ) => Effect.flatMap(FirestoreService, f);
 
 beforeEach(() => {
@@ -170,9 +170,9 @@ describe('FirestoreService (client)', () => {
               yield* fs.set('posts/1', { title: 'a' });
               yield* fs.update('posts/2', { title: 'b' });
               yield* fs.delete('posts/3');
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(h.state.runTransactionCalls).toBe(1);
@@ -187,7 +187,9 @@ describe('FirestoreService (client)', () => {
 
     it('routes add through transaction.set with a pre-allocated ref', async () => {
       const result = await run(
-        withService((fs) => fs.withTransaction(fs.add('posts', { title: 'a' })))
+        withService((fs) =>
+          fs.withTransaction(fs.add('posts', { title: 'a' })),
+        ),
       );
 
       expect(result).toEqual({
@@ -206,9 +208,9 @@ describe('FirestoreService (client)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* new TestError({ reason: 'boom' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -229,9 +231,9 @@ describe('FirestoreService (client)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* fs.withTransaction(fs.set('posts/2', { title: 'b' }));
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(h.state.runTransactionCalls).toBe(1);
@@ -240,7 +242,7 @@ describe('FirestoreService (client)', () => {
 
     it('dies when querying inside a transaction', async () => {
       const exit = await runExit(
-        withService((fs) => fs.withTransaction(fs.query('posts', [])))
+        withService((fs) => fs.withTransaction(fs.query('posts', []))),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -260,9 +262,9 @@ describe('FirestoreService (client)', () => {
               yield* fs.update('posts/2', { title: 'b' });
               yield* fs.delete('posts/3');
               yield* fs.add('posts', { title: 'c' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(h.state.batchesCreated).toBe(1);
@@ -283,9 +285,9 @@ describe('FirestoreService (client)', () => {
             Effect.gen(function* () {
               yield* fs.get('posts/1');
               yield* fs.query('posts', []);
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(h.state.directOps.map((op) => op[0])).toEqual(['get', 'query']);
@@ -299,9 +301,9 @@ describe('FirestoreService (client)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* new TestError({ reason: 'boom' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -311,8 +313,8 @@ describe('FirestoreService (client)', () => {
     it('routes writes to the transaction when used inside withTransaction', async () => {
       await run(
         withService((fs) =>
-          fs.withTransaction(fs.withBatch(fs.set('posts/1', { title: 'a' })))
-        )
+          fs.withTransaction(fs.withBatch(fs.set('posts/1', { title: 'a' }))),
+        ),
       );
 
       expect(h.state.batchesCreated).toBe(0);
@@ -328,8 +330,8 @@ describe('FirestoreService (client)', () => {
             yield* fs.get('posts/1');
             yield* fs.set('posts/1', { title: 'a' });
             yield* fs.delete('posts/2');
-          })
-        )
+          }),
+        ),
       );
 
       expect(h.state.directOps.map((op) => op[0])).toEqual([

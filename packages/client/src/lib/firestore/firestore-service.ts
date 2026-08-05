@@ -45,7 +45,7 @@ const dataOptions = (options?: FirestoreDataOptions) => ({
  */
 const CurrentTransaction = Context.Reference<Option.Option<Transaction>>(
   '@effect-firebase/client/CurrentTransaction',
-  { defaultValue: () => Option.none() }
+  { defaultValue: () => Option.none() },
 );
 
 /**
@@ -54,7 +54,7 @@ const CurrentTransaction = Context.Reference<Option.Option<Transaction>>(
  */
 const CurrentBatch = Context.Reference<Option.Option<WriteBatch>>(
   '@effect-firebase/client/CurrentBatch',
-  { defaultValue: () => Option.none() }
+  { defaultValue: () => Option.none() },
 );
 
 /**
@@ -84,7 +84,7 @@ const make = (db: Firestore) => {
         return Option.some(tx.value as unknown as StagedWriter);
       }
       return yield* CurrentBatch;
-    }
+    },
   );
 
   const assertNoTransaction = (operation: string) =>
@@ -92,10 +92,10 @@ const make = (db: Firestore) => {
       Option.isSome(tx)
         ? Effect.die(
             new Error(
-              `FirestoreService.${operation} cannot be used inside withTransaction.`
-            )
+              `FirestoreService.${operation} cannot be used inside withTransaction.`,
+            ),
           )
-        : Effect.void
+        : Effect.void,
     );
 
   const packDocSnapshot = (
@@ -106,7 +106,7 @@ const make = (db: Firestore) => {
         readonly serverTimestamps?: 'estimate' | 'previous' | 'none';
       }) => Record<string, unknown> | undefined;
     },
-    options?: FirestoreDataOptions
+    options?: FirestoreDataOptions,
   ): Option.Option<Snapshot> => {
     const data = snapshot.data(dataOptions(options));
     if (!data) return Option.none();
@@ -133,26 +133,26 @@ const make = (db: Firestore) => {
                   Option.some([
                     { id: snapshot.id, path: snapshot.ref.path },
                     firestoreDecode(data),
-                  ] as const)
+                  ] as const),
                 );
               }
             },
             (error) => {
               Queue.failCauseUnsafe(
                 queue,
-                Cause.fail(FirestoreError.fromError(error))
+                Cause.fail(FirestoreError.fromError(error)),
               );
-            }
+            },
           );
         }),
-        (unsubscribe) => Effect.sync(() => unsubscribe())
-      )
+        (unsubscribe) => Effect.sync(() => unsubscribe()),
+      ),
     );
 
   const streamQuery = (
     collectionPath: string,
     constraints: Parameters<typeof buildQuery>[2],
-    options?: FirestoreDataOptions
+    options?: FirestoreDataOptions,
   ) =>
     Stream.callback<ReadonlyArray<Snapshot>, FirestoreError>((queue) =>
       Effect.acquireRelease(
@@ -174,13 +174,13 @@ const make = (db: Firestore) => {
             (error) => {
               Queue.failCauseUnsafe(
                 queue,
-                Cause.fail(FirestoreError.fromError(error))
+                Cause.fail(FirestoreError.fromError(error)),
               );
-            }
+            },
           );
         }),
-        (unsubscribe) => Effect.sync(() => unsubscribe())
-      )
+        (unsubscribe) => Effect.sync(() => unsubscribe()),
+      ),
     );
 
   return FirestoreService.of({
@@ -238,7 +238,7 @@ const make = (db: Firestore) => {
             try: () =>
               void writer.value.update(
                 doc(db, path),
-                converter.toFirestore(data)
+                converter.toFirestore(data),
               ),
             catch: (error) => FirestoreError.fromError(error),
           });
@@ -268,8 +268,8 @@ const make = (db: Firestore) => {
     deleteRecursive: (_path) =>
       Effect.die(
         new Error(
-          'deleteRecursive is not supported on the client SDK. Use the Admin SDK layer instead.'
-        )
+          'deleteRecursive is not supported on the client SDK. Use the Admin SDK layer instead.',
+        ),
       ),
     query: (collectionPath, constraints) =>
       // The client SDK only supports document reads inside transactions.
@@ -289,20 +289,20 @@ const make = (db: Firestore) => {
               });
             },
             catch: (error) => FirestoreError.fromError(error),
-          })
-        )
+          }),
+        ),
       ),
     streamDoc: (path, options) =>
       Stream.unwrap(
         assertNoTransaction('streamDoc').pipe(
-          Effect.map(() => streamDoc(path, options))
-        )
+          Effect.map(() => streamDoc(path, options)),
+        ),
       ),
     streamQuery: (collectionPath, constraints, options) =>
       Stream.unwrap(
         assertNoTransaction('streamQuery').pipe(
-          Effect.map(() => streamQuery(collectionPath, constraints, options))
-        )
+          Effect.map(() => streamQuery(collectionPath, constraints, options)),
+        ),
       ),
     withTransaction: <A, E, R>(self: Effect.Effect<A, E, R>) =>
       Effect.gen(function* () {
@@ -318,16 +318,16 @@ const make = (db: Firestore) => {
               Effect.runPromiseExit(
                 self.pipe(
                   Effect.provideService(CurrentTransaction, Option.some(tx)),
-                  Effect.provideContext(context)
+                  Effect.provideContext(context),
                 ),
-                { signal }
+                { signal },
               ).then((exit) => {
                 if (Exit.isFailure(exit)) {
                   // Reject so Firestore rolls the transaction back.
                   throw new EffectFailure(exit);
                 }
                 return exit;
-              })
+              }),
             ),
           catch: (error) =>
             error instanceof EffectFailure
@@ -337,8 +337,8 @@ const make = (db: Firestore) => {
           Effect.catch((error) =>
             error instanceof EffectFailure
               ? Effect.succeed(error.exit as Exit.Exit<A, E>)
-              : Effect.fail(error)
-          )
+              : Effect.fail(error),
+          ),
         );
         return yield* exit;
       }),
@@ -353,7 +353,7 @@ const make = (db: Firestore) => {
         }
         const batch = writeBatch(db);
         const result = yield* self.pipe(
-          Effect.provideService(CurrentBatch, Option.some(batch))
+          Effect.provideService(CurrentBatch, Option.some(batch)),
         );
         yield* Effect.tryPromise({
           try: () => batch.commit(),
@@ -372,15 +372,15 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const app = yield* App;
     return make(getFirestore(app.getApp()));
-  })
+  }),
 );
 
 export const layerFromFirestore = (
-  db: Firestore
+  db: Firestore,
 ): Layer.Layer<FirestoreService, never, never> =>
   Layer.succeed(FirestoreService, make(db));
 
 export const layerFromApp = (
-  app: FirebaseApp
+  app: FirebaseApp,
 ): Layer.Layer<FirestoreService, never, never> =>
   Layer.provide(layer, appLayer(app));

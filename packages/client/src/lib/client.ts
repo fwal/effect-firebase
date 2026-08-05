@@ -32,7 +32,7 @@ const resolveApp = (app?: FirebaseApp): FirebaseApp => {
   } catch (error) {
     throw new Error(
       'Client.layer: no Firebase app available. Pass { app } or initialize a default app before calling Client.layer().',
-      { cause: error }
+      { cause: error },
     );
   }
 };
@@ -65,13 +65,13 @@ const resolveApp = (app?: FirebaseApp): FirebaseApp => {
  */
 export function layer(options: LayerOptions & { app: FirebaseApp }): ReadyLayer;
 export function layer(
-  options: LayerOptions & { firestore: Firestore }
+  options: LayerOptions & { firestore: Firestore },
 ): ReadyLayer;
 export function layer(options?: LayerOptions): ReadyLayer;
 export function layer(options: LayerOptions = {}): ReadyLayer {
   if (options.app && options.firestore) {
     throw new Error(
-      'Client.layer: pass either { app } or { firestore }, not both.'
+      'Client.layer: pass either { app } or { firestore }, not both.',
     );
   }
 

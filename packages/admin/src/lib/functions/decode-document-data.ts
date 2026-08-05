@@ -15,7 +15,7 @@ export const decodeDocumentData = <S extends Schema.Top>(
   rawData: Record<string, unknown> | undefined,
   docId: string | undefined,
   schema: S,
-  idField?: string
+  idField?: string,
 ): Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']> => {
   const convertedData = firestoreDecode(rawData ?? {});
   const dataWithId = idField
@@ -23,6 +23,6 @@ export const decodeDocumentData = <S extends Schema.Top>(
     : convertedData;
   return Schema.decodeUnknownEffect(schema)(dataWithId).pipe(
     Effect.orDie,
-    Effect.withSpan('decodeDocumentData')
+    Effect.withSpan('decodeDocumentData'),
   ) as Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']>;
 };

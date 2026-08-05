@@ -23,7 +23,7 @@ describe('Model.DateTime', () => {
 
       expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
       expect(EffectDateTime.toEpochMillis(result.createdAt)).toBe(
-        1705315800123
+        1705315800123,
       );
     });
 
@@ -33,7 +33,7 @@ describe('Model.DateTime', () => {
         new TestModel({
           id: 'post-1' as typeof PostId.Type,
           createdAt: EffectDateTime.makeUnsafe(1705315800123),
-        })
+        }),
       );
 
       expect(result.createdAt).toEqual({

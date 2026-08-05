@@ -41,7 +41,7 @@ export const extractContext = (request: CallableRequest): CallableContext => ({
 export const decodeInput =
   <I extends Schema.Top>(schema: I) =>
   (
-    request: CallableRequest
+    request: CallableRequest,
   ): Effect.Effect<
     Schema.Schema.Type<I>,
     Schema.SchemaError,
@@ -68,7 +68,7 @@ export const decodeInput =
 export const encodeOutput =
   <O extends Schema.Top>(schema: O) =>
   (
-    output: Schema.Schema.Type<O>
+    output: Schema.Schema.Type<O>,
   ): Effect.Effect<
     Schema.Codec.Encoded<O>,
     Schema.SchemaError,
@@ -103,16 +103,16 @@ export const encodeOutput =
 export const withSchemas =
   <I extends Schema.Top, O extends Schema.Top>(
     inputSchema: I,
-    outputSchema: O
+    outputSchema: O,
   ) =>
   <R, E>(
     handler: (
       input: Schema.Schema.Type<I>,
-      context: CallableContext
-    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+      context: CallableContext,
+    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
   ) =>
   (
-    request: CallableRequest
+    request: CallableRequest,
   ): Effect.Effect<
     Schema.Codec.Encoded<O>,
     E | Schema.SchemaError,
@@ -121,7 +121,7 @@ export const withSchemas =
     pipe(
       decodeInput(inputSchema)(request),
       Effect.andThen((input) => handler(input, extractContext(request))),
-      Effect.andThen(encodeOutput(outputSchema))
+      Effect.andThen(encodeOutput(outputSchema)),
     );
 
 /**
@@ -144,15 +144,15 @@ export const withInputSchema =
   <R, E, T>(
     handler: (
       input: Schema.Schema.Type<I>,
-      context: CallableContext
-    ) => Effect.Effect<T, E, R>
+      context: CallableContext,
+    ) => Effect.Effect<T, E, R>,
   ) =>
   (
-    request: CallableRequest
+    request: CallableRequest,
   ): Effect.Effect<T, E | Schema.SchemaError, R | I['DecodingServices']> =>
     pipe(
       decodeInput(inputSchema)(request),
-      Effect.andThen((input) => handler(input, extractContext(request)))
+      Effect.andThen((input) => handler(input, extractContext(request))),
     );
 
 /**
@@ -173,11 +173,11 @@ export const withOutputSchema =
   <O extends Schema.Top>(outputSchema: O) =>
   <R, E>(
     handler: (
-      request: CallableRequest
-    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+      request: CallableRequest,
+    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
   ) =>
   (
-    request: CallableRequest
+    request: CallableRequest,
   ): Effect.Effect<
     Schema.Codec.Encoded<O>,
     E | Schema.SchemaError,

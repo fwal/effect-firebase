@@ -26,7 +26,7 @@ describe('WithArrayFields', () => {
 
     it('should encode an array', () => {
       const result = Schema.encodeSync(TestModel)(
-        TestModel.make({ name: 'Post', tags: ['a', 'b'] })
+        TestModel.make({ name: 'Post', tags: ['a', 'b'] }),
       );
       expect(result.tags).toEqual(['a', 'b']);
     });
@@ -92,7 +92,7 @@ describe('WithArrayFields', () => {
         Schema.decodeUnknownSync(TestModel.json)({
           name: 'Post',
           tags: arrayUnion(['c']),
-        })
+        }),
       ).toThrow();
     });
   });

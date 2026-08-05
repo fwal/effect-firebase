@@ -86,7 +86,7 @@ describe('GeoPoint', () => {
 
       it('should fail decoding string coordinates', () => {
         expect(() =>
-          decode({ latitude: '37.7749', longitude: '-122.4194' })
+          decode({ latitude: '37.7749', longitude: '-122.4194' }),
         ).toThrow();
       });
     });

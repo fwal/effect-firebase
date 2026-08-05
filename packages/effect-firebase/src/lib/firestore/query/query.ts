@@ -72,7 +72,7 @@ export const empty = <S>(): Query<S> => [] as Query<S>;
 export const where = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
   field: K,
   op: WhereFilterOp,
-  value: FieldType<S, K>
+  value: FieldType<S, K>,
 ): Query<S> => [new Where({ field, op, value })] as Query<S>;
 
 /**
@@ -86,7 +86,7 @@ export const where = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
  */
 export const orderBy = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
   field: K,
-  direction: OrderByDirection = 'asc'
+  direction: OrderByDirection = 'asc',
 ): Query<S> => [new OrderBy({ field, direction })] as Query<S>;
 
 /**
@@ -176,7 +176,7 @@ export const and = <S>(...queries: ReadonlyArray<Query<S>>): Query<S> => {
   // If all constraints are simple (no nested And/Or), just return them flat
   // Otherwise wrap in And
   const hasComposite = constraints.some(
-    (c) => c._tag === 'And' || c._tag === 'Or'
+    (c) => c._tag === 'And' || c._tag === 'Or',
   );
   if (hasComposite) {
     return [new And({ constraints })] as Query<S>;
@@ -219,7 +219,7 @@ export const addWhere =
   <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
     field: K,
     op: WhereFilterOp,
-    value: FieldType<S, K>
+    value: FieldType<S, K>,
   ) =>
   (query: Query<S>): Query<S> =>
     [...query, new Where({ field, op, value })] as Query<S>;
@@ -238,7 +238,7 @@ export const addWhere =
 export const addOrderBy =
   <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
     field: K,
-    direction: OrderByDirection = 'asc'
+    direction: OrderByDirection = 'asc',
   ) =>
   (query: Query<S>): Query<S> =>
     [...query, new OrderBy({ field, direction })] as Query<S>;
@@ -307,5 +307,5 @@ export const addEndBefore =
  * Extract the raw constraints from a query.
  */
 export const toConstraints = <S>(
-  query: Query<S>
+  query: Query<S>,
 ): ReadonlyArray<QueryConstraint> => query;

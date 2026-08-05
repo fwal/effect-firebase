@@ -1,7 +1,7 @@
 import { Data } from 'effect';
 
 export class UnexpectedTypeError extends Data.TaggedError(
-  'UnexpectedTypeError'
+  'UnexpectedTypeError',
 )<{
   expected: 'Timestamp' | 'GeoPoint' | 'DocumentReference';
   actual: string;

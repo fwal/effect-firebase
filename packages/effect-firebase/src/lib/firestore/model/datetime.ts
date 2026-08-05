@@ -37,26 +37,25 @@ const ServerDateTimeSchema = Schema.Union([
         if (input instanceof FirestoreSchema.Timestamp) {
           return Effect.succeed(
             EffectDateTime.makeUnsafe(input.toMillis()) as
-              | EffectDateTime.Utc
-              | undefined
+              EffectDateTime.Utc | undefined,
           );
         }
         return Effect.fail(
           new SchemaIssue.Forbidden({
             message: 'ServerTimestamp cannot be decoded to DateTime',
-          })
+          }),
         );
-      }
+      },
     ),
     encode: SchemaGetter.transform(
       (
-        dt: EffectDateTime.Utc | undefined
+        dt: EffectDateTime.Utc | undefined,
       ): FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp =>
         dt !== undefined
           ? FirestoreSchema.Timestamp.fromDateTime(dt)
-          : new FirestoreSchema.ServerTimestamp()
+          : new FirestoreSchema.ServerTimestamp(),
     ),
-  })
+  }),
 );
 
 export type ServerDateTime = VariantSchema.Field<{

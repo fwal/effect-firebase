@@ -22,7 +22,7 @@ import { FirestoreSchema, Firestore } from 'effect-firebase';
  */
 export const firestoreEncode = (
   db: FirebaseFirestore,
-  data: unknown
+  data: unknown,
 ): unknown => {
   if (
     data === null ||
@@ -61,7 +61,7 @@ export const firestoreEncode = (
   if (typeof data === 'object' && data !== null) {
     // If it's already a Firebase type, leave it alone (optimization)
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)]),
     );
   }
 
@@ -91,14 +91,14 @@ export const firestoreDecode = (data: DocumentData): DocumentData => {
   }
   if (typeof data === 'object' && data !== null) {
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)]),
     );
   }
   return data;
 };
 
 export const makeConverter = (
-  db: FirebaseFirestore
+  db: FirebaseFirestore,
 ): FirestoreDataConverter<DocumentData, DocumentData> => ({
   toFirestore: (modelObject) =>
     firestoreEncode(db, modelObject) as DocumentData,

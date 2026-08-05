@@ -39,7 +39,7 @@ describe('Optional', () => {
     it('should encode Option.none as null', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.none() })
+        new TestModel({ name: 'John', bio: Option.none() }),
       );
 
       expect(result.bio).toBeNull();
@@ -48,7 +48,7 @@ describe('Optional', () => {
     it('should encode Option.some with the value', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.some('Developer') })
+        new TestModel({ name: 'John', bio: Option.some('Developer') }),
       );
 
       expect(result.bio).toBe('Developer');
@@ -105,7 +105,7 @@ describe('OptionalNull', () => {
     it('should encode Option.none as null', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.none() })
+        new TestModel({ name: 'John', bio: Option.none() }),
       );
 
       expect(result.bio).toBeNull();
@@ -114,7 +114,7 @@ describe('OptionalNull', () => {
     it('should encode Option.some with the value', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.some('Developer') })
+        new TestModel({ name: 'John', bio: Option.some('Developer') }),
       );
 
       expect(result.bio).toBe('Developer');
@@ -188,7 +188,7 @@ describe('OptionalDeletable', () => {
     it('should encode Option.none as undefined', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.none() })
+        new TestModel({ name: 'John', bio: Option.none() }),
       );
 
       expect(result.bio).toBeUndefined();
@@ -197,7 +197,7 @@ describe('OptionalDeletable', () => {
     it('should encode Option.some with the value', () => {
       const encode = Schema.encodeSync(TestModel);
       const result = encode(
-        new TestModel({ name: 'John', bio: Option.some('Developer') })
+        new TestModel({ name: 'John', bio: Option.some('Developer') }),
       );
 
       expect(result.bio).toBe('Developer');

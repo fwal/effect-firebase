@@ -14,7 +14,7 @@ export class PostModel extends Model.Class<PostModel>('PostModel')({
   title: Schema.String,
   content: Schema.String,
   checked: Schema.Boolean.pipe(
-    Schema.withDecodingDefault(Effect.succeed(false))
+    Schema.withDecodingDefault(Effect.succeed(false)),
   ),
   optional: Firestore.OptionalDeletable(Schema.String),
   list: Firestore.Array(Schema.String),

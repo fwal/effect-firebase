@@ -79,7 +79,7 @@ describe('Firestore Converter', () => {
     it('should convert FirestoreSchema.Timestamp to Firestore Timestamp', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreSchema.Timestamp.fromMillis(1705315800123)
+        FirestoreSchema.Timestamp.fromMillis(1705315800123),
       );
 
       expect(result).toBeInstanceOf(FirebaseTimestamp);
@@ -93,7 +93,7 @@ describe('Firestore Converter', () => {
         new FirestoreSchema.GeoPoint({
           latitude: 55.6761,
           longitude: 12.5683,
-        })
+        }),
       );
 
       expect(result).toBeInstanceOf(FirebaseGeoPoint);
@@ -104,7 +104,7 @@ describe('Firestore Converter', () => {
     it('should convert ServerTimestamp to Firestore field value', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreSchema.ServerTimestamp.make()
+        FirestoreSchema.ServerTimestamp.make(),
       );
       expect(result).toStrictEqual(serverTimestamp());
     });
@@ -117,7 +117,7 @@ describe('Firestore Converter', () => {
     it('should convert ArrayUnion to arrayUnion FieldValue', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayUnion(['a', 'b'])
+        FirestoreHelper.arrayUnion(['a', 'b']),
       );
       expect(result).toStrictEqual(arrayUnion('a', 'b'));
     });
@@ -125,7 +125,7 @@ describe('Firestore Converter', () => {
     it('should convert ArrayRemove to arrayRemove FieldValue', () => {
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayRemove(['a'])
+        FirestoreHelper.arrayRemove(['a']),
       );
       expect(result).toStrictEqual(arrayRemove('a'));
     });
@@ -134,10 +134,10 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayUnion([ts])
+        FirestoreHelper.arrayUnion([ts]),
       );
       expect(result).toStrictEqual(
-        arrayUnion(FirebaseTimestamp.fromMillis(1705315800000))
+        arrayUnion(FirebaseTimestamp.fromMillis(1705315800000)),
       );
     });
 
@@ -145,10 +145,10 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayRemove([ts])
+        FirestoreHelper.arrayRemove([ts]),
       );
       expect(result).toStrictEqual(
-        arrayRemove(FirebaseTimestamp.fromMillis(1705315800000))
+        arrayRemove(FirebaseTimestamp.fromMillis(1705315800000)),
       );
     });
 
@@ -166,7 +166,7 @@ describe('Firestore Converter', () => {
       });
 
       expect((result as Record<string, unknown>).createdAt).toBeInstanceOf(
-        FirebaseTimestamp
+        FirebaseTimestamp,
       );
       expect(
         (
@@ -174,17 +174,17 @@ describe('Firestore Converter', () => {
             string,
             unknown
           >
-        ).location
+        ).location,
       ).toBeInstanceOf(FirebaseGeoPoint);
       expect((result as Record<string, unknown>).updates).toHaveLength(3);
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[0]
+        ((result as Record<string, unknown>).updates as unknown[])[0],
       ).toBeInstanceOf(FirebaseTimestamp);
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[1]
+        ((result as Record<string, unknown>).updates as unknown[])[1],
       ).toStrictEqual(deleteField());
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[2]
+        ((result as Record<string, unknown>).updates as unknown[])[2],
       ).toBeNull();
     });
 
@@ -200,10 +200,10 @@ describe('Firestore Converter', () => {
       });
 
       expect((result as Record<string, unknown>).timestamp).toBe(
-        firebaseTimestamp
+        firebaseTimestamp,
       );
       expect((result as Record<string, unknown>).geoPoint).toBe(
-        firebaseGeoPoint
+        firebaseGeoPoint,
       );
       expect((result as Record<string, unknown>).delete).toBe(firebaseDelete);
     });

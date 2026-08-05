@@ -388,7 +388,7 @@ describe('Model.ReferencePath', () => {
         decode({
           id: 'post-1',
           authorPath: 'users/user-123',
-        })
+        }),
       ).toThrow(/Path must start with "authors\/"/);
     });
 

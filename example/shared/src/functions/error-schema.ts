@@ -11,7 +11,7 @@ const ParseError = Schema.Struct({
     Schema.Struct({
       path: Schema.String,
       message: Schema.String,
-    })
+    }),
   ),
 });
 

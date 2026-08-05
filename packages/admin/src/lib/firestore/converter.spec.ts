@@ -74,7 +74,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreSchema.Timestamp.fromMillis(1705315800123)
+        FirestoreSchema.Timestamp.fromMillis(1705315800123),
       );
 
       expect(result).toBeInstanceOf(AdminTimestamp);
@@ -89,7 +89,7 @@ describe('Firestore Converter', () => {
         new FirestoreSchema.GeoPoint({
           latitude: 55.6761,
           longitude: 12.5683,
-        })
+        }),
       );
 
       expect(result).toBeInstanceOf(AdminGeoPoint);
@@ -109,7 +109,7 @@ describe('Firestore Converter', () => {
 
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreSchema.Reference.makeFromPath('posts/post-1')
+        FirestoreSchema.Reference.makeFromPath('posts/post-1'),
       );
 
       expect(docCalls).toEqual(['posts/post-1']);
@@ -120,7 +120,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreSchema.ServerTimestamp.make()
+        FirestoreSchema.ServerTimestamp.make(),
       );
 
       expect(result).toStrictEqual(FieldValue.serverTimestamp());
@@ -137,7 +137,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayUnion(['a', 'b'])
+        FirestoreHelper.arrayUnion(['a', 'b']),
       );
       expect(result).toStrictEqual(FieldValue.arrayUnion('a', 'b'));
     });
@@ -146,7 +146,7 @@ describe('Firestore Converter', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayRemove(['a'])
+        FirestoreHelper.arrayRemove(['a']),
       );
       expect(result).toStrictEqual(FieldValue.arrayRemove('a'));
     });
@@ -156,10 +156,10 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayUnion([ts])
+        FirestoreHelper.arrayUnion([ts]),
       );
       const expected = FieldValue.arrayUnion(
-        AdminTimestamp.fromMillis(1705315800000)
+        AdminTimestamp.fromMillis(1705315800000),
       );
       expect(result).toStrictEqual(expected);
     });
@@ -169,10 +169,10 @@ describe('Firestore Converter', () => {
       const ts = FirestoreSchema.Timestamp.fromMillis(1705315800000);
       const result = firestoreEncode(
         fakeFirestore,
-        FirestoreHelper.arrayRemove([ts])
+        FirestoreHelper.arrayRemove([ts]),
       );
       const expected = FieldValue.arrayRemove(
-        AdminTimestamp.fromMillis(1705315800000)
+        AdminTimestamp.fromMillis(1705315800000),
       );
       expect(result).toStrictEqual(expected);
     });
@@ -196,7 +196,7 @@ describe('Firestore Converter', () => {
       });
 
       expect((result as Record<string, unknown>).createdAt).toBeInstanceOf(
-        AdminTimestamp
+        AdminTimestamp,
       );
       expect(
         (
@@ -204,7 +204,7 @@ describe('Firestore Converter', () => {
             string,
             unknown
           >
-        ).location
+        ).location,
       ).toBeInstanceOf(AdminGeoPoint);
       expect(
         (
@@ -212,17 +212,17 @@ describe('Firestore Converter', () => {
             string,
             unknown
           >
-        ).postRef
+        ).postRef,
       ).toEqual({ path: 'posts/post-1', __tag: 'fake-doc-ref' });
       expect((result as Record<string, unknown>).updates).toHaveLength(3);
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[0]
+        ((result as Record<string, unknown>).updates as unknown[])[0],
       ).toBeInstanceOf(AdminTimestamp);
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[1]
+        ((result as Record<string, unknown>).updates as unknown[])[1],
       ).toStrictEqual(FieldValue.delete());
       expect(
-        ((result as Record<string, unknown>).updates as unknown[])[2]
+        ((result as Record<string, unknown>).updates as unknown[])[2],
       ).toBeNull();
     });
 
@@ -239,7 +239,7 @@ describe('Firestore Converter', () => {
       });
 
       expect((result as Record<string, unknown>).timestamp).toBe(
-        adminTimestamp
+        adminTimestamp,
       );
       expect((result as Record<string, unknown>).geoPoint).toBe(adminGeoPoint);
       expect((result as Record<string, unknown>).delete).toBe(adminDelete);
