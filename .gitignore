@@ -50,3 +50,9 @@ vitest.config.*.timestamp*
 
 vendor
 vendor/effect
+
+.claude/worktrees
+.claude/settings.local.json
+.nx/polygraph
+.nx/self-healing
+.nx/migrate-runs

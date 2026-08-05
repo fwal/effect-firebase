@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "effect": "catalog:",
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   },
   "peerDependencies": {
     "effect-firebase": "workspace:*"

@@ -13,24 +13,24 @@
     "@effect/atom-react": "catalog:",
     "@effect/platform-browser": "catalog:",
     "@example/shared": "workspace:*",
-    "@nx/react": "22.4.5",
-    "@nx/vite": "22.5.4",
-    "@tanstack/react-form": "^1.32.0",
-    "@tanstack/react-router": "^1.139.3",
-    "@tanstack/react-router-devtools": "^1.139.3",
-    "@tanstack/router-plugin": "^1.139.3",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@nx/react": "23.1.1",
+    "@nx/vite": "23.1.1",
+    "@tanstack/react-form": "^1.33.3",
+    "@tanstack/react-router": "^1.170.19",
+    "@tanstack/react-router-devtools": "^1.167.1",
+    "@tanstack/router-plugin": "^1.168.24",
+    "@vitejs/plugin-react": "6.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "effect": "catalog:",
     "effect-firebase": "workspace:*",
     "firebase": "catalog:",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "tailwind-merge": "^3.4.0"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@effect-firebase/mock": "workspace:*",
-    "vite": "7.1.8"
+    "vite": "8.2.0"
   }
 }

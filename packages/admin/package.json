@@ -26,22 +26,22 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
     "effect": "catalog:",
     "effect-firebase": "workspace:*",
+    "express": "catalog:",
     "firebase": "catalog:",
     "firebase-admin": "catalog:",
-    "firebase-functions": "catalog:",
-    "express": "catalog:"
+    "firebase-functions": "catalog:"
   },
   "peerDependencies": {
     "effect": "catalog:",
     "effect-firebase": "workspace:*",
+    "express": "catalog:",
     "firebase-admin": "catalog:",
-    "firebase-functions": "catalog:",
-    "express": "catalog:"
+    "firebase-functions": "catalog:"
   },
   "publishConfig": {
     "access": "public",
