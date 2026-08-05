@@ -7,17 +7,17 @@ settings:
 catalogs:
   default:
     '@effect/atom-react':
-      specifier: 4.0.0-beta.99
-      version: 4.0.0-beta.99
+      specifier: 4.0.0-beta.103
+      version: 4.0.0-beta.103
     '@effect/platform-browser':
-      specifier: 4.0.0-beta.99
-      version: 4.0.0-beta.99
+      specifier: 4.0.0-beta.103
+      version: 4.0.0-beta.103
     '@effect/vitest':
-      specifier: 4.0.0-beta.99
-      version: 4.0.0-beta.99
+      specifier: 4.0.0-beta.103
+      version: 4.0.0-beta.103
     effect:
-      specifier: 4.0.0-beta.99
-      version: 4.0.0-beta.99
+      specifier: 4.0.0-beta.103
+      version: 4.0.0-beta.103
     express:
       specifier: ^4.0.0
       version: 4.21.2
@@ -40,7 +40,7 @@ importers:
         version: 5.0.5
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       firebase:
         specifier: 'catalog:'
         version: 12.16.0
@@ -59,10 +59,10 @@ importers:
     devDependencies:
       '@effect/platform-browser':
         specifier: 'catalog:'
-        version: 4.0.0-beta.99(effect@4.0.0-beta.99)
+        version: 4.0.0-beta.103(effect@4.0.0-beta.103)
       '@effect/vitest':
         specifier: 'catalog:'
-        version: 4.0.0-beta.99(effect@4.0.0-beta.99)(vitest@4.0.9)
+        version: 4.0.0-beta.103(effect@4.0.0-beta.103)(vitest@4.0.9)
       '@eslint/js':
         specifier: ^9.8.0
         version: 9.28.0
@@ -230,10 +230,10 @@ importers:
         version: link:../../packages/client
       '@effect/atom-react':
         specifier: 'catalog:'
-        version: 4.0.0-beta.99(effect@4.0.0-beta.99)(react@19.2.4)(scheduler@0.27.0)
+        version: 4.0.0-beta.103(effect@4.0.0-beta.103)(react@19.2.4)(scheduler@0.27.0)
       '@effect/platform-browser':
         specifier: 'catalog:'
-        version: 4.0.0-beta.99(effect@4.0.0-beta.99)
+        version: 4.0.0-beta.103(effect@4.0.0-beta.103)
       '@example/shared':
         specifier: workspace:*
         version: link:../shared
@@ -266,7 +266,7 @@ importers:
         version: 2.1.1
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       effect-firebase:
         specifier: workspace:*
         version: link:../../packages/effect-firebase
@@ -303,7 +303,7 @@ importers:
         version: 5.0.5
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       firebase-admin:
         specifier: 'catalog:'
         version: 14.2.0(encoding@0.1.13)
@@ -312,7 +312,7 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -329,7 +329,7 @@ importers:
     devDependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       effect-firebase:
         specifier: workspace:*
         version: link:../effect-firebase
@@ -354,7 +354,7 @@ importers:
     devDependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       effect-firebase:
         specifier: workspace:*
         version: link:../effect-firebase
@@ -370,7 +370,7 @@ importers:
     devDependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
 
   packages/mock:
     dependencies:
@@ -380,7 +380,7 @@ importers:
     devDependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-beta.99
+        version: 4.0.0-beta.103
       effect-firebase:
         specifier: workspace:*
         version: link:../effect-firebase
@@ -1025,23 +1025,23 @@ packages:
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
 
-  '@effect/atom-react@4.0.0-beta.99':
-    resolution: {integrity: sha512-sV5dlwK0kAldhX2jYhKnBSIYmrkY47NX7d6eV7vBuCOxJvcqeVgXlOC8kagWUWUQ5a866kiqYo+uPT/ELHUysg==}
+  '@effect/atom-react@4.0.0-beta.103':
+    resolution: {integrity: sha512-1HJ+Cyq4ssLnH2UZ8OVnhtMGAySabtzZo7imKC+vEfxOW3lvJYpGZeicxQX5Ii/7AdvlR+19p/6K2a5IPKYAow==}
     peerDependencies:
-      effect: ^4.0.0-beta.99
+      effect: ^4.0.0-beta.103
       react: ^19.2.4
       scheduler: '*'
 
-  '@effect/platform-browser@4.0.0-beta.99':
-    resolution: {integrity: sha512-PJjvAPFPJRtoa59Pd2oJcl/2vqPCiw309KdXcSR90VSLaYiHbUwkqb+UXWjDRApnz7QE7QFwHD/StQBxxBMe4g==}
+  '@effect/platform-browser@4.0.0-beta.103':
+    resolution: {integrity: sha512-3GXGzjv+dB5E9sCCj/JhPVyNB2NrBquGY2tYQ8VQqGK4uOpME6I5oLqRt+MmB7BWqWYPXUqvXj0wvMJRlQC4fw==}
     peerDependencies:
-      effect: ^4.0.0-beta.99
+      effect: ^4.0.0-beta.103
 
-  '@effect/vitest@4.0.0-beta.99':
-    resolution: {integrity: sha512-SiZo3UGTsG2itbqLU1SJVmFraK+0AkrEU7ZLRpQALx3lFRBaohzB/7UQKVsRjCHHjDg0kNkGitZusGRN3mVAhg==}
+  '@effect/vitest@4.0.0-beta.103':
+    resolution: {integrity: sha512-Kz3gemVuJNAZ3e4V6A7BwAP87x2Av8LyHOlCjy9jbZzlncwJXO7Olk1Sje3hdKaet3wEl51A/0/89xJ2IYSgNg==}
     peerDependencies:
-      effect: ^4.0.0-beta.99
-      vitest: ^3.0.0 || ^4.0.0
+      effect: ^4.0.0-beta.103
+      vitest: ^4.1.0
 
   '@electric-sql/pglite-tools@0.2.11':
     resolution: {integrity: sha512-XGuVdS0NA1Z3SpTJAtDYdCFbMDhfel2DFq9c1Em0s7vvFu/0vjEnnmN3IYb6/ddTgPNLranNvXJyaymBvhgMSg==}
@@ -4796,8 +4796,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  effect@4.0.0-beta.99:
-    resolution: {integrity: sha512-hP1C61uzINfLl/4kKMwcqksxd34s4sQ3VSjsWjhGrkx9CRlXaqnfOK9dpTEKynQ6rA7wU9rb3c+48eDYw7uzxA==}
+  effect@4.0.0-beta.103:
+    resolution: {integrity: sha512-pE8TxF4m2tQzVI+77dIlm3s+81TACV1AiX1JEkvY+zVuxgQQ8aGSkqXNJF6b/ST+coCSk5cUdbULpQ7sm4oHyw==}
 
   ejs@3.1.10:
     resolution: {integrity: sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==}
@@ -9680,20 +9680,20 @@ snapshots:
       enabled: 2.0.0
       kuler: 2.0.0
 
-  '@effect/atom-react@4.0.0-beta.99(effect@4.0.0-beta.99)(react@19.2.4)(scheduler@0.27.0)':
+  '@effect/atom-react@4.0.0-beta.103(effect@4.0.0-beta.103)(react@19.2.4)(scheduler@0.27.0)':
     dependencies:
-      effect: 4.0.0-beta.99
+      effect: 4.0.0-beta.103
       react: 19.2.4
       scheduler: 0.27.0
 
-  '@effect/platform-browser@4.0.0-beta.99(effect@4.0.0-beta.99)':
+  '@effect/platform-browser@4.0.0-beta.103(effect@4.0.0-beta.103)':
     dependencies:
-      effect: 4.0.0-beta.99
+      effect: 4.0.0-beta.103
       multipasta: 0.2.8
 
-  '@effect/vitest@4.0.0-beta.99(effect@4.0.0-beta.99)(vitest@4.0.9)':
+  '@effect/vitest@4.0.0-beta.103(effect@4.0.0-beta.103)(vitest@4.0.9)':
     dependencies:
-      effect: 4.0.0-beta.99
+      effect: 4.0.0-beta.103
       vitest: 4.0.9(@types/node@20.19.9)(@vitest/ui@4.0.9)(jiti@2.4.2)(jsdom@22.1.0)(terser@5.43.1)(tsx@4.20.6)(yaml@2.9.0)
 
   '@electric-sql/pglite-tools@0.2.11(@electric-sql/pglite@0.3.6)':
@@ -14327,7 +14327,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  effect@4.0.0-beta.99:
+  effect@4.0.0-beta.103:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 4.9.0
