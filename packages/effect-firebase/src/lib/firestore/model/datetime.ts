@@ -1,7 +1,6 @@
 import {
   DateTime as EffectDateTime,
   Effect,
-  Option,
   Schema,
   SchemaGetter,
   SchemaIssue,
@@ -43,7 +42,7 @@ const ServerDateTimeSchema = Schema.Union([
           );
         }
         return Effect.fail(
-          new SchemaIssue.Forbidden(Option.some(input), {
+          new SchemaIssue.Forbidden({
             message: 'ServerTimestamp cannot be decoded to DateTime',
           })
         );

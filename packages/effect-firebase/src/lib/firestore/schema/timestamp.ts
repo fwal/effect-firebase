@@ -1,11 +1,4 @@
-import {
-  DateTime,
-  Effect,
-  Option,
-  Schema,
-  SchemaGetter,
-  SchemaIssue,
-} from 'effect';
+import { DateTime, Effect, Schema, SchemaGetter, SchemaIssue } from 'effect';
 
 /**
  * Class representing a Timestamp in Firestore.
@@ -97,7 +90,7 @@ export const AnyTimestampDateTimeUtc = Schema.Union([
           return Effect.succeed(DateTime.makeUnsafe(input.toMillis()));
         }
         return Effect.fail(
-          new SchemaIssue.Forbidden(Option.some(input), {
+          new SchemaIssue.Forbidden({
             message: 'ServerTimestamp cannot be decoded to DateTime',
           })
         );
