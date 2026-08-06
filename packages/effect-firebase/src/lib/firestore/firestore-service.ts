@@ -14,7 +14,7 @@ type FirestoreCRUD = {
    */
   readonly get: (
     path: string,
-    options?: FirestoreDataOptions
+    options?: FirestoreDataOptions,
   ) => Effect.Effect<Option.Option<Snapshot>, FirestoreError | UnknownError>;
 
   /**
@@ -25,7 +25,7 @@ type FirestoreCRUD = {
    */
   readonly add: (
     path: string,
-    data: typeof Data.Type
+    data: typeof Data.Type,
   ) => Effect.Effect<
     { id: string; path: string },
     FirestoreError | UnknownError
@@ -40,7 +40,7 @@ type FirestoreCRUD = {
   readonly set: (
     path: string,
     data: typeof Data.Type,
-    options?: { merge?: boolean }
+    options?: { merge?: boolean },
   ) => Effect.Effect<void, FirestoreError | UnknownError>;
 
   /**
@@ -50,7 +50,7 @@ type FirestoreCRUD = {
    */
   readonly update: (
     path: string,
-    data: typeof Data.Type
+    data: typeof Data.Type,
   ) => Effect.Effect<void, FirestoreError | UnknownError>;
 
   /**
@@ -58,7 +58,7 @@ type FirestoreCRUD = {
    * @param path - The path to the document.
    */
   readonly delete: (
-    path: string
+    path: string,
   ) => Effect.Effect<void, FirestoreError | UnknownError>;
 
   /**
@@ -71,7 +71,7 @@ type FirestoreCRUD = {
    * @param path - The path to the document.
    */
   readonly deleteRecursive: (
-    path: string
+    path: string,
   ) => Effect.Effect<void, FirestoreError | UnknownError>;
 };
 
@@ -84,7 +84,7 @@ type FirestoreQuery = {
    */
   readonly query: (
     collectionPath: string,
-    constraints: ReadonlyArray<QueryConstraint>
+    constraints: ReadonlyArray<QueryConstraint>,
   ) => Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError | UnknownError>;
 };
 
@@ -98,7 +98,7 @@ type FirestoreStreaming = {
    */
   readonly streamDoc: (
     path: string,
-    options?: FirestoreDataOptions
+    options?: FirestoreDataOptions,
   ) => Stream.Stream<Option.Option<Snapshot>, FirestoreError>;
 
   /**
@@ -111,7 +111,7 @@ type FirestoreStreaming = {
   readonly streamQuery: (
     collectionPath: string,
     constraints: ReadonlyArray<QueryConstraint>,
-    options?: FirestoreDataOptions
+    options?: FirestoreDataOptions,
   ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
 };
 
@@ -144,7 +144,7 @@ type FirestoreTransactions = {
    * @returns The result of the effect after the transaction has committed.
    */
   readonly withTransaction: <A, E, R>(
-    self: Effect.Effect<A, E, R>
+    self: Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E | FirestoreError | UnknownError, R>;
 
   /**
@@ -170,7 +170,7 @@ type FirestoreTransactions = {
    * @returns The result of the effect after the batch has committed.
    */
   readonly withBatch: <A, E, R>(
-    self: Effect.Effect<A, E, R>
+    self: Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E | FirestoreError | UnknownError, R>;
 };
 

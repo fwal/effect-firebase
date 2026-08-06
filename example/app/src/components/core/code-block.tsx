@@ -27,8 +27,10 @@ import { cn } from '../../lib/utils';
  *
  * **Usage:** Display JSON responses and error messages with syntax highlighting
  */
-export interface CodeBlockProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+export interface CodeBlockProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'children'
+> {
   code: unknown;
   title?: string;
   variant?: 'success' | 'error';
@@ -56,7 +58,7 @@ export function CodeBlock({
         <pre
           className={cn(
             'text-sm font-mono',
-            variant === 'error' ? 'text-red-400' : 'text-green-400'
+            variant === 'error' ? 'text-red-400' : 'text-green-400',
           )}
         >
           {typeof code === 'string' ? code : JSON.stringify(code, null, 2)}

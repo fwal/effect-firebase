@@ -73,10 +73,10 @@ export const PostRepository = Model.makeRepository(PostModel, {
       repo.queryStream(
         Query.and(
           Query.where('status', '==', 'published'),
-          Query.orderBy('createdAt', 'desc')
-        )
+          Query.orderBy('createdAt', 'desc'),
+        ),
       ),
-  }))
+  })),
 );
 ```
 
@@ -99,8 +99,8 @@ const program = Effect.gen(function* () {
 }).pipe(
   Effect.provide(PostRepository),
   Effect.provide(
-    Client.layer({ app: initializeApp({ projectId: 'my-project' }) })
-  )
+    Client.layer({ app: initializeApp({ projectId: 'my-project' }) }),
+  ),
 );
 ```
 
@@ -116,7 +116,7 @@ Firestore.withTransaction(
     const repo = yield* PostRepository;
     const post = yield* repo.getById(postId);
     yield* repo.update(postId, { status: 'published' });
-  })
+  }),
 );
 
 // Stage many writes and commit them atomically
@@ -124,7 +124,7 @@ Firestore.withBatch(
   Effect.gen(function* () {
     const repo = yield* PostRepository;
     yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
-  })
+  }),
 );
 ```
 
@@ -136,7 +136,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 
 const runtime = FunctionsRuntime.make(
-  Layer.mergeAll(Admin.layer({ app: initializeApp() }), PostRepository)
+  Layer.mergeAll(Admin.layer({ app: initializeApp() }), PostRepository),
 );
 
 export const createPost = onCallEffect({ runtime }, (request) =>
@@ -149,7 +149,7 @@ export const createPost = onCallEffect({ runtime }, (request) =>
       status: 'draft',
     });
     return { postId };
-  })
+  }),
 );
 ```
 
@@ -169,7 +169,7 @@ await Effect.runPromise(
     });
     const post = yield* repo.getById(postId);
     expect(post.title).toBe('Test');
-  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore))
+  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore)),
 );
 ```
 

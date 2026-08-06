@@ -6,7 +6,7 @@ export interface AppService {
 }
 
 export class App extends Context.Service<App, AppService>()(
-  '@effect-firebase/client/App'
+  '@effect-firebase/client/App',
 ) {}
 
 export const layer = (app: FirebaseApp): Layer.Layer<App> =>

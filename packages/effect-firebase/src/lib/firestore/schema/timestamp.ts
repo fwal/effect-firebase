@@ -56,19 +56,19 @@ export const TimestampInstance = Schema.instanceOf(Timestamp, {
 export const TimestampDateTimeUtc = TimestampInstance.pipe(
   Schema.decodeTo(Schema.DateTimeUtc, {
     decode: SchemaGetter.transform((ts: Timestamp) =>
-      DateTime.makeUnsafe(ts.toMillis())
+      DateTime.makeUnsafe(ts.toMillis()),
     ),
     encode: SchemaGetter.transform((date: DateTime.Utc) =>
-      Timestamp.fromMillis(DateTime.toEpochMillis(date))
+      Timestamp.fromMillis(DateTime.toEpochMillis(date)),
     ),
-  })
+  }),
 );
 
 /**
  * Class representing a server timestamp in Firestore.
  */
 export class ServerTimestamp extends Schema.Class<ServerTimestamp>(
-  'ServerTimestamp'
+  'ServerTimestamp',
 )({}) {}
 
 /**
@@ -92,12 +92,12 @@ export const AnyTimestampDateTimeUtc = Schema.Union([
         return Effect.fail(
           new SchemaIssue.Forbidden({
             message: 'ServerTimestamp cannot be decoded to DateTime',
-          })
+          }),
         );
-      }
+      },
     ),
     encode: SchemaGetter.transform((dt: DateTime.Utc) =>
-      Timestamp.fromMillis(DateTime.toEpochMillis(dt))
+      Timestamp.fromMillis(DateTime.toEpochMillis(dt)),
     ),
-  })
+  }),
 );

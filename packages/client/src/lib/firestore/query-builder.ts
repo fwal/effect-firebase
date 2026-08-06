@@ -32,14 +32,14 @@ const convertValue = (db: Firestore, value: unknown): unknown =>
  */
 const toFirebaseConstraint = (
   db: Firestore,
-  constraint: QueryConstraint
+  constraint: QueryConstraint,
 ): FirebaseQueryConstraint | QueryCompositeFilterConstraint => {
   switch (constraint._tag) {
     case 'Where':
       return where(
         constraint.field,
         constraint.op,
-        convertValue(db, constraint.value)
+        convertValue(db, constraint.value),
       );
     case 'OrderBy':
       return orderBy(constraint.field, constraint.direction);
@@ -49,27 +49,27 @@ const toFirebaseConstraint = (
       return limitToLast(constraint.count);
     case 'StartAt':
       return startAt(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => convertValue(db, value)),
       );
     case 'StartAfter':
       return startAfter(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => convertValue(db, value)),
       );
     case 'EndAt':
       return endAt(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => convertValue(db, value)),
       );
     case 'EndBefore':
       return endBefore(
-        ...constraint.values.map((value) => convertValue(db, value))
+        ...constraint.values.map((value) => convertValue(db, value)),
       );
     case 'And':
       return and(
-        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child)),
       );
     case 'Or':
       return or(
-        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child)),
       );
   }
 };
@@ -79,26 +79,26 @@ const toFirebaseConstraint = (
  */
 const toFilterConstraint = (
   db: Firestore,
-  constraint: QueryConstraint
+  constraint: QueryConstraint,
 ): QueryFilterConstraint => {
   switch (constraint._tag) {
     case 'Where':
       return where(
         constraint.field,
         constraint.op,
-        convertValue(db, constraint.value)
+        convertValue(db, constraint.value),
       );
     case 'And':
       return and(
-        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child)),
       );
     case 'Or':
       return or(
-        ...constraint.constraints.map((child) => toFilterConstraint(db, child))
+        ...constraint.constraints.map((child) => toFilterConstraint(db, child)),
       );
     default:
       throw new Error(
-        `Cannot use ${constraint._tag} inside AND/OR composite filters`
+        `Cannot use ${constraint._tag} inside AND/OR composite filters`,
       );
   }
 };
@@ -109,15 +109,15 @@ const toFilterConstraint = (
 export const buildQuery = (
   db: Firestore,
   collectionPath: string,
-  constraints: ReadonlyArray<QueryConstraint>
+  constraints: ReadonlyArray<QueryConstraint>,
 ): Query => {
   const collectionRef = collection(db, collectionPath);
   const firebaseConstraints = constraints.map((constraint) =>
-    toFirebaseConstraint(db, constraint)
+    toFirebaseConstraint(db, constraint),
   );
   // Cast is safe - QueryCompositeFilterConstraint can be used in query()
   return query(
     collectionRef,
-    ...(firebaseConstraints as FirebaseQueryConstraint[])
+    ...(firebaseConstraints as FirebaseQueryConstraint[]),
   );
 };

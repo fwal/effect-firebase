@@ -131,16 +131,16 @@ const makeFakeDb = () => {
 
 const run = <A, E>(
   db: Firestore,
-  effect: Effect.Effect<A, E, FirestoreService>
+  effect: Effect.Effect<A, E, FirestoreService>,
 ) => Effect.runPromise(effect.pipe(Effect.provide(layerFromFirestore(db))));
 
 const runExit = <A, E>(
   db: Firestore,
-  effect: Effect.Effect<A, E, FirestoreService>
+  effect: Effect.Effect<A, E, FirestoreService>,
 ) => Effect.runPromiseExit(effect.pipe(Effect.provide(layerFromFirestore(db))));
 
 const withService = <A, E>(
-  f: (service: FirestoreService['Service']) => Effect.Effect<A, E>
+  f: (service: FirestoreService['Service']) => Effect.Effect<A, E>,
 ) => Effect.flatMap(FirestoreService, f);
 
 describe('FirestoreService (admin)', () => {
@@ -156,9 +156,9 @@ describe('FirestoreService (admin)', () => {
               yield* fs.set('posts/1', { title: 'a' });
               yield* fs.update('posts/2', { title: 'b' });
               yield* fs.delete('posts/3');
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(state.runTransactionCalls).toBe(1);
@@ -175,7 +175,9 @@ describe('FirestoreService (admin)', () => {
       const { db, state } = makeFakeDb();
       const result = await run(
         db,
-        withService((fs) => fs.withTransaction(fs.add('posts', { title: 'a' })))
+        withService((fs) =>
+          fs.withTransaction(fs.add('posts', { title: 'a' })),
+        ),
       );
 
       expect(result).toEqual({
@@ -191,7 +193,7 @@ describe('FirestoreService (admin)', () => {
       const { db, state } = makeFakeDb();
       const results = await run(
         db,
-        withService((fs) => fs.withTransaction(fs.query('posts', [])))
+        withService((fs) => fs.withTransaction(fs.query('posts', []))),
       );
 
       expect(state.txOps).toEqual([['query', 'posts']]);
@@ -203,7 +205,7 @@ describe('FirestoreService (admin)', () => {
       const { db } = makeFakeDb();
       const result = await run(
         db,
-        withService((fs) => fs.withTransaction(Effect.succeed(42)))
+        withService((fs) => fs.withTransaction(Effect.succeed(42))),
       );
       expect(result).toBe(42);
     });
@@ -217,9 +219,9 @@ describe('FirestoreService (admin)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* new TestError({ reason: 'boom' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -243,9 +245,9 @@ describe('FirestoreService (admin)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* fs.withTransaction(fs.set('posts/2', { title: 'b' }));
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(state.runTransactionCalls).toBe(1);
@@ -257,8 +259,8 @@ describe('FirestoreService (admin)', () => {
       const exit = await runExit(
         db,
         withService((fs) =>
-          fs.withTransaction(Stream.runCollect(fs.streamDoc('posts/1')))
-        )
+          fs.withTransaction(Stream.runCollect(fs.streamDoc('posts/1'))),
+        ),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -271,7 +273,7 @@ describe('FirestoreService (admin)', () => {
       const { db } = makeFakeDb();
       const exit = await runExit(
         db,
-        withService((fs) => fs.withTransaction(fs.deleteRecursive('posts/1')))
+        withService((fs) => fs.withTransaction(fs.deleteRecursive('posts/1'))),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -293,9 +295,9 @@ describe('FirestoreService (admin)', () => {
               yield* fs.update('posts/2', { title: 'b' });
               yield* fs.delete('posts/3');
               yield* fs.add('posts', { title: 'c' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(state.batchesCreated).toBe(1);
@@ -318,9 +320,9 @@ describe('FirestoreService (admin)', () => {
             Effect.gen(function* () {
               yield* fs.get('posts/1');
               yield* fs.query('posts', []);
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(state.directOps.map((op) => op[0])).toEqual(['get', 'query']);
@@ -336,9 +338,9 @@ describe('FirestoreService (admin)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* new TestError({ reason: 'boom' });
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -354,9 +356,9 @@ describe('FirestoreService (admin)', () => {
             Effect.gen(function* () {
               yield* fs.set('posts/1', { title: 'a' });
               yield* fs.withBatch(fs.set('posts/2', { title: 'b' }));
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       expect(state.batchesCreated).toBe(1);
@@ -369,8 +371,8 @@ describe('FirestoreService (admin)', () => {
       await run(
         db,
         withService((fs) =>
-          fs.withTransaction(fs.withBatch(fs.set('posts/1', { title: 'a' })))
-        )
+          fs.withTransaction(fs.withBatch(fs.set('posts/1', { title: 'a' }))),
+        ),
       );
 
       expect(state.batchesCreated).toBe(0);
@@ -381,7 +383,7 @@ describe('FirestoreService (admin)', () => {
       const { db } = makeFakeDb();
       const exit = await runExit(
         db,
-        withService((fs) => fs.withBatch(fs.deleteRecursive('posts/1')))
+        withService((fs) => fs.withBatch(fs.deleteRecursive('posts/1'))),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -401,8 +403,8 @@ describe('FirestoreService (admin)', () => {
             yield* fs.get('posts/1');
             yield* fs.set('posts/1', { title: 'a' });
             yield* fs.delete('posts/2');
-          })
-        )
+          }),
+        ),
       );
 
       expect(state.directOps.map((op) => op[0])).toEqual([

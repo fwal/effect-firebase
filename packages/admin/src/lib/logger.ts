@@ -4,7 +4,7 @@ import { logger } from 'firebase-functions';
 type LoggerFunction = typeof logger.debug;
 
 const functionForLogLevel: (
-  logLevel: LogLevel.LogLevel
+  logLevel: LogLevel.LogLevel,
 ) => LoggerFunction | null = (value) =>
   Match.value(value).pipe(
     Match.when('Debug', () => logger.debug),
@@ -15,7 +15,7 @@ const functionForLogLevel: (
     Match.when('Fatal', () => logger.error),
     Match.when('All', () => null),
     Match.when('None', () => null),
-    Match.exhaustive
+    Match.exhaustive,
   );
 
 /**

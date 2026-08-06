@@ -60,7 +60,7 @@ export const PostRepository = Model.makeRepository(PostModel, {
   Effect.map((repo) => ({
     ...repo,
     published: () => repo.queryStream(Query.where('status', '==', 'published')),
-  }))
+  })),
 );
 ```
 
@@ -94,12 +94,12 @@ Query.and(
   Query.where('status', '==', 'published'),
   Query.where('likes', '>=', 10),
   Query.orderBy('createdAt', 'desc'),
-  Query.limit(20)
+  Query.limit(20),
 );
 
 Query.or(
   Query.where('status', '==', 'published'),
-  Query.where('status', '==', 'featured')
+  Query.where('status', '==', 'featured'),
 );
 ```
 
@@ -119,7 +119,7 @@ Firestore.withTransaction(
     const post = yield* repo.getById(postId); // transactional read
     // ... all reads must happen before the first write
     yield* repo.update(postId, { likes: likes + 1 }); // transactional write
-  })
+  }),
 );
 ```
 
@@ -135,7 +135,7 @@ Firestore.withBatch(
   Effect.gen(function* () {
     const repo = yield* PostRepository;
     yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
-  })
+  }),
 );
 ```
 
@@ -160,11 +160,11 @@ FirestoreSchema.Reference; // DocumentReference schema
 repo.getById(id).pipe(
   Effect.catchTag('NoSuchElementError', () => Effect.succeed(null)),
   Effect.catchTag('SchemaError', (e) =>
-    Effect.fail(new AppError({ cause: e }))
+    Effect.fail(new AppError({ cause: e })),
   ),
   Effect.catchTag('FirestoreError', (e) =>
-    Effect.fail(new AppError({ cause: e }))
-  )
+    Effect.fail(new AppError({ cause: e })),
+  ),
 );
 ```
 

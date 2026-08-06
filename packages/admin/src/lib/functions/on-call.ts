@@ -19,20 +19,24 @@ interface CallEffectOptions<R> extends CallableOptions {
   runtime: Runtime<R>;
 }
 
-interface CallEffectOptionsWithInput<R, I extends Schema.Top>
-  extends CallEffectOptions<R> {
+interface CallEffectOptionsWithInput<
+  R,
+  I extends Schema.Top,
+> extends CallEffectOptions<R> {
   inputSchema: I;
 }
 
-interface CallEffectOptionsWithOutput<R, O extends Schema.Top>
-  extends CallEffectOptions<R> {
+interface CallEffectOptionsWithOutput<
+  R,
+  O extends Schema.Top,
+> extends CallEffectOptions<R> {
   outputSchema: O;
 }
 
 interface CallEffectOptionsWithBoth<
   R,
   I extends Schema.Top,
-  O extends Schema.Top
+  O extends Schema.Top,
 > extends CallEffectOptions<R> {
   inputSchema: I;
   outputSchema: O;
@@ -49,8 +53,8 @@ export function onCallEffect<R, I extends Schema.Top, O extends Schema.Top, E>(
   options: CallEffectOptionsWithBoth<R, I, O>,
   handler: (
     input: Schema.Schema.Type<I>,
-    context: CallableContext
-  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+    context: CallableContext,
+  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
 ): CallableFunction<Schema.Codec.Encoded<O>, Schema.Codec.Encoded<I>>;
 
 // Overload: only input schema
@@ -58,8 +62,8 @@ export function onCallEffect<R, T, I extends Schema.Top, E>(
   options: CallEffectOptionsWithInput<R, I>,
   handler: (
     input: Schema.Schema.Type<I>,
-    context: CallableContext
-  ) => Effect.Effect<T, E, R>
+    context: CallableContext,
+  ) => Effect.Effect<T, E, R>,
 ): CallableFunction<T, Schema.Codec.Encoded<I>>;
 
 // Overload: only output schema
@@ -67,8 +71,8 @@ export function onCallEffect<R, O extends Schema.Top, E>(
   options: CallEffectOptionsWithOutput<R, O>,
   handler: (
     request: CallableRequest,
-    response?: CallableResponse
-  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+    response?: CallableResponse,
+  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
 ): CallableFunction<Schema.Codec.Encoded<O>, unknown>;
 
 // Overload: no schemas
@@ -76,8 +80,8 @@ export function onCallEffect<R, T, E>(
   options: CallEffectOptions<R>,
   handler: (
     request: CallableRequest,
-    response?: CallableResponse
-  ) => Effect.Effect<T, E, R>
+    response?: CallableResponse,
+  ) => Effect.Effect<T, E, R>,
 ): CallableFunction<T, unknown>;
 
 // Implementation
@@ -87,7 +91,7 @@ export function onCallEffect<R>(
     outputSchema?: Schema.Top;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>
+  handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>,
 ): CallableFunction<unknown, unknown> {
   const { inputSchema, outputSchema } = options;
 
@@ -111,13 +115,13 @@ export function onCallEffect<R>(
       Effect.andThen((output) =>
         outputSchema
           ? encodeOutput(outputSchema)(output)
-          : Effect.succeed(output)
-      )
+          : Effect.succeed(output),
+      ),
     ).pipe(Effect.withSpan('onCallEffect'));
 
     return await run(
       options.runtime,
-      effect as Effect.Effect<unknown, never, R>
+      effect as Effect.Effect<unknown, never, R>,
     ).catch((error) => {
       logger.error('Defect in onCall', {
         inner: error,

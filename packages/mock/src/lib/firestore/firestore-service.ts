@@ -7,7 +7,7 @@ import { FirestoreService, FirestoreServiceShape } from 'effect-firebase';
  * @returns The mocked Firestore service.
  */
 export const MockFirestoreService = (
-  overrides: Partial<FirestoreServiceShape> = {}
+  overrides: Partial<FirestoreServiceShape> = {},
 ) =>
   Layer.succeed(FirestoreService, {
     get: () => {

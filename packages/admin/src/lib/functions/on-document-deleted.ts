@@ -17,7 +17,7 @@ interface DocumentDeletedEffectOptions<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
@@ -34,13 +34,16 @@ export function onDocumentDeletedEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentDeletedEffectOptions<R, Document, S, IdField>,
   handler: (
     data: Schema.Schema.Type<S>,
-    event: FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>
-  ) => Effect.Effect<void, never, R>
+    event: FirestoreEvent<
+      QueryDocumentSnapshot | undefined,
+      ParamsOf<Document>
+    >,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>
 > {
@@ -55,14 +58,14 @@ export function onDocumentDeletedEffect<
         event.data?.data(),
         event.data?.id,
         schema,
-        options.idField
+        options.idField,
       );
       return yield* handler(data as Schema.Schema.Type<S>, event);
     }).pipe(Effect.withSpan('onDocumentDeletedEffect'));
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentDeleted', {
         inner: error,
@@ -83,7 +86,7 @@ export function onDocumentDeletedWithAuthContextEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentDeletedEffectOptions<R, Document, S, IdField>,
   handler: (
@@ -91,8 +94,8 @@ export function onDocumentDeletedWithAuthContextEffect<
       QueryDocumentSnapshot | undefined,
       ParamsOf<Document>
     >,
-    data: Schema.Schema.Type<S>
-  ) => Effect.Effect<void, never, R>
+    data: Schema.Schema.Type<S>,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreAuthEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>
 > {
@@ -107,14 +110,14 @@ export function onDocumentDeletedWithAuthContextEffect<
         event.data?.data(),
         event.data?.id,
         schema,
-        options.idField
+        options.idField,
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);
     }).pipe(Effect.withSpan('onDocumentDeletedWithAuthContextEffect'));
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentDeletedWithAuthContext', {
         inner: error,

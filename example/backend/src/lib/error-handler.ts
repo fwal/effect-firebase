@@ -26,7 +26,7 @@ const formatError = (error: unknown): Effect.Effect<ErrorResponse> => {
 };
 
 export const SerializeError = Effect.catch((error: unknown) =>
-  formatError(error)
+  formatError(error),
 );
 
 export const ErrorHandler = Effect.catchDefect((error) => formatError(error));

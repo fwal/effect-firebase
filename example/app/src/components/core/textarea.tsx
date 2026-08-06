@@ -34,11 +34,12 @@ const textareaVariants = cva(
     defaultVariants: {
       state: 'default',
     },
-  }
+  },
 );
 
 export interface TextAreaProps
-  extends TextareaHTMLAttributes<HTMLTextAreaElement>,
+  extends
+    TextareaHTMLAttributes<HTMLTextAreaElement>,
     VariantProps<typeof textareaVariants> {
   error?: string;
 }
@@ -61,7 +62,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 TextArea.displayName = 'TextArea';

@@ -5,5 +5,5 @@ export default [
   {
     files: ['**/*.ts', '**/*.js'],
     rules: {},
-  }
+  },
 ];

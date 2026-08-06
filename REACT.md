@@ -50,7 +50,9 @@ export const firestoreLayerAtom = Atom.keepAlive(
     // forgotten seed fails loudly instead of being silenced by a cast.
     Layer.effect(
       FirestoreService,
-      Effect.die('firestoreLayerAtom must be seeded via RegistryProvider initialValues'),
+      Effect.die(
+        'firestoreLayerAtom must be seeded via RegistryProvider initialValues',
+      ),
     ),
   ),
 );
@@ -120,9 +122,7 @@ export const postByIdAtom = Atom.family((id: typeof PostId.Type) =>
 // back-navigation) without leaking one listener per visited post.
 export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
   clientRuntime
-    .atom(
-      Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))),
-    )
+    .atom(Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))))
     .pipe(Atom.setIdleTTL('30 seconds')),
 );
 
@@ -164,7 +164,7 @@ Notes:
   side with `reactivityKeys` on mutations: a completed mutation re-runs every
   read that shares a key.
 - **Concurrency:** without `concurrent: true`, a second invocation of an fn
-  atom *interrupts* the in-flight previous one (latest-wins) and all pending
+  atom _interrupts_ the in-flight previous one (latest-wins) and all pending
   promise-mode awaiters resolve with the last invocation's result. That
   default suits search-as-you-type reads; for mutations it can silently drop
   a write, so pass `concurrent: true`.
@@ -184,9 +184,15 @@ function PostList() {
     .onInitial(() => <Spinner />)
     .onFailure((cause) => <Error message={Cause.pretty(cause)} />)
     .onSuccess((posts) =>
-      posts.length === 0
-        ? <Empty />
-        : <>{posts.map((p) => <PostCard key={p.id} post={p} />)}</>,
+      posts.length === 0 ? (
+        <Empty />
+      ) : (
+        <>
+          {posts.map((p) => (
+            <PostCard key={p.id} post={p} />
+          ))}
+        </>
+      ),
     )
     .exhaustive();
 }
@@ -219,7 +225,7 @@ function CreatePost() {
   const create = useAtomSet(addPostAtom, { mode: 'promise' });
   return (
     <Button
-      onClick={() => create({ title: 'Hello', /* ... */ }).catch(/* ... */)}
+      onClick={() => create({ title: 'Hello' /* ... */ }).catch(/* ... */)}
     >
       Create
     </Button>
@@ -266,7 +272,7 @@ function PostForm() {
     onSubmit: async ({ value }) => {
       setSubmitError(null);
       try {
-        await create({ ...value, /* fill required fields */ });
+        await create({ ...value /* fill required fields */ });
         form.reset();
       } catch {
         // form-core rethrows onSubmit errors out of handleSubmit, so an

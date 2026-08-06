@@ -26,8 +26,8 @@ const program = Effect.gen(function* () {
     Query.and(
       Query.where('status', '==', 'published'),
       Query.orderBy('createdAt', 'desc'),
-      Query.limit(10)
-    )
+      Query.limit(10),
+    ),
   );
   return posts;
 }).pipe(Effect.provide(PostRepository), Effect.provide(Client.layer({ app })));

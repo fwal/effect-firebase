@@ -7,20 +7,20 @@ export const findAll = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
   const decode = Schema.decodeUnknownEffect(
-    Schema.mutable(Schema.Array(options.Result))
+    Schema.mutable(Schema.Array(options.Result)),
   );
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Effect.Effect<
     Array<Res['Type']>,
     E | Schema.SchemaError,
@@ -28,7 +28,7 @@ export const findAll = <
   > =>
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
-      decode
+      decode,
     );
 };
 
@@ -39,17 +39,17 @@ export const findNonEmpty = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
   const find = findAll(options);
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Effect.Effect<
     Arr.NonEmptyArray<Res['Type']>,
     E | Schema.SchemaError | Cause.NoSuchElementError,
@@ -58,7 +58,7 @@ export const findNonEmpty = <
     Effect.flatMap(find(request), (results) =>
       Arr.isArrayNonEmpty(results)
         ? Effect.succeed(results)
-        : Effect.fail(new Cause.NoSuchElementError())
+        : Effect.fail(new Cause.NoSuchElementError()),
     );
 };
 
@@ -71,7 +71,7 @@ const _void = <Req extends Schema.Top, E, R>(options: {
 }) => {
   const encode = Schema.encodeEffect(options.Request);
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Effect.Effect<void, E | Schema.SchemaError, R | Req['EncodingServices']> =>
     Effect.asVoid(Effect.flatMap(encode(request), options.execute));
 };
@@ -85,18 +85,18 @@ export const findOneOption = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Effect.Effect<
     Option.Option<Res['Type']>,
     E | Schema.SchemaError,
@@ -105,7 +105,7 @@ export const findOneOption = <
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
       (
-        arr
+        arr,
       ): Effect.Effect<
         Option.Option<Res['Type']>,
         Schema.SchemaError,
@@ -113,7 +113,7 @@ export const findOneOption = <
       > =>
         Arr.isReadonlyArrayNonEmpty(arr)
           ? Effect.asSome(decode(arr[0]))
-          : Effect.succeedNone
+          : Effect.succeedNone,
     );
 };
 
@@ -124,18 +124,18 @@ export const findOne = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Effect.Effect<
     Res['Type'],
     E | Schema.SchemaError | Cause.NoSuchElementError,
@@ -144,7 +144,7 @@ export const findOne = <
     Effect.flatMap(
       Effect.flatMap(encodeRequest(request), options.execute),
       (
-        arr
+        arr,
       ): Effect.Effect<
         Res['Type'],
         Schema.SchemaError | Cause.NoSuchElementError,
@@ -152,7 +152,7 @@ export const findOne = <
       > =>
         Arr.isReadonlyArrayNonEmpty(arr)
           ? decode(arr[0])
-          : Effect.fail(new Cause.NoSuchElementError())
+          : Effect.fail(new Cause.NoSuchElementError()),
     );
 };
 
@@ -163,18 +163,18 @@ export const streamOne = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Stream.Stream<Option.Option<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Stream.Stream<
     Option.Option<Res['Type']>,
     E | Schema.SchemaError,
@@ -186,9 +186,9 @@ export const streamOne = <
           Option.match(opt, {
             onNone: () => Effect.succeedNone,
             onSome: (value) => decode(value).pipe(Effect.map(Option.some)),
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 };
 
@@ -199,26 +199,26 @@ export const streamAll = <
   Req extends Schema.Top,
   Res extends Schema.Top,
   E,
-  R
+  R,
 >(options: {
   readonly Request: Req;
   readonly Result: Res;
   readonly execute: (
-    request: Req['Encoded']
+    request: Req['Encoded'],
   ) => Stream.Stream<ReadonlyArray<unknown>, E, R>;
 }) => {
   const encodeRequest = Schema.encodeEffect(options.Request);
   const decode = Schema.decodeUnknownEffect(
-    Schema.mutable(Schema.Array(options.Result))
+    Schema.mutable(Schema.Array(options.Result)),
   );
   return (
-    request: Req['Type']
+    request: Req['Type'],
   ): Stream.Stream<
     Array<Res['Type']>,
     E | Schema.SchemaError,
     R | Req['EncodingServices'] | Res['DecodingServices']
   > =>
     Stream.flatMap(Stream.fromEffect(encodeRequest(request)), (encoded) =>
-      options.execute(encoded).pipe(Stream.mapEffect((arr) => decode(arr)))
+      options.execute(encoded).pipe(Stream.mapEffect((arr) => decode(arr))),
     );
 };

@@ -54,9 +54,7 @@ export const postByIdAtom = Atom.family((id: typeof PostId.Type) =>
 // listener per visited post for the life of the app.
 export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
   clientRuntime
-    .atom(
-      Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))),
-    )
+    .atom(Stream.unwrap(Effect.map(PostRepository, (r) => r.getByIdStream(id))))
     .pipe(Atom.setIdleTTL('30 seconds')),
 );
 

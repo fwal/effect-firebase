@@ -22,5 +22,5 @@ export const onExampleRequest = onRequestEffect(
       const id = PostId.make(body.id);
       const post = yield* posts.getById(id);
       return Option.getOrThrow(post);
-    }).pipe(SerializeError, ErrorHandler)
+    }).pipe(SerializeError, ErrorHandler),
 );

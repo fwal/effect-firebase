@@ -71,6 +71,9 @@
           "targetName": "typecheck"
         }
       }
+    },
+    {
+      "plugin": "@nx/vitest"
     }
   ],
   "targetDefaults": {
