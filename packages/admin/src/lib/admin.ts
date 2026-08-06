@@ -31,7 +31,7 @@ export interface LayerOptions {
 type ReadyLayer = Layer.Layer<FirestoreService, never, never>;
 
 const withCloudLogger = <R, E, RIn>(
-  services: Layer.Layer<R, E, RIn>
+  services: Layer.Layer<R, E, RIn>,
 ): Layer.Layer<R, E, RIn> => Layer.merge(services, cloudConsole);
 
 /**
@@ -71,16 +71,16 @@ const withCloudLogger = <R, E, RIn>(
  * ```
  */
 export function layer(
-  options: LayerOptions & { app: FirebaseAdminApp }
+  options: LayerOptions & { app: FirebaseAdminApp },
 ): ReadyLayer;
 export function layer(
-  options: LayerOptions & { firestore: Firestore }
+  options: LayerOptions & { firestore: Firestore },
 ): ReadyLayer;
 export function layer(options?: LayerOptions): ReadyLayer;
 export function layer(options: LayerOptions = {}): ReadyLayer {
   if (options.app && options.firestore) {
     throw new Error(
-      'Admin.layer: pass either { app } or { firestore }, not both.'
+      'Admin.layer: pass either { app } or { firestore }, not both.',
     );
   }
 

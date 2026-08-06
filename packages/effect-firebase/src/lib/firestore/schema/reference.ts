@@ -25,27 +25,27 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     id: Schema.String,
     path: Schema.String,
     parent: Schema.optional(
-      Schema.suspend((): Schema.Codec<ReferenceShape> => Reference)
+      Schema.suspend((): Schema.Codec<ReferenceShape> => Reference),
     ),
   }).check(
     Schema.makeFilter(
       ({ path }) =>
         isPathValid(path) ||
-        'Path must not be empty and must contain an even number of parts'
+        'Path must not be empty and must contain an even number of parts',
     ),
     Schema.makeFilter(
       ({ id, path }) =>
         id === (path.split('/').pop() ?? '') ||
-        'Id must match the last part of the path'
-    )
-  )
+        'Id must match the last part of the path',
+    ),
+  ),
 ) {
   static makeFromPath(path: string): Reference {
     const parts = path.split('/').filter(Boolean);
 
     if (!isPathValid(path)) {
       throw new Error(
-        'Path must not be empty and must contain an even number of parts'
+        'Path must not be empty and must contain an even number of parts',
       );
     }
 
@@ -83,9 +83,9 @@ export const AnyReferenceId = ReferenceInstance.pipe(
   Schema.decodeTo(Schema.String, {
     decode: SchemaGetter.transform((ref: Reference) => ref.id),
     encode: SchemaGetter.forbidden(
-      () => 'Id string cannot be encoded to Reference'
+      () => 'Id string cannot be encoded to Reference',
     ),
-  })
+  }),
 );
 
 /**
@@ -96,9 +96,9 @@ export const AnyReferencePath = ReferenceInstance.pipe(
   Schema.decodeTo(Schema.String, {
     decode: SchemaGetter.transform((ref: Reference) => ref.path),
     encode: SchemaGetter.transform((path: string) =>
-      Reference.makeFromPath(path)
+      Reference.makeFromPath(path),
     ),
-  })
+  }),
 );
 
 /**
@@ -122,16 +122,16 @@ type StringBasedSchema = Schema.Top & { readonly Type: string };
  */
 export const ReferenceId = <Id extends StringBasedSchema>(
   idSchema: Id,
-  collectionPath: string
+  collectionPath: string,
 ) =>
   ReferenceInstance.pipe(
     Schema.decodeTo(Schema.String, {
       decode: SchemaGetter.transform((ref: Reference) => ref.id),
       encode: SchemaGetter.transform((id: string) =>
-        Reference.makeFromPath(`${collectionPath}/${id}`)
+        Reference.makeFromPath(`${collectionPath}/${id}`),
       ),
     }),
-    Schema.decodeTo(idSchema)
+    Schema.decodeTo(idSchema),
   ).annotate({
     identifier: `TypedReferenceId<${collectionPath}>`,
   });
@@ -149,18 +149,18 @@ export const ReferencePath = (collectionPath: string) => {
       Schema.makeFilter(
         (path) =>
           path.startsWith(`${collectionPath}/`) ||
-          `Path must start with "${collectionPath}/"`
-      )
-    )
+          `Path must start with "${collectionPath}/"`,
+      ),
+    ),
   );
 
   return ReferenceInstance.pipe(
     Schema.decodeTo(pathSchema, {
       decode: SchemaGetter.transform((ref: Reference) => ref.path),
       encode: SchemaGetter.transform((path: string) =>
-        Reference.makeFromPath(path)
+        Reference.makeFromPath(path),
       ),
-    })
+    }),
   ).annotate({
     identifier: `TypedReferencePath<${collectionPath}>`,
   });

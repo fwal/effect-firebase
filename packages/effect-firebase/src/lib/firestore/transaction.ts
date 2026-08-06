@@ -38,7 +38,7 @@ import { FirestoreService } from './firestore-service.js';
  * ```
  */
 export const withTransaction = <A, E, R>(
-  self: Effect.Effect<A, E, R>
+  self: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | FirestoreError | UnknownError, R | FirestoreService> =>
   Effect.gen(function* () {
     const firestore = yield* FirestoreService;
@@ -78,7 +78,7 @@ export const withTransaction = <A, E, R>(
  * ```
  */
 export const withBatch = <A, E, R>(
-  self: Effect.Effect<A, E, R>
+  self: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | FirestoreError | UnknownError, R | FirestoreService> =>
   Effect.gen(function* () {
     const firestore = yield* FirestoreService;

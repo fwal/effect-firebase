@@ -10,5 +10,5 @@ export const AuthorRepository = Firestore.makeRepository(AuthorModel, {
   Effect.map((repository) => ({
     ...repository,
     // Additional methods can be added here
-  }))
+  })),
 );

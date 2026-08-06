@@ -18,7 +18,7 @@ interface DocumentUpdatedEffectOptions<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
@@ -43,7 +43,7 @@ export function onDocumentUpdatedEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
   handler: (
@@ -51,8 +51,8 @@ export function onDocumentUpdatedEffect<
     event: FirestoreEvent<
       Change<QueryDocumentSnapshot> | undefined,
       ParamsOf<Document>
-    >
-  ) => Effect.Effect<void, never, R>
+    >,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, ParamsOf<Document>>
 > {
@@ -69,13 +69,13 @@ export function onDocumentUpdatedEffect<
         event.data?.before.data(),
         docId,
         schema,
-        options.idField
+        options.idField,
       );
       const after = yield* decodeDocumentData(
         event.data?.after.data(),
         docId,
         schema,
-        options.idField
+        options.idField,
       );
 
       return yield* handler(
@@ -83,13 +83,13 @@ export function onDocumentUpdatedEffect<
           before,
           after,
         } as TypedChange<Schema.Schema.Type<S>>,
-        event
+        event,
       );
     }).pipe(Effect.withSpan('onDocumentUpdatedEffect'));
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentUpdated', {
         inner: error,
@@ -110,7 +110,7 @@ export function onDocumentUpdatedWithAuthContextEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentUpdatedEffectOptions<R, Document, S, IdField>,
   handler: (
@@ -118,8 +118,8 @@ export function onDocumentUpdatedWithAuthContextEffect<
       Change<QueryDocumentSnapshot> | undefined,
       ParamsOf<Document>
     >,
-    data: TypedChange<Schema.Schema.Type<S>>
-  ) => Effect.Effect<void, never, R>
+    data: TypedChange<Schema.Schema.Type<S>>,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreAuthEvent<
     Change<QueryDocumentSnapshot> | undefined,
@@ -138,13 +138,13 @@ export function onDocumentUpdatedWithAuthContextEffect<
         event.data?.before.data(),
         docId,
         schema,
-        options.idField
+        options.idField,
       );
       const after = yield* decodeDocumentData(
         event.data?.after.data(),
         docId,
         schema,
-        options.idField
+        options.idField,
       );
       return yield* handler(event, {
         before,
@@ -154,7 +154,7 @@ export function onDocumentUpdatedWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentUpdatedWithAuthContext', {
         inner: error,

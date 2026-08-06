@@ -21,5 +21,5 @@ export const onExampleCall = onCallEffect(
       const posts = yield* PostRepository;
       const post = yield* posts.getById(input.id);
       return Option.getOrThrow(post);
-    }).pipe(SerializeError, ErrorHandler)
+    }).pipe(SerializeError, ErrorHandler),
 );

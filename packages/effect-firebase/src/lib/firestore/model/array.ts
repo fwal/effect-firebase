@@ -37,26 +37,26 @@ export type WithArrayFields<S extends Schema.Top> = VariantSchema.Field<{
 const identity = (s: Schema.Top) => s;
 
 export const WithArrayFields: <
-  Field extends VariantSchema.Field<any> | Schema.Top
+  Field extends VariantSchema.Field<any> | Schema.Top,
 >(
-  self: Field
+  self: Field,
 ) => Field extends Schema.Top
   ? WithArrayFields<Field>
   : Field extends VariantSchema.Field<infer S>
-  ? VariantSchema.Field<{
-      readonly [K in keyof S]: S[K] extends Schema.Top
-        ? K extends 'update'
-          ? Schema.Union<
-              readonly [
-                S[K],
-                typeof ArrayUnionInstance,
-                typeof ArrayRemoveInstance
-              ]
-            >
-          : S[K]
-        : never;
-    }>
-  : never = Model.fieldEvolve({
+    ? VariantSchema.Field<{
+        readonly [K in keyof S]: S[K] extends Schema.Top
+          ? K extends 'update'
+            ? Schema.Union<
+                readonly [
+                  S[K],
+                  typeof ArrayUnionInstance,
+                  typeof ArrayRemoveInstance,
+                ]
+              >
+            : S[K]
+          : never;
+      }>
+    : never = Model.fieldEvolve({
   select: identity,
   insert: identity,
   update: (s: Schema.Top) =>
@@ -78,6 +78,6 @@ export const WithArrayFields: <
  * ```
  */
 export const Array = <A, I, RD = never, RE = never>(
-  element: Schema.Codec<A, I, RD, RE>
+  element: Schema.Codec<A, I, RD, RE>,
 ): WithArrayFields<Schema.$Array<Schema.Codec<A, I, RD, RE>>> =>
   WithArrayFields(Schema.Array(element)) as any;

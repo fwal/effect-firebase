@@ -14,13 +14,17 @@ interface RequestEffectOptions<R> extends HttpsOptions {
   runtime: Runtime<R>;
 }
 
-interface RequestEffectOptionsWithBody<R, B extends Schema.Top>
-  extends RequestEffectOptions<R> {
+interface RequestEffectOptionsWithBody<
+  R,
+  B extends Schema.Top,
+> extends RequestEffectOptions<R> {
   bodySchema: B;
 }
 
-interface RequestEffectOptionsWithResponse<R, O extends Schema.Top>
-  extends RequestEffectOptions<R> {
+interface RequestEffectOptionsWithResponse<
+  R,
+  O extends Schema.Top,
+> extends RequestEffectOptions<R> {
   responseSchema: O;
   successStatus?: number;
 }
@@ -28,7 +32,7 @@ interface RequestEffectOptionsWithResponse<R, O extends Schema.Top>
 interface RequestEffectOptionsWithBoth<
   R,
   B extends Schema.Top,
-  O extends Schema.Top
+  O extends Schema.Top,
 > extends RequestEffectOptions<R> {
   bodySchema: B;
   responseSchema: O;
@@ -47,14 +51,14 @@ export function onRequestEffect<
   R,
   B extends Schema.Top,
   O extends Schema.Top,
-  E
+  E,
 >(
   options: RequestEffectOptionsWithBoth<R, B, O>,
   handler: (
     body: Schema.Schema.Type<B>,
     request: Request,
-    response: Response
-  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+    response: Response,
+  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
 ): HttpsFunction;
 
 // Overload: only body schema
@@ -63,8 +67,8 @@ export function onRequestEffect<R, B extends Schema.Top, E>(
   handler: (
     body: Schema.Schema.Type<B>,
     request: Request,
-    response: Response
-  ) => Effect.Effect<void, E, R>
+    response: Response,
+  ) => Effect.Effect<void, E, R>,
 ): HttpsFunction;
 
 // Overload: only response schema
@@ -72,14 +76,14 @@ export function onRequestEffect<R, O extends Schema.Top, E>(
   options: RequestEffectOptionsWithResponse<R, O>,
   handler: (
     request: Request,
-    response: Response
-  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+    response: Response,
+  ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
 ): HttpsFunction;
 
 // Overload: no schemas (full control)
 export function onRequestEffect<R, E>(
   options: RequestEffectOptions<R>,
-  handler: (request: Request, response: Response) => Effect.Effect<void, E, R>
+  handler: (request: Request, response: Response) => Effect.Effect<void, E, R>,
 ): HttpsFunction;
 
 // Implementation
@@ -90,7 +94,7 @@ export function onRequestEffect<R>(
     successStatus?: number;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>
+  handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>,
 ): HttpsFunction {
   const { bodySchema, responseSchema, successStatus = 200 } = options;
 
@@ -114,8 +118,8 @@ export function onRequestEffect<R>(
       Effect.andThen((output) =>
         responseSchema
           ? sendJson(response, responseSchema, successStatus)(output)
-          : Effect.void
-      )
+          : Effect.void,
+      ),
     ).pipe(Effect.withSpan('onRequestEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
@@ -125,7 +129,7 @@ export function onRequestEffect<R>(
           stack: error instanceof Error ? error.stack : undefined,
         });
         response.status(500).send();
-      }
+      },
     );
   });
 }

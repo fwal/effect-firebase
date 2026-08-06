@@ -12,8 +12,10 @@ interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;
 }
 
-interface TaskDispatchedEffectOptionsWithSchema<R, S extends Schema.Top>
-  extends TaskDispatchedEffectOptions<R | S['DecodingServices']> {
+interface TaskDispatchedEffectOptionsWithSchema<
+  R,
+  S extends Schema.Top,
+> extends TaskDispatchedEffectOptions<R | S['DecodingServices']> {
   schema: S;
 }
 
@@ -22,12 +24,12 @@ interface TaskDispatchedEffectOptionsWithSchema<R, S extends Schema.Top>
  */
 function decodeTaskData<S extends Schema.Top>(
   schema: S,
-  request: Request<unknown>
+  request: Request<unknown>,
 ): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
   return Schema.decodeUnknownEffect(schema)(request.data).pipe(
     Effect.mapError(
-      (error) => new Error(`Failed to decode task payload: ${error.message}`)
-    )
+      (error) => new Error(`Failed to decode task payload: ${error.message}`),
+    ),
   ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
 }
 
@@ -43,14 +45,14 @@ export function onTaskDispatchedEffect<R, S extends Schema.Top, E>(
   options: TaskDispatchedEffectOptionsWithSchema<R, S>,
   handler: (
     data: Schema.Schema.Type<S>,
-    request: Request<Schema.Codec.Encoded<S>>
-  ) => Effect.Effect<void, E, R>
+    request: Request<Schema.Codec.Encoded<S>>,
+  ) => Effect.Effect<void, E, R>,
 ): TaskQueueFunction<Schema.Codec.Encoded<S>>;
 
 // Overload: without payload schema (full control)
 export function onTaskDispatchedEffect<R, T, E>(
   options: TaskDispatchedEffectOptions<R>,
-  handler: (request: Request<T>) => Effect.Effect<void, E, R>
+  handler: (request: Request<T>) => Effect.Effect<void, E, R>,
 ): TaskQueueFunction<T>;
 
 // Implementation
@@ -59,7 +61,7 @@ export function onTaskDispatchedEffect<R>(
     schema?: Schema.Top;
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (...args: any[]) => Effect.Effect<void, unknown, R>
+  handler: (...args: any[]) => Effect.Effect<void, unknown, R>,
 ): TaskQueueFunction<unknown> {
   const { schema } = options;
 
@@ -81,7 +83,7 @@ export function onTaskDispatchedEffect<R>(
           inner: error,
           stack: error instanceof Error ? error.stack : undefined,
         });
-      }
+      },
     );
   });
 }

@@ -10,12 +10,12 @@ const makeLayer = (overrides: Partial<FirestoreServiceShape>) =>
 describe('withTransaction', () => {
   it('delegates to FirestoreService.withTransaction', async () => {
     const withTransactionMock = vi.fn(
-      <A, E, R>(self: Effect.Effect<A, E, R>) => self
+      <A, E, R>(self: Effect.Effect<A, E, R>) => self,
     );
     const result = await Effect.runPromise(
       withTransaction(Effect.succeed(42)).pipe(
-        Effect.provide(makeLayer({ withTransaction: withTransactionMock }))
-      )
+        Effect.provide(makeLayer({ withTransaction: withTransactionMock })),
+      ),
     );
 
     expect(result).toBe(42);
@@ -26,12 +26,12 @@ describe('withTransaction', () => {
 describe('withBatch', () => {
   it('delegates to FirestoreService.withBatch', async () => {
     const withBatchMock = vi.fn(
-      <A, E, R>(self: Effect.Effect<A, E, R>) => self
+      <A, E, R>(self: Effect.Effect<A, E, R>) => self,
     );
     const result = await Effect.runPromise(
       withBatch(Effect.succeed('ok')).pipe(
-        Effect.provide(makeLayer({ withBatch: withBatchMock }))
-      )
+        Effect.provide(makeLayer({ withBatch: withBatchMock })),
+      ),
     );
 
     expect(result).toBe('ok');

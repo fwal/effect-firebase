@@ -27,5 +27,8 @@
     {
       "path": "./example/app"
     }
-  ]
+  ],
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0"
+  }
 }

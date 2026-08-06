@@ -48,11 +48,12 @@ const buttonVariants = cva(
       variant: 'primary',
       size: 'md',
     },
-  }
+  },
 );
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   isLoading?: boolean;
 }
@@ -60,7 +61,7 @@ export interface ButtonProps
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     { className, variant, size, isLoading, disabled, children, ...props },
-    ref
+    ref,
   ) => {
     return (
       <button
@@ -94,7 +95,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = 'Button';

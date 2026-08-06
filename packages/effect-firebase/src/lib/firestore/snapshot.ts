@@ -24,10 +24,10 @@ interface SnapshotLike {
  * @returns
  */
 export function makeSnapshotPacker(
-  converter: (data: Data) => Data
+  converter: (data: Data) => Data,
 ): (
   snapshot: SnapshotLike,
-  options?: FirestoreDataOptions
+  options?: FirestoreDataOptions,
 ) => Option.Option<Snapshot> {
   return (snapshot, options) => {
     const data = snapshot.data(options);
@@ -37,7 +37,7 @@ export function makeSnapshotPacker(
     const ref =
       typeof snapshot.ref === 'function' ? snapshot.ref() : snapshot.ref;
     return Option.some(
-      Tuple.make({ id: ref.id, path: ref.path }, converter(data))
+      Tuple.make({ id: ref.id, path: ref.path }, converter(data)),
     );
   };
 }

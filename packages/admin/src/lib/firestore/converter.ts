@@ -17,7 +17,7 @@ import { FirestoreSchema, Firestore } from 'effect-firebase';
  */
 export const firestoreEncode = (
   db: FirebaseFirestore,
-  data: unknown
+  data: unknown,
 ): unknown => {
   if (
     data === null ||
@@ -46,12 +46,12 @@ export const firestoreEncode = (
   }
   if (data instanceof Firestore.ArrayUnion) {
     return FieldValue.arrayUnion(
-      ...data.values.map((v) => firestoreEncode(db, v))
+      ...data.values.map((v) => firestoreEncode(db, v)),
     );
   }
   if (data instanceof Firestore.ArrayRemove) {
     return FieldValue.arrayRemove(
-      ...data.values.map((v) => firestoreEncode(db, v))
+      ...data.values.map((v) => firestoreEncode(db, v)),
     );
   }
   if (Array.isArray(data)) {
@@ -59,7 +59,7 @@ export const firestoreEncode = (
   }
   if (typeof data === 'object' && data !== null) {
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)]),
     );
   }
   return data;
@@ -88,14 +88,14 @@ export const firestoreDecode = (data: DocumentData): DocumentData => {
   }
   if (typeof data === 'object' && data !== null) {
     return Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)])
+      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)]),
     );
   }
   return data;
 };
 
 export const makeConverter = (
-  db: FirebaseFirestore
+  db: FirebaseFirestore,
 ): FirestoreDataConverter<DocumentData, DocumentData> => ({
   toFirestore: (modelObject) =>
     firestoreEncode(db, modelObject) as DocumentData,

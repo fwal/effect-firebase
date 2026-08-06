@@ -12,5 +12,5 @@ export const PostRepository = Firestore.makeRepository(PostModel, {
     // Additional methods can be added here
     latestPosts: () =>
       repository.queryStream(Query.orderBy('createdAt', 'desc')),
-  }))
+  })),
 );

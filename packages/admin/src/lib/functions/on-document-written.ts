@@ -18,7 +18,7 @@ interface DocumentWrittenEffectOptions<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 > extends DocumentOptions<Document> {
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
@@ -44,7 +44,7 @@ export function onDocumentWrittenEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
   handler: (
@@ -52,8 +52,8 @@ export function onDocumentWrittenEffect<
     event: FirestoreEvent<
       Change<DocumentSnapshot> | undefined,
       ParamsOf<Document>
-    >
-  ) => Effect.Effect<void, never, R>
+    >,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>
 > {
@@ -77,13 +77,18 @@ export function onDocumentWrittenEffect<
               beforeData,
               docId,
               schema,
-              options.idField
-            )
+              options.idField,
+            ),
           )
         : Option.none();
       const after = afterData
         ? Option.some(
-            yield* decodeDocumentData(afterData, docId, schema, options.idField)
+            yield* decodeDocumentData(
+              afterData,
+              docId,
+              schema,
+              options.idField,
+            ),
           )
         : Option.none();
 
@@ -92,13 +97,13 @@ export function onDocumentWrittenEffect<
           before,
           after,
         } as TypedWrittenChange<Schema.Schema.Type<S>>,
-        event
+        event,
       );
     }).pipe(Effect.withSpan('onDocumentWrittenEffect'));
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentWritten', {
         inner: error,
@@ -119,7 +124,7 @@ export function onDocumentWrittenWithAuthContextEffect<
   R,
   Document extends string,
   S extends Schema.Top = Schema.Schema<unknown>,
-  IdField extends keyof Schema.Schema.Type<S> & string = never
+  IdField extends keyof Schema.Schema.Type<S> & string = never,
 >(
   options: DocumentWrittenEffectOptions<R, Document, S, IdField>,
   handler: (
@@ -127,8 +132,8 @@ export function onDocumentWrittenWithAuthContextEffect<
       Change<DocumentSnapshot> | undefined,
       ParamsOf<Document>
     >,
-    data: TypedWrittenChange<Schema.Schema.Type<S>>
-  ) => Effect.Effect<void, never, R>
+    data: TypedWrittenChange<Schema.Schema.Type<S>>,
+  ) => Effect.Effect<void, never, R>,
 ): CloudFunction<
   FirestoreAuthEvent<Change<DocumentSnapshot> | undefined, ParamsOf<Document>>
 > {
@@ -152,13 +157,18 @@ export function onDocumentWrittenWithAuthContextEffect<
               beforeData,
               docId,
               schema,
-              options.idField
-            )
+              options.idField,
+            ),
           )
         : Option.none();
       const after = afterData
         ? Option.some(
-            yield* decodeDocumentData(afterData, docId, schema, options.idField)
+            yield* decodeDocumentData(
+              afterData,
+              docId,
+              schema,
+              options.idField,
+            ),
           )
         : Option.none();
 
@@ -170,7 +180,7 @@ export function onDocumentWrittenWithAuthContextEffect<
 
     await run(
       options.runtime,
-      effect as Effect.Effect<void, never, R | S['DecodingServices']>
+      effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
       logger.error('Defect in onDocumentWrittenWithAuthContext', {
         inner: error,

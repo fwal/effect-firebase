@@ -17,7 +17,7 @@ import { Request, Response } from 'express';
 export const parseBody =
   <S extends Schema.Top>(schema: S) =>
   (
-    request: Request
+    request: Request,
   ): Effect.Effect<
     Schema.Schema.Type<S>,
     Schema.SchemaError,
@@ -45,7 +45,7 @@ export const parseBody =
 export const parseQuery =
   <S extends Schema.Top>(schema: S) =>
   (
-    request: Request
+    request: Request,
   ): Effect.Effect<
     Schema.Schema.Type<S>,
     Schema.SchemaError,
@@ -73,7 +73,7 @@ export const parseQuery =
 export const parseParams =
   <S extends Schema.Top>(schema: S) =>
   (
-    request: Request
+    request: Request,
   ): Effect.Effect<
     Schema.Schema.Type<S>,
     Schema.SchemaError,
@@ -100,7 +100,7 @@ export const parseParams =
 export const sendJson =
   <S extends Schema.Top>(response: Response, schema: S, status = 200) =>
   (
-    output: Schema.Schema.Type<S>
+    output: Schema.Schema.Type<S>,
   ): Effect.Effect<void, Schema.SchemaError, S['EncodingServices']> =>
     pipe(
       Schema.encodeUnknownEffect(schema)(output) as Effect.Effect<
@@ -111,8 +111,8 @@ export const sendJson =
       Effect.andThen((encoded) =>
         Effect.sync(() => {
           response.status(status).json(encoded);
-        })
-      )
+        }),
+      ),
     );
 
 /**
@@ -158,15 +158,15 @@ export const withBodySchema =
   <R, E, T>(
     handler: (
       body: Schema.Schema.Type<B>,
-      request: Request
-    ) => Effect.Effect<T, E, R>
+      request: Request,
+    ) => Effect.Effect<T, E, R>,
   ) =>
   (
-    request: Request
+    request: Request,
   ): Effect.Effect<T, E | Schema.SchemaError, R | B['DecodingServices']> =>
     pipe(
       parseBody(bodySchema)(request),
-      Effect.andThen((body) => handler(body, request))
+      Effect.andThen((body) => handler(body, request)),
     );
 
 /**
@@ -190,18 +190,18 @@ export const withJsonEndpoint =
   <B extends Schema.Top, O extends Schema.Top>(
     bodySchema: B,
     responseSchema: O,
-    successStatus = 200
+    successStatus = 200,
   ) =>
   <R, E>(
     handler: (
       body: Schema.Schema.Type<B>,
       request: Request,
-      response: Response
-    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>
+      response: Response,
+    ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
   ) =>
   (
     request: Request,
-    response: Response
+    response: Response,
   ): Effect.Effect<
     void,
     E | Schema.SchemaError,
@@ -210,5 +210,5 @@ export const withJsonEndpoint =
     pipe(
       parseBody(bodySchema)(request),
       Effect.andThen((body) => handler(body, request, response)),
-      Effect.andThen(sendJson(response, responseSchema, successStatus))
+      Effect.andThen(sendJson(response, responseSchema, successStatus)),
     );

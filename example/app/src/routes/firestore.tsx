@@ -51,15 +51,11 @@ const fieldError = (field: {
   readonly state: {
     readonly meta: {
       readonly isTouched: boolean;
-      readonly errors: ReadonlyArray<
-        { readonly message?: string } | undefined
-      >;
+      readonly errors: ReadonlyArray<{ readonly message?: string } | undefined>;
     };
   };
 }) =>
-  field.state.meta.isTouched
-    ? field.state.meta.errors[0]?.message
-    : undefined;
+  field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined;
 
 function PostForm({
   editing,
@@ -183,11 +179,7 @@ function PostForm({
   );
 }
 
-export function PostList({
-  onEdit,
-}: {
-  onEdit: (post: Post) => void;
-}) {
+export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
   const result = useAtomValue(latestPostsAtom);
   const remove = useAtomSet(deletePostAtom, { mode: 'promise' });
   const [deleteError, setDeleteError] = useState<string | null>(null);

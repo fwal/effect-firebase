@@ -35,8 +35,7 @@ const cardVariants = cva('rounded-lg border p-4', {
 });
 
 export interface CardProps
-  extends HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {}
+  extends HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, ...props }, ref) => {
@@ -47,7 +46,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         {...props}
       />
     );
-  }
+  },
 );
 
 Card.displayName = 'Card';
@@ -69,7 +68,8 @@ const cardHeaderVariants = cva('mb-2', {
 });
 
 export interface CardHeaderProps
-  extends HTMLAttributes<HTMLHeadingElement>,
+  extends
+    HTMLAttributes<HTMLHeadingElement>,
     VariantProps<typeof cardHeaderVariants> {}
 
 export const CardHeader = forwardRef<HTMLHeadingElement, CardHeaderProps>(
@@ -80,12 +80,12 @@ export const CardHeader = forwardRef<HTMLHeadingElement, CardHeaderProps>(
         className={cn(
           'text-xl font-semibold',
           cardHeaderVariants({ variant }),
-          className
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
 
 CardHeader.displayName = 'CardHeader';
@@ -107,7 +107,8 @@ const cardContentVariants = cva('', {
 });
 
 export interface CardContentProps
-  extends HTMLAttributes<HTMLParagraphElement>,
+  extends
+    HTMLAttributes<HTMLParagraphElement>,
     VariantProps<typeof cardContentVariants> {}
 
 export const CardContent = forwardRef<HTMLParagraphElement, CardContentProps>(
@@ -119,7 +120,7 @@ export const CardContent = forwardRef<HTMLParagraphElement, CardContentProps>(
         {...props}
       />
     );
-  }
+  },
 );
 
 CardContent.displayName = 'CardContent';

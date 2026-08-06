@@ -22,7 +22,7 @@ import { logger } from 'firebase-functions';
  * ```
  */
 export function make<R, E>(
-  layer: Layer.Layer<R, E>
+  layer: Layer.Layer<R, E>,
 ): ManagedRuntime.ManagedRuntime<R, E> {
   const runtime = ManagedRuntime.make(layer);
 
@@ -50,7 +50,7 @@ export function make<R, E>(
  * ```
  */
 export function Default(
-  app?: FirebaseAdminApp
+  app?: FirebaseAdminApp,
 ): ManagedRuntime.ManagedRuntime<FirestoreService, never> {
   return make(layer(app ? { app } : undefined));
 }

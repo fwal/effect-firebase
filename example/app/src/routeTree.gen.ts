@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as FunctionsRouteImport } from './routes/functions'
-import { Route as FirestoreRouteImport } from './routes/firestore'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FirestoreRouteImport } from './routes/firestore'
+import { Route as FunctionsRouteImport } from './routes/functions'
 
-const FunctionsRoute = FunctionsRouteImport.update({
-  id: '/functions',
-  path: '/functions',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FirestoreRoute = FirestoreRouteImport.update({
@@ -23,9 +23,9 @@ const FirestoreRoute = FirestoreRouteImport.update({
   path: '/firestore',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const FunctionsRoute = FunctionsRouteImport.update({
+  id: '/functions',
+  path: '/functions',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -61,11 +61,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/functions': {
-      id: '/functions'
-      path: '/functions'
-      fullPath: '/functions'
-      preLoaderRoute: typeof FunctionsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/firestore': {
@@ -75,11 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FirestoreRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/functions': {
+      id: '/functions'
+      path: '/functions'
+      fullPath: '/functions'
+      preLoaderRoute: typeof FunctionsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

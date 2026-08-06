@@ -116,7 +116,7 @@ describe('ReferenceInstance', () => {
       Schema.decodeSync(ReferenceInstance)({
         id: 'doc123',
         path: 'users/doc123',
-      })
+      }),
     ).toThrow();
   });
 });
@@ -137,7 +137,7 @@ describe('AnyReferenceId', () => {
   describe('encoding', () => {
     it('should fail to encode an ID string to Reference', () => {
       expect(() => encode('doc123')).toThrow(
-        /Id string cannot be encoded to Reference/
+        /Id string cannot be encoded to Reference/,
       );
     });
   });
@@ -305,7 +305,7 @@ describe('ReferencePath (typed)', () => {
 
     it('should fail encoding path that does not start with collection', () => {
       expect(() => encode('posts/post123')).toThrow(
-        /Path must start with "users\/"/
+        /Path must start with "users\/"/,
       );
     });
 
@@ -338,7 +338,7 @@ describe('ReferencePath (typed)', () => {
 
     it('should reject invalid nested collection prefix', () => {
       expect(() => encodeComment('posts/post2/comments/comment123')).toThrow(
-        /Path must start with "posts\/post1\/comments\/"/
+        /Path must start with "posts\/post1\/comments\/"/,
       );
     });
 

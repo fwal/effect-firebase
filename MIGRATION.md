@@ -34,13 +34,13 @@ Effect v4 renames several built-in error types. These appear in the error channe
 // Before (v3)
 repo.getById(id).pipe(
   Effect.catchTag('NoSuchElementException', () => Effect.succeed(null)),
-  Effect.catchTag('ParseError', (e) => Effect.fail(new MyError({ cause: e })))
+  Effect.catchTag('ParseError', (e) => Effect.fail(new MyError({ cause: e }))),
 );
 
 // After (v4)
 repo.getById(id).pipe(
   Effect.catchTag('NoSuchElementError', () => Effect.succeed(null)),
-  Effect.catchTag('SchemaError', (e) => Effect.fail(new MyError({ cause: e })))
+  Effect.catchTag('SchemaError', (e) => Effect.fail(new MyError({ cause: e }))),
 );
 ```
 

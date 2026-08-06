@@ -13,14 +13,14 @@ import { firestoreEncode } from './converter.js';
 const applyConstraint = (
   db: Firestore,
   query: Query,
-  constraint: QueryConstraint
+  constraint: QueryConstraint,
 ): Query => {
   switch (constraint._tag) {
     case 'Where':
       return query.where(
         constraint.field,
         constraint.op,
-        firestoreEncode(db, constraint.value)
+        firestoreEncode(db, constraint.value),
       );
     case 'OrderBy':
       return query.orderBy(constraint.field, constraint.direction);
@@ -30,19 +30,19 @@ const applyConstraint = (
       return query.limitToLast(constraint.count);
     case 'StartAt':
       return query.startAt(
-        ...constraint.values.map((value) => firestoreEncode(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value)),
       );
     case 'StartAfter':
       return query.startAfter(
-        ...constraint.values.map((value) => firestoreEncode(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value)),
       );
     case 'EndAt':
       return query.endAt(
-        ...constraint.values.map((value) => firestoreEncode(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value)),
       );
     case 'EndBefore':
       return query.endBefore(
-        ...constraint.values.map((value) => firestoreEncode(db, value))
+        ...constraint.values.map((value) => firestoreEncode(db, value)),
       );
     case 'And':
       return query.where(buildCompositeFilter(db, constraint));
@@ -56,10 +56,10 @@ const applyConstraint = (
  */
 const buildCompositeFilter = (
   db: Firestore,
-  constraint: QueryConstraint & { _tag: 'And' | 'Or' }
+  constraint: QueryConstraint & { _tag: 'And' | 'Or' },
 ): Filter => {
   const filters = constraint.constraints.map((childConstraint) =>
-    buildFilter(db, childConstraint)
+    buildFilter(db, childConstraint),
   );
 
   if (constraint._tag === 'Or') {
@@ -77,24 +77,24 @@ const buildFilter = (db: Firestore, constraint: QueryConstraint): Filter => {
       return Filter.where(
         constraint.field,
         constraint.op,
-        firestoreEncode(db, constraint.value)
+        firestoreEncode(db, constraint.value),
       );
     case 'And':
       return Filter.and(
         ...constraint.constraints.map((childConstraint) =>
-          buildFilter(db, childConstraint)
-        )
+          buildFilter(db, childConstraint),
+        ),
       );
     case 'Or':
       return Filter.or(
         ...constraint.constraints.map((childConstraint) =>
-          buildFilter(db, childConstraint)
-        )
+          buildFilter(db, childConstraint),
+        ),
       );
     default:
       // Non-filter constraints (OrderBy, Limit, etc.) shouldn't appear in composite filters
       throw new Error(
-        `Cannot use ${constraint._tag} inside AND/OR composite filters`
+        `Cannot use ${constraint._tag} inside AND/OR composite filters`,
       );
   }
 };
@@ -103,7 +103,7 @@ const buildFilter = (db: Firestore, constraint: QueryConstraint): Filter => {
  * Check if a constraint is a composite (And/Or) filter.
  */
 const isCompositeFilter = (
-  constraint: QueryConstraint
+  constraint: QueryConstraint,
 ): constraint is QueryConstraint & { _tag: 'And' | 'Or' } =>
   constraint._tag === 'And' || constraint._tag === 'Or';
 
@@ -113,7 +113,7 @@ const isCompositeFilter = (
 export const buildQuery = (
   db: Firestore,
   collectionPath: string,
-  constraints: ReadonlyArray<QueryConstraint>
+  constraints: ReadonlyArray<QueryConstraint>,
 ): Query => {
   const collectionRef: CollectionReference = db.collection(collectionPath);
 
