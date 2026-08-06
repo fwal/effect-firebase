@@ -24,7 +24,7 @@ export interface MockDevtoolsPanelProps {
    */
   readonly onStateChange?: (
     collectionPath: string,
-    state: MockState.State
+    state: MockState.State,
   ) => void;
 }
 
@@ -151,7 +151,7 @@ const styles = {
 const stateButtonStyle = (
   name: StateName,
   active: boolean,
-  inherited: boolean
+  inherited: boolean,
 ): CSSProperties => ({
   background: active ? palette[name] : 'transparent',
   color: active ? '#0b0d10' : palette[name],
@@ -203,8 +203,8 @@ export function MockDevtoolsPanel({
       Stream.runForEach(controller.changes, (current) =>
         Effect.sync(() => {
           setSnapshot(current);
-        })
-      )
+        }),
+      ),
     );
     void Effect.runPromise(controller.latency).then((latency) => {
       setLatencyMs(Duration.toMillis(latency));
@@ -231,7 +231,7 @@ export function MockDevtoolsPanel({
     const prefix = `${collectionPath}/`;
     return Object.keys(snapshot?.docs ?? {}).filter(
       (path) =>
-        path.startsWith(prefix) && !path.slice(prefix.length).includes('/')
+        path.startsWith(prefix) && !path.slice(prefix.length).includes('/'),
     ).length;
   };
 
@@ -252,9 +252,7 @@ export function MockDevtoolsPanel({
   const stateRow = (key: string, explicitOnly: boolean) => {
     const states = snapshot?.states ?? {};
     const explicit = states[key];
-    const effective = explicitOnly
-      ? explicit
-      : MockState.resolve(states, key);
+    const effective = explicitOnly ? explicit : MockState.resolve(states, key);
     const inherited = explicit === undefined;
     return (
       <div style={styles.buttonGroup}>

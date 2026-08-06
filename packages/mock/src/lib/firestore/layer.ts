@@ -83,12 +83,12 @@ const notFound = (path: string): FirestoreError =>
 
 const now: Effect.Effect<FirestoreSchema.Timestamp> = Effect.map(
   Clock.currentTimeMillis,
-  (millis) => FirestoreSchema.Timestamp.fromMillis(millis)
+  (millis) => FirestoreSchema.Timestamp.fromMillis(millis),
 );
 
 const optionSnapshotEquals = (
   a: Option.Option<Snapshot>,
-  b: Option.Option<Snapshot>
+  b: Option.Option<Snapshot>,
 ): boolean =>
   Option.isNone(a) || Option.isNone(b)
     ? Option.isNone(a) === Option.isNone(b)
@@ -99,22 +99,22 @@ const snapshotEquals = (a: Snapshot, b: Snapshot): boolean =>
 
 const snapshotsEqual = (
   a: ReadonlyArray<Snapshot>,
-  b: ReadonlyArray<Snapshot>
+  b: ReadonlyArray<Snapshot>,
 ): boolean =>
   a.length === b.length &&
   a.every((snapshot, index) => snapshotEquals(snapshot, b[index]));
 
 const makeFirestore = (
   ref: SubscriptionRef.SubscriptionRef<StoreSnapshot>,
-  latency: Ref.Ref<Duration.Duration>
+  latency: Ref.Ref<Duration.Duration>,
 ): FirestoreServiceShape => {
   const sleep = Effect.flatMap(Ref.get(latency), (duration) =>
-    Duration.toMillis(duration) > 0 ? Effect.sleep(duration) : Effect.void
+    Duration.toMillis(duration) > 0 ? Effect.sleep(duration) : Effect.void,
   );
 
   const stateFor = (collectionPath: string) =>
     Effect.map(SubscriptionRef.get(ref), (snapshot) =>
-      MockState.resolve(snapshot.states, collectionPath)
+      MockState.resolve(snapshot.states, collectionPath),
     );
 
   /**
@@ -137,7 +137,7 @@ const makeFirestore = (
     message === undefined ? Effect.void : Effect.fail(invalidArgument(message));
 
   const readDoc = (
-    path: string
+    path: string,
   ): Effect.Effect<Option.Option<Snapshot>, FirestoreError> =>
     Effect.gen(function* () {
       yield* validate(validateDocPath(path));
@@ -157,8 +157,8 @@ const makeFirestore = (
     collectionPath: string,
     mutate: (
       docs: Readonly<Record<string, DocData>>,
-      timestamp: FirestoreSchema.Timestamp
-    ) => Effect.Effect<Readonly<Record<string, DocData>>, FirestoreError>
+      timestamp: FirestoreSchema.Timestamp,
+    ) => Effect.Effect<Readonly<Record<string, DocData>>, FirestoreError>,
   ): Effect.Effect<void, FirestoreError> =>
     Effect.gen(function* () {
       yield* sleep;
@@ -169,7 +169,7 @@ const makeFirestore = (
         Effect.map(mutate(snapshot.docs, timestamp), (docs) => ({
           ...snapshot,
           docs,
-        }))
+        })),
       );
     });
 
@@ -186,7 +186,7 @@ const makeFirestore = (
         }
         const docPath = `${path}/${id}`;
         yield* write(path, (docs, timestamp) =>
-          Effect.succeed({ ...docs, [docPath]: applySet(data, timestamp) })
+          Effect.succeed({ ...docs, [docPath]: applySet(data, timestamp) }),
         );
         return { id, path: docPath };
       }),
@@ -200,7 +200,7 @@ const makeFirestore = (
             [path]: options?.merge
               ? applyMerge(docs[path], data, timestamp)
               : applySet(data, timestamp),
-          })
+          }),
         );
       }),
 
@@ -237,11 +237,10 @@ const makeFirestore = (
           Effect.succeed(
             Object.fromEntries(
               Object.entries(docs).filter(
-                ([docPath]) =>
-                  docPath !== path && !docPath.startsWith(prefix)
-              )
-            )
-          )
+                ([docPath]) => docPath !== path && !docPath.startsWith(prefix),
+              ),
+            ),
+          ),
         );
       }),
 
@@ -256,7 +255,7 @@ const makeFirestore = (
         const snapshot = yield* SubscriptionRef.get(ref);
         return applyConstraints(
           docsInCollection(snapshot.docs, collectionPath),
-          constraints
+          constraints,
         );
       }),
 
@@ -272,9 +271,12 @@ const makeFirestore = (
           SubscriptionRef.changes(ref).pipe(
             Stream.switchMap(
               (
-                snapshot
+                snapshot,
               ): Stream.Stream<Option.Option<Snapshot>, FirestoreError> => {
-                const state = MockState.resolve(snapshot.states, collectionPath);
+                const state = MockState.resolve(
+                  snapshot.states,
+                  collectionPath,
+                );
                 switch (state._tag) {
                   case 'Loading':
                     return Stream.never;
@@ -287,15 +289,15 @@ const makeFirestore = (
                     return Stream.succeed(
                       data === undefined
                         ? Option.none()
-                        : Option.some(makeSnapshot(path, data))
+                        : Option.some(makeSnapshot(path, data)),
                     );
                   }
                 }
-              }
+              },
             ),
-            Stream.changesWith(optionSnapshotEquals)
-          )
-        )
+            Stream.changesWith(optionSnapshotEquals),
+          ),
+        ),
       );
     },
 
@@ -310,9 +312,12 @@ const makeFirestore = (
           SubscriptionRef.changes(ref).pipe(
             Stream.switchMap(
               (
-                snapshot
+                snapshot,
               ): Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError> => {
-                const state = MockState.resolve(snapshot.states, collectionPath);
+                const state = MockState.resolve(
+                  snapshot.states,
+                  collectionPath,
+                );
                 switch (state._tag) {
                   case 'Loading':
                     return Stream.never;
@@ -324,15 +329,15 @@ const makeFirestore = (
                     return Stream.succeed(
                       applyConstraints(
                         docsInCollection(snapshot.docs, collectionPath),
-                        constraints
-                      )
+                        constraints,
+                      ),
                     );
                 }
-              }
+              },
             ),
-            Stream.changesWith(snapshotsEqual)
-          )
-        )
+            Stream.changesWith(snapshotsEqual),
+          ),
+        ),
       );
     },
 
@@ -348,7 +353,7 @@ const makeFirestore = (
 const makeController = (
   ref: SubscriptionRef.SubscriptionRef<StoreSnapshot>,
   latency: Ref.Ref<Duration.Duration>,
-  initial: { ref: Ref.Ref<StoreSnapshot>; latency: Duration.Duration }
+  initial: { ref: Ref.Ref<StoreSnapshot>; latency: Duration.Duration },
 ): MockControllerShape => ({
   setState: (collectionPath, state) =>
     SubscriptionRef.update(ref, (snapshot) => ({
@@ -377,7 +382,7 @@ const makeController = (
       SubscriptionRef.update(ref, (snapshot) => ({
         ...snapshot,
         docs: { ...snapshot.docs, ...docs },
-      }))
+      })),
     ),
 
   setDoc: (path, data) =>
@@ -446,7 +451,7 @@ export const make = (options: LayerOptions = {}): MockHandle => {
     Object.entries(options.states ?? {}).map(([key, input]) => [
       key,
       MockState.fromInput(input),
-    ])
+    ]),
   );
   const initialLatency = Duration.fromInputUnsafe(options.latency ?? 0);
   const emptySnapshot: StoreSnapshot = { docs: {}, states: initialStates };
@@ -484,9 +489,9 @@ export const make = (options: LayerOptions = {}): MockHandle => {
     layer: Layer.effectContext(
       Effect.map(seedOnce, () =>
         Context.make(FirestoreService, makeFirestore(ref, latency)).pipe(
-          Context.add(MockController, controller)
-        )
-      )
+          Context.add(MockController, controller),
+        ),
+      ),
     ),
   };
 };
@@ -509,6 +514,6 @@ export const make = (options: LayerOptions = {}): MockHandle => {
  * ```
  */
 export const layer = (
-  options: LayerOptions = {}
+  options: LayerOptions = {},
 ): Layer.Layer<FirestoreService | MockController, Schema.SchemaError> =>
   Layer.suspend(() => make(options).layer);

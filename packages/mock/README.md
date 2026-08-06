@@ -35,7 +35,7 @@ await Effect.runPromise(
     });
     const post = yield* repo.getById(postId);
     expect(post.title).toBe('Test');
-  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore()))
+  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore())),
 );
 ```
 
@@ -132,14 +132,14 @@ await Effect.runPromise(mock.controller.setState('posts', 'loading'));
 Notes on semantics:
 
 - `empty` affects reads only; writes still land in the store.
-- `loading` suspends reads *and* writes, and live streams stop emitting. A stream subscribed while loading emits nothing until the state flips.
+- `loading` suspends reads _and_ writes, and live streams stop emitting. A stream subscribed while loading emits nothing until the state flips.
 - `error` fails effects per call. A live stream fails **terminally** (matching `onSnapshot` semantics) — consumers must re-subscribe after the state recovers, e.g. by refreshing the atom/query that owns the stream.
 
 ## Multiple repositories
 
 ```typescript
 const testLayer = Layer.mergeAll(PostRepository, UserRepository).pipe(
-  Layer.provideMerge(layer({ fixtures: [posts, users] }))
+  Layer.provideMerge(layer({ fixtures: [posts, users] })),
 );
 ```
 
@@ -153,8 +153,8 @@ await Effect.runPromise(
   }).pipe(
     Effect.provide(PostRepository),
     Effect.provide(layer()),
-    Effect.catchTag('NoSuchElementError', () => Effect.succeed('not found'))
-  )
+    Effect.catchTag('NoSuchElementError', () => Effect.succeed('not found')),
+  ),
 );
 ```
 

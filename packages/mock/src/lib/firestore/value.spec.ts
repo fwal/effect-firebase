@@ -35,11 +35,11 @@ describe('compare', () => {
     expect(compare(null, true)).toBeLessThan(0);
     expect(compare(true, 1)).toBeLessThan(0);
     expect(compare(999, FirestoreSchema.Timestamp.fromMillis(0))).toBeLessThan(
-      0
+      0,
     );
-    expect(
-      compare(FirestoreSchema.Timestamp.fromMillis(0), 'a')
-    ).toBeLessThan(0);
+    expect(compare(FirestoreSchema.Timestamp.fromMillis(0), 'a')).toBeLessThan(
+      0,
+    );
   });
 
   it('orders arrays elementwise, then by length', () => {
@@ -54,8 +54,8 @@ describe('equals', () => {
     expect(
       equals(
         { a: [1, { b: 'x' }], t: FirestoreSchema.Timestamp.fromMillis(5) },
-        { a: [1, { b: 'x' }], t: FirestoreSchema.Timestamp.fromMillis(5) }
-      )
+        { a: [1, { b: 'x' }], t: FirestoreSchema.Timestamp.fromMillis(5) },
+      ),
     ).toBe(true);
     expect(equals({ a: 1 }, { a: 2 })).toBe(false);
   });
@@ -73,7 +73,7 @@ describe('applySet', () => {
   it('materializes server timestamps', () => {
     const result = applySet(
       { createdAt: new FirestoreSchema.ServerTimestamp(), title: 'Hi' },
-      now
+      now,
     );
     expect(result['createdAt']).toBe(now);
     expect(result['title']).toBe('Hi');
@@ -91,7 +91,7 @@ describe('applyMerge', () => {
     const result = applyMerge(
       { nested: { a: 1, b: 2 }, top: 'x' },
       { nested: { b: 3 } },
-      now
+      now,
     );
     expect(result).toEqual({ nested: { a: 1, b: 3 }, top: 'x' });
   });
@@ -107,7 +107,7 @@ describe('applyUpdate', () => {
     const result = applyUpdate(
       { nested: { a: 1 }, top: 'x' },
       { 'nested.b': 2 },
-      now
+      now,
     );
     expect(result).toEqual({ nested: { a: 1, b: 2 }, top: 'x' });
   });
@@ -116,7 +116,7 @@ describe('applyUpdate', () => {
     const result = applyUpdate(
       { tags: ['a', 'b'] },
       { tags: Firestore.arrayUnion(['b', 'c']) },
-      now
+      now,
     );
     expect(result['tags']).toEqual(['a', 'b', 'c']);
   });
@@ -125,7 +125,7 @@ describe('applyUpdate', () => {
     const result = applyUpdate(
       { tags: ['a', 'b', 'c'] },
       { tags: Firestore.arrayRemove(['b']) },
-      now
+      now,
     );
     expect(result['tags']).toEqual(['a', 'c']);
   });
@@ -134,7 +134,7 @@ describe('applyUpdate', () => {
     const result = applyUpdate(
       { title: 'Hi' },
       { updatedAt: new FirestoreSchema.ServerTimestamp() },
-      now
+      now,
     );
     expect(result['updatedAt']).toBe(now);
   });

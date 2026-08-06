@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import {
@@ -53,7 +53,7 @@ function Devtools() {
               refreshPosts();
             }
           },
-        })
+        }),
       );
     }
     return all;
@@ -62,7 +62,9 @@ function Devtools() {
 }
 
 export function App({ children }: AppProps) {
-  const layer = useMemo(() => {
+  // useState initializer: Firebase setup runs once per mount, and the layer
+  // keeps a stable identity without a memo the compiler can't verify.
+  const [layer] = useState(() => {
     const app = initializeApp({ projectId: 'effect-firebase-example' });
     const functions = getFunctions(app, 'europe-north1');
     connectFunctionsEmulator(functions, 'localhost', 5001);
@@ -78,7 +80,7 @@ export function App({ children }: AppProps) {
     connectFirestoreEmulator(firestore, 'localhost', 8080);
 
     return Client.layer({ firestore });
-  }, []);
+  });
 
   // RegistryProvider reads initialValues only when the registry is first
   // created, so the array doesn't need a stable identity.

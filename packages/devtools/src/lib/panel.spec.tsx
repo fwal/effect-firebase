@@ -21,7 +21,7 @@ const makeHandle = () =>
 /** Builds the handle's layer so fixtures are seeded into the store. */
 const seed = (handle: ReturnType<typeof make>) =>
   Effect.runPromise(
-    Effect.provide(Effect.void, handle.layer) as Effect.Effect<void>
+    Effect.provide(Effect.void, handle.layer) as Effect.Effect<void>,
   );
 
 describe('MockDevtoolsPanel', () => {
@@ -47,8 +47,8 @@ describe('MockDevtoolsPanel', () => {
     const postsRow = screen.getByText('posts').parentElement as HTMLElement;
     fireEvent.click(
       Array.from(postsRow.querySelectorAll('button')).find(
-        (button) => button.textContent === 'loading'
-      ) as HTMLElement
+        (button) => button.textContent === 'loading',
+      ) as HTMLElement,
     );
 
     await waitFor(async () => {
@@ -70,8 +70,8 @@ describe('MockDevtoolsPanel', () => {
     const postsRow = screen.getByText('posts').parentElement as HTMLElement;
     fireEvent.click(
       Array.from(postsRow.querySelectorAll('button')).find(
-        (button) => button.textContent === 'error'
-      ) as HTMLElement
+        (button) => button.textContent === 'error',
+      ) as HTMLElement,
     );
 
     await waitFor(async () => {
@@ -92,7 +92,7 @@ describe('MockDevtoolsPanel', () => {
     await screen.findByText('posts');
 
     await Effect.runPromise(
-      handle.controller.setDoc('comments/1', { body: 'Hi' })
+      handle.controller.setDoc('comments/1', { body: 'Hi' }),
     );
 
     expect(await screen.findByText('comments')).toBeDefined();
@@ -109,15 +109,15 @@ describe('MockDevtoolsPanel', () => {
         onStateChange={(collection, state) => {
           seen.push([collection, state._tag]);
         }}
-      />
+      />,
     );
     await screen.findByText('posts');
 
     const postsRow = screen.getByText('posts').parentElement as HTMLElement;
     fireEvent.click(
       Array.from(postsRow.querySelectorAll('button')).find(
-        (button) => button.textContent === 'empty'
-      ) as HTMLElement
+        (button) => button.textContent === 'empty',
+      ) as HTMLElement,
     );
 
     expect(seen).toEqual([['posts', 'Empty']]);

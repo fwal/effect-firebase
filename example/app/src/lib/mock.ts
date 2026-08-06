@@ -17,7 +17,7 @@ const post = (
   title: string,
   content: string,
   created: string,
-  authorId = 'ada'
+  authorId = 'ada',
 ) =>
   new PostModel({
     id: PostId.make(id),
@@ -54,19 +54,19 @@ export const mockBackend = make({
           'welcome',
           'Welcome to mock mode',
           'This post is served from the in-memory mock backend — no emulator running. Open the TanStack Devtools panel to toggle this collection between data, empty, loading and error.',
-          '2024-05-03T10:00:00Z'
+          '2024-05-03T10:00:00Z',
         ),
         post(
           'fixtures',
           'Fixtures are schema-encoded',
           'These documents were written through PostModel, so timestamps, references and options decode exactly like production data.',
-          '2024-05-02T15:30:00Z'
+          '2024-05-02T15:30:00Z',
         ),
         post(
           'try-writing',
           'Writes are live',
           'Create, edit or delete posts — the mock store is reactive, so the stream behind this list re-emits just like onSnapshot.',
-          '2024-05-01T08:15:00Z'
+          '2024-05-01T08:15:00Z',
         ),
       ],
     }),

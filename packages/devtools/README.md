@@ -31,9 +31,7 @@ export function App() {
   return (
     <>
       {/* ... */}
-      <TanStackDevtools
-        plugins={[firestoreMockPlugin(mock.controller)]}
-      />
+      <TanStackDevtools plugins={[firestoreMockPlugin(mock.controller)]} />
     </>
   );
 }

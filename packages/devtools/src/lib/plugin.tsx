@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
 import type { MockControllerShape } from '@effect-firebase/mock';
-import {
-  MockDevtoolsPanel,
-  type MockDevtoolsPanelProps,
-} from './panel.js';
+import { MockDevtoolsPanel, type MockDevtoolsPanelProps } from './panel.js';
 
 /**
  * The plugin shape accepted by `<TanStackDevtools plugins={[...]} />` from
@@ -17,8 +14,10 @@ export interface TanStackDevtoolsReactPlugin {
   readonly defaultOpen?: boolean;
 }
 
-export interface FirestoreMockPluginOptions
-  extends Omit<MockDevtoolsPanelProps, 'controller'> {
+export interface FirestoreMockPluginOptions extends Omit<
+  MockDevtoolsPanelProps,
+  'controller'
+> {
   /**
    * Plugin ID shown to TanStack Devtools. Defaults to `effect-firebase-mock`.
    */
@@ -52,7 +51,7 @@ export interface FirestoreMockPluginOptions
  */
 export const firestoreMockPlugin = (
   controller: MockControllerShape,
-  options: FirestoreMockPluginOptions = {}
+  options: FirestoreMockPluginOptions = {},
 ): TanStackDevtoolsReactPlugin => ({
   id: options.id ?? 'effect-firebase-mock',
   name: options.name ?? 'Firestore Mock',

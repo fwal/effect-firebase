@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DateTime,
-  Effect,
-  Fiber,
-  Option,
-  Schema,
-  Stream,
-} from 'effect';
+import { DateTime, Effect, Fiber, Option, Schema, Stream } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import {
   Firestore,
@@ -51,10 +44,10 @@ const postFixture = fixture(Post, {
 
 const run = <A, E>(
   effect: Effect.Effect<A, E, FirestoreService | MockController>,
-  options?: Parameters<typeof layer>[0]
+  options?: Parameters<typeof layer>[0],
 ): Promise<A> =>
   Effect.runPromise(
-    effect.pipe(Effect.provide(layer(options))) as Effect.Effect<A, E, never>
+    effect.pipe(Effect.provide(layer(options))) as Effect.Effect<A, E, never>,
   );
 
 /**
@@ -69,8 +62,8 @@ const awaitLength = (collected: ReadonlyArray<unknown>, length: number) =>
     if (collected.length < length) {
       return yield* Effect.die(
         new Error(
-          `Timed out waiting for ${length} emissions (got ${collected.length})`
-        )
+          `Timed out waiting for ${length} emissions (got ${collected.length})`,
+        ),
       );
     }
   });
@@ -96,14 +89,12 @@ describe('layer', () => {
 
           yield* firestore.update(path, { views: 2 });
           const updated = yield* firestore.get(path);
-          expect(
-            (updated as Option.Some<Snapshot>).value[1]['views']
-          ).toBe(2);
+          expect((updated as Option.Some<Snapshot>).value[1]['views']).toBe(2);
 
           yield* firestore.delete(path);
           const deleted = yield* firestore.get(path);
           expect(Option.isNone(deleted)).toBe(true);
-        })
+        }),
       ));
 
     it('materializes server timestamps on write', () =>
@@ -117,7 +108,7 @@ describe('layer', () => {
           const created = yield* firestore.get(path);
           const data = (created as Option.Some<Snapshot>).value[1];
           expect(data['createdAt']).toBeInstanceOf(FirestoreSchema.Timestamp);
-        })
+        }),
       ));
 
     it('fails update on a missing document with not-found', async () => {
@@ -125,9 +116,9 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           return yield* Effect.flip(
-            firestore.update('posts/missing', { title: 'X' })
+            firestore.update('posts/missing', { title: 'X' }),
           );
-        })
+        }),
       );
       expect(error).toBeInstanceOf(FirestoreError);
       expect((error as FirestoreError).code).toBe('not-found');
@@ -142,9 +133,9 @@ describe('layer', () => {
           yield* firestore.deleteRecursive('posts/1');
           expect(Option.isNone(yield* firestore.get('posts/1'))).toBe(true);
           expect(
-            Option.isNone(yield* firestore.get('posts/1/comments/1'))
+            Option.isNone(yield* firestore.get('posts/1/comments/1')),
           ).toBe(true);
-        })
+        }),
       ));
 
     it('rejects invalid paths', async () => {
@@ -152,7 +143,7 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           return yield* Effect.flip(firestore.get('posts'));
-        })
+        }),
       );
       expect((error as FirestoreError).code).toBe('invalid-argument');
     });
@@ -169,7 +160,7 @@ describe('layer', () => {
           expect(data['createdAt']).toBeInstanceOf(FirestoreSchema.Timestamp);
           expect('id' in data).toBe(false);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('seeds raw fixtures', () =>
@@ -177,11 +168,9 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           const doc = yield* firestore.get('settings/general');
-          expect(
-            (doc as Option.Some<Snapshot>).value[1]['theme']
-          ).toBe('dark');
+          expect((doc as Option.Some<Snapshot>).value[1]['theme']).toBe('dark');
         }),
-        { fixtures: [rawFixture('settings', { general: { theme: 'dark' } })] }
+        { fixtures: [rawFixture('settings', { general: { theme: 'dark' } })] },
       ));
 
     it('queries seeded fixtures with constraints', () =>
@@ -193,7 +182,7 @@ describe('layer', () => {
           ]);
           expect(results.map(([ref]) => ref.id)).toEqual(['2']);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
   });
 
@@ -206,11 +195,11 @@ describe('layer', () => {
           yield* controller.setState('posts', 'error');
           const read = yield* Effect.flip(firestore.get('posts/1'));
           const write = yield* Effect.flip(
-            firestore.add('posts', { title: 'X' })
+            firestore.add('posts', { title: 'X' }),
           );
           return [read, write] as const;
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       );
       expect((readError as FirestoreError).code).toBe('unavailable');
       expect((writeError as FirestoreError).code).toBe('unavailable');
@@ -223,10 +212,10 @@ describe('layer', () => {
           const controller = yield* MockController;
           yield* controller.setState(
             'posts',
-            MockState.error('permission-denied')
+            MockState.error('permission-denied'),
           );
           return yield* Effect.flip(firestore.get('posts/1'));
-        })
+        }),
       );
       expect((error as FirestoreError).code).toBe('permission-denied');
     });
@@ -240,7 +229,7 @@ describe('layer', () => {
           expect(Option.isNone(yield* firestore.get('posts/1'))).toBe(true);
           expect(yield* firestore.query('posts', [])).toEqual([]);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('never resolves while a collection is loading', async () => {
@@ -251,10 +240,10 @@ describe('layer', () => {
           yield* controller.setState('posts', 'loading');
           return yield* Effect.timeoutOption(
             firestore.get('posts/1'),
-            '50 millis'
+            '50 millis',
           );
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       );
       expect(Option.isNone(result)).toBe(true);
     });
@@ -266,7 +255,7 @@ describe('layer', () => {
           expect(yield* firestore.query('posts', [])).toEqual([]);
           expect(yield* firestore.query('authors', [])).toEqual([]);
         }),
-        { fixtures: [postFixture], states: { [MockState.All]: 'empty' } }
+        { fixtures: [postFixture], states: { [MockState.All]: 'empty' } },
       ));
   });
 
@@ -282,8 +271,8 @@ describe('layer', () => {
             Stream.runForEach(firestore.streamQuery('posts', []), (snapshots) =>
               Effect.sync(() => {
                 emissions.push(snapshots);
-              })
-            )
+              }),
+            ),
           );
 
           yield* awaitLength(emissions, 1);
@@ -305,7 +294,7 @@ describe('layer', () => {
 
           yield* Fiber.interrupt(fiber);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('does not re-emit for unrelated collections', () =>
@@ -318,8 +307,8 @@ describe('layer', () => {
             Stream.runForEach(firestore.streamQuery('posts', []), (snapshots) =>
               Effect.sync(() => {
                 emissions.push(snapshots);
-              })
-            )
+              }),
+            ),
           );
 
           yield* awaitLength(emissions, 1);
@@ -329,7 +318,7 @@ describe('layer', () => {
 
           yield* Fiber.interrupt(fiber);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('fails live streams when a collection starts erroring', () =>
@@ -344,14 +333,14 @@ describe('layer', () => {
             Stream.runForEach(firestore.streamQuery('posts', []), (snapshots) =>
               Effect.sync(() => {
                 emissions.push(snapshots);
-              })
+              }),
             ).pipe(
               Effect.catch((error) =>
                 Effect.sync(() => {
                   failures.push(error);
-                })
-              )
-            )
+                }),
+              ),
+            ),
           );
 
           yield* awaitLength(emissions, 1);
@@ -361,7 +350,7 @@ describe('layer', () => {
 
           yield* Fiber.interrupt(fiber);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('streams a single document', () =>
@@ -374,8 +363,8 @@ describe('layer', () => {
             Stream.runForEach(firestore.streamDoc('posts/1'), (doc) =>
               Effect.sync(() => {
                 emissions.push(doc);
-              })
-            )
+              }),
+            ),
           );
 
           yield* awaitLength(emissions, 1);
@@ -384,7 +373,7 @@ describe('layer', () => {
           yield* firestore.update('posts/1', { views: 99 });
           yield* awaitLength(emissions, 2);
           expect(
-            (emissions[1] as Option.Some<Snapshot>).value[1]['views']
+            (emissions[1] as Option.Some<Snapshot>).value[1]['views'],
           ).toBe(99);
 
           yield* firestore.delete('posts/1');
@@ -393,7 +382,7 @@ describe('layer', () => {
 
           yield* Fiber.interrupt(fiber);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
   });
 
@@ -404,12 +393,12 @@ describe('layer', () => {
           const firestore = yield* FirestoreService;
           const controller = yield* MockController;
           yield* controller.seed(
-            rawFixture('posts', { extra: { title: 'Extra', views: 0 } })
+            rawFixture('posts', { extra: { title: 'Extra', views: 0 } }),
           );
           const results = yield* firestore.query('posts', []);
           expect(results.length).toBe(3);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('resets to the initial fixtures and states', () =>
@@ -426,7 +415,7 @@ describe('layer', () => {
           expect(results.length).toBe(2);
           expect(yield* controller.states).toEqual({});
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('simulates latency', () =>
@@ -439,7 +428,7 @@ describe('layer', () => {
           yield* firestore.get('posts/1');
           expect(Date.now() - start).toBeGreaterThanOrEqual(30);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
   });
 
@@ -454,7 +443,7 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           return yield* firestore.query('posts', []);
-        }).pipe(Effect.provide(mock.layer))
+        }).pipe(Effect.provide(mock.layer)),
       );
       expect(emptied).toEqual([]);
 
@@ -463,7 +452,7 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           return yield* firestore.query('posts', []);
-        }).pipe(Effect.provide(mock.layer))
+        }).pipe(Effect.provide(mock.layer)),
       );
       expect(restored.length).toBe(2);
     });
@@ -475,14 +464,14 @@ describe('layer', () => {
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           yield* firestore.set('posts/3', { title: 'Gamma', views: 0 });
-        }).pipe(Effect.provide(mock.layer))
+        }).pipe(Effect.provide(mock.layer)),
       );
 
       const count = await Effect.runPromise(
         Effect.gen(function* () {
           const firestore = yield* FirestoreService;
           return (yield* firestore.query('posts', [])).length;
-        }).pipe(Effect.provide(mock.layer))
+        }).pipe(Effect.provide(mock.layer)),
       );
       expect(count).toBe(3);
     });
@@ -513,7 +502,9 @@ describe('layer', () => {
           const fresh = yield* repo.getById(newId);
           expect(Option.isSome(fresh)).toBe(true);
           expect(
-            DateTime.toEpochMillis((fresh as Option.Some<Post>).value.createdAt)
+            DateTime.toEpochMillis(
+              (fresh as Option.Some<Post>).value.createdAt,
+            ),
           ).toBeGreaterThan(0);
 
           const popular = yield* repo.query([
@@ -522,7 +513,7 @@ describe('layer', () => {
           ]);
           expect(popular.map((p) => p.title)).toEqual(['Beta', 'Alpha']);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
 
     it('streams decoded models through a repository', () =>
@@ -540,8 +531,8 @@ describe('layer', () => {
             Stream.runForEach(repo.queryStream([]), (posts) =>
               Effect.sync(() => {
                 emissions.push(posts);
-              })
-            )
+              }),
+            ),
           );
 
           yield* awaitLength(emissions, 1);
@@ -553,7 +544,7 @@ describe('layer', () => {
 
           yield* Fiber.interrupt(fiber);
         }),
-        { fixtures: [postFixture] }
+        { fixtures: [postFixture] },
       ));
   });
 });

@@ -143,7 +143,10 @@ export const fieldValue = (data: DocData, fieldPath: string): unknown => {
  * Recursively materialize sentinel values for storage:
  * `ServerTimestamp` becomes `now`, array sentinels collapse to plain arrays.
  */
-const materialize = (value: unknown, now: FirestoreSchema.Timestamp): unknown => {
+const materialize = (
+  value: unknown,
+  now: FirestoreSchema.Timestamp,
+): unknown => {
   if (value instanceof FirestoreSchema.ServerTimestamp) {
     return now;
   }
@@ -182,13 +185,13 @@ const dedupe = (values: ReadonlyArray<unknown>): Array<unknown> => {
 const applyField = (
   existing: unknown,
   incoming: unknown,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): unknown => {
   if (incoming instanceof Firestore.ArrayUnion) {
     const base = Array.isArray(existing) ? existing : [];
     const additions = missingFrom(
       base,
-      incoming.values.map((item) => materialize(item, now))
+      incoming.values.map((item) => materialize(item, now)),
     );
     return [...base, ...additions];
   }
@@ -196,7 +199,7 @@ const applyField = (
     const base = Array.isArray(existing) ? existing : [];
     const removals = incoming.values.map((item) => materialize(item, now));
     return base.filter(
-      (item) => !removals.some((removal) => equals(removal, item))
+      (item) => !removals.some((removal) => equals(removal, item)),
     );
   }
   return materialize(incoming, now);
@@ -204,7 +207,7 @@ const applyField = (
 
 const missingFrom = (
   base: ReadonlyArray<unknown>,
-  additions: ReadonlyArray<unknown>
+  additions: ReadonlyArray<unknown>,
 ): Array<unknown> => {
   const result: Array<unknown> = [];
   for (const addition of additions) {
@@ -223,7 +226,7 @@ const missingFrom = (
  */
 export const applySet = (
   incoming: DocData,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): DocData => {
   const result: DocData = {};
   for (const [key, value] of Object.entries(incoming)) {
@@ -238,7 +241,7 @@ export const applySet = (
 const mergeRecords = (
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): Record<string, unknown> => {
   const result: Record<string, unknown> = { ...existing };
   for (const [key, value] of Object.entries(incoming)) {
@@ -262,14 +265,14 @@ const mergeRecords = (
 export const applyMerge = (
   existing: DocData | undefined,
   incoming: DocData,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): DocData => mergeRecords(existing ?? {}, incoming, now);
 
 const setAtPath = (
   data: Record<string, unknown>,
   segments: ReadonlyArray<string>,
   value: unknown,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): Record<string, unknown> => {
   const [head, ...rest] = segments;
   const result = { ...data };
@@ -292,7 +295,7 @@ const setAtPath = (
 export const applyUpdate = (
   existing: DocData,
   incoming: DocData,
-  now: FirestoreSchema.Timestamp
+  now: FirestoreSchema.Timestamp,
 ): DocData => {
   let result: Record<string, unknown> = { ...existing };
   for (const [key, value] of Object.entries(incoming)) {

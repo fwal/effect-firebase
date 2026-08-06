@@ -33,7 +33,7 @@
     "@effect-firebase/mock": "workspace:*",
     "effect": "catalog:",
     "effect-firebase": "workspace:*",
-    "react": "19.2.4"
+    "react": "19.2.8"
   },
   "peerDependencies": {
     "@effect-firebase/mock": "workspace:*",

@@ -41,12 +41,13 @@ export const makeSnapshot = (path: string, data: DocData): Snapshot => [
  */
 export const docsInCollection = (
   docs: Readonly<Record<string, DocData>>,
-  collectionPath: string
+  collectionPath: string,
 ): ReadonlyArray<Snapshot> => {
   const prefix = `${collectionPath}/`;
   return Object.entries(docs)
     .filter(
-      ([path]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/')
+      ([path]) =>
+        path.startsWith(prefix) && !path.slice(prefix.length).includes('/'),
     )
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([path, data]) => makeSnapshot(path, data));
@@ -64,8 +65,7 @@ const isDocPath = (path: string): boolean => {
 const isCollectionPath = (path: string): boolean => {
   const segments = path.split('/');
   return (
-    segments.length % 2 === 1 &&
-    segments.every((segment) => segment.length > 0)
+    segments.length % 2 === 1 && segments.every((segment) => segment.length > 0)
   );
 };
 

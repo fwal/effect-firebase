@@ -1,5 +1,11 @@
 import { Query, Snapshot, type QueryConstraint } from 'effect-firebase';
-import { compare, equals, fieldValue, sameType, type DocData } from './value.js';
+import {
+  compare,
+  equals,
+  fieldValue,
+  sameType,
+  type DocData,
+} from './value.js';
 
 type Filter = Query.Where | Query.And | Query.Or;
 
@@ -49,8 +55,7 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
       );
     case 'array-contains':
       return (
-        Array.isArray(value) &&
-        value.some((item) => equals(item, where.value))
+        Array.isArray(value) && value.some((item) => equals(item, where.value))
       );
     case 'array-contains-any':
       return (
@@ -58,8 +63,8 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
         Array.isArray(where.value) &&
         value.some((item) =>
           (where.value as ReadonlyArray<unknown>).some((candidate) =>
-            equals(item, candidate)
-          )
+            equals(item, candidate),
+          ),
         )
       );
   }
@@ -83,7 +88,7 @@ const matchesFilter = (data: DocData, filter: Filter): boolean => {
 
 const orderValues = (
   snapshot: Snapshot,
-  orderBys: ReadonlyArray<Query.OrderBy>
+  orderBys: ReadonlyArray<Query.OrderBy>,
 ): ReadonlyArray<unknown> => {
   const [ref, data] = snapshot;
   const values = orderBys.map((orderBy) => fieldValue(data, orderBy.field));
@@ -92,7 +97,7 @@ const orderValues = (
 };
 
 const compareSnapshots = (
-  orderBys: ReadonlyArray<Query.OrderBy>
+  orderBys: ReadonlyArray<Query.OrderBy>,
 ): ((a: Snapshot, b: Snapshot) => number) => {
   const directions = [...orderBys.map((o) => o.direction), 'asc' as const];
   return (a, b) => {
@@ -111,7 +116,7 @@ const compareSnapshots = (
 const compareCursor = (
   snapshot: Snapshot,
   cursor: ReadonlyArray<unknown>,
-  orderBys: ReadonlyArray<Query.OrderBy>
+  orderBys: ReadonlyArray<Query.OrderBy>,
 ): number => {
   const values = orderValues(snapshot, orderBys);
   for (let i = 0; i < Math.min(cursor.length, values.length); i++) {
@@ -130,7 +135,7 @@ const compareCursor = (
  */
 export const applyConstraints = (
   snapshots: ReadonlyArray<Snapshot>,
-  constraints: ReadonlyArray<QueryConstraint>
+  constraints: ReadonlyArray<QueryConstraint>,
 ): ReadonlyArray<Snapshot> => {
   const filters: Array<Filter> = [];
   const orderBys: Array<Query.OrderBy> = [];
@@ -173,7 +178,7 @@ export const applyConstraints = (
   }
 
   let results = snapshots.filter(([, data]) =>
-    filters.every((filter) => matchesFilter(data, filter))
+    filters.every((filter) => matchesFilter(data, filter)),
   );
 
   results = [...results].sort(compareSnapshots(orderBys));
@@ -181,25 +186,25 @@ export const applyConstraints = (
   if (startAt !== undefined) {
     const cursor = startAt;
     results = results.filter(
-      (snapshot) => compareCursor(snapshot, cursor, orderBys) >= 0
+      (snapshot) => compareCursor(snapshot, cursor, orderBys) >= 0,
     );
   }
   if (startAfter !== undefined) {
     const cursor = startAfter;
     results = results.filter(
-      (snapshot) => compareCursor(snapshot, cursor, orderBys) > 0
+      (snapshot) => compareCursor(snapshot, cursor, orderBys) > 0,
     );
   }
   if (endAt !== undefined) {
     const cursor = endAt;
     results = results.filter(
-      (snapshot) => compareCursor(snapshot, cursor, orderBys) <= 0
+      (snapshot) => compareCursor(snapshot, cursor, orderBys) <= 0,
     );
   }
   if (endBefore !== undefined) {
     const cursor = endBefore;
     results = results.filter(
-      (snapshot) => compareCursor(snapshot, cursor, orderBys) < 0
+      (snapshot) => compareCursor(snapshot, cursor, orderBys) < 0,
     );
   }
 

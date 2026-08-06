@@ -36,30 +36,30 @@ export interface Fixture<R = never> {
  */
 export const fixture = <
   S extends Model.Any,
-  Id extends keyof S['Type'] & keyof S['fields']
+  Id extends keyof S['Type'] & keyof S['fields'],
 >(
   model: S,
   options: {
     readonly collectionPath: string;
     readonly idField: Id;
     readonly docs: ReadonlyArray<S['Type']>;
-  }
+  },
 ): Fixture<S['EncodingServices']> => ({
   collectionPath: options.collectionPath,
   build: Effect.gen(function* () {
     const result: Record<string, DocData> = {};
     for (const doc of options.docs) {
       const encoded = (yield* Schema.encodeEffect(model as Schema.Top)(
-        doc
+        doc,
       )) as Record<string, unknown>;
       const { [options.idField as string]: id, ...data } = encoded;
       if (typeof id !== 'string' || id.length === 0) {
         return yield* Effect.die(
           new Error(
             `fixture(${options.collectionPath}): document is missing a string '${String(
-              options.idField
-            )}' field`
-          )
+              options.idField,
+            )}' field`,
+          ),
         );
       }
       result[`${options.collectionPath}/${id}`] = data;
@@ -81,7 +81,7 @@ export const fixture = <
  */
 export const rawFixture = (
   collectionPath: string,
-  docs: Readonly<Record<string, DocData>>
+  docs: Readonly<Record<string, DocData>>,
 ): Fixture => ({
   collectionPath,
   build: Effect.sync(() =>
@@ -89,7 +89,7 @@ export const rawFixture = (
       Object.entries(docs).map(([id, data]) => [
         `${collectionPath}/${id}`,
         data,
-      ])
-    )
+      ]),
+    ),
   ),
 });

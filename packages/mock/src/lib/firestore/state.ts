@@ -82,5 +82,5 @@ export const All = '*';
  */
 export const resolve = (
   states: Readonly<Record<string, State>>,
-  collectionPath: string
+  collectionPath: string,
 ): State => states[collectionPath] ?? states[All] ?? data;

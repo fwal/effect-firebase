@@ -18,7 +18,7 @@ export interface MockControllerShape {
    */
   readonly setState: (
     collectionPath: string,
-    state: MockState.StateInput
+    state: MockState.StateInput,
   ) => Effect.Effect<void>;
 
   /**
@@ -62,9 +62,7 @@ export interface MockControllerShape {
   /**
    * Set the simulated latency applied to every operation.
    */
-  readonly setLatency: (
-    latency: Duration.Input
-  ) => Effect.Effect<void>;
+  readonly setLatency: (latency: Duration.Input) => Effect.Effect<void>;
 
   /**
    * The currently simulated latency.
