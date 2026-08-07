@@ -22,7 +22,8 @@ export interface MockDevtoolsPanelProps {
    * consumers that terminated on a simulated error — e.g. refresh the atoms
    * or queries reading from the collection. Clearing the wildcard state and
    * resetting the backend notify with the wildcard key (`'*'`) and the
-   * `data` state.
+   * effective wildcard state after the operation (reset restores the
+   * backend's configured initial states, which may not be `data`).
    */
   readonly onStateChange?: (
     collectionPath: string,
@@ -263,18 +264,24 @@ export function MockDevtoolsPanel({
     );
   };
 
-  // Clearing the wildcard and resetting both recover erroring collections,
-  // so they notify with the wildcard key for consumers to refresh broadly.
+  // Clearing the wildcard and resetting notify with the wildcard key so
+  // consumers refresh broadly. The reported state is read back from the
+  // controller: reset restores the *initial* states, which may not be
+  // `data` when the backend was created with configured states.
+  const notifyEffectiveAfter = (effect: Effect.Effect<void>): void => {
+    void Effect.runPromise(
+      Effect.flatMap(effect, () => controller.states),
+    ).then((states) => {
+      onStateChange?.(MockState.All, MockState.resolve(states, MockState.All));
+    });
+  };
+
   const clearAll = (): void => {
-    notifyAfter(
-      controller.clearState(MockState.All),
-      MockState.All,
-      MockState.data,
-    );
+    notifyEffectiveAfter(controller.clearState(MockState.All));
   };
 
   const reset = (): void => {
-    notifyAfter(controller.reset, MockState.All, MockState.data);
+    notifyEffectiveAfter(controller.reset);
   };
 
   const applyLatency = (value: number): void => {

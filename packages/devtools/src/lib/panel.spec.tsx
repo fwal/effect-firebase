@@ -157,6 +157,31 @@ describe('MockDevtoolsPanel', () => {
       ]);
     });
   });
+
+  it('reports the restored initial state on reset', async () => {
+    const handle = make({
+      fixtures: [rawFixture('posts', { '1': { title: 'Alpha' } })],
+      states: { '*': 'empty' },
+    });
+    await seed(handle);
+    const seen: Array<[string, string]> = [];
+
+    render(
+      <MockDevtoolsPanel
+        controller={handle.controller}
+        onStateChange={(collection, state) => {
+          seen.push([collection, state._tag]);
+        }}
+      />,
+    );
+    await screen.findByText('posts');
+
+    // Reset restores the configured initial wildcard state, not `data`.
+    fireEvent.click(screen.getByText('reset'));
+    await waitFor(() => {
+      expect(seen).toEqual([['*', 'Empty']]);
+    });
+  });
 });
 
 describe('firestoreMockPlugin', () => {
