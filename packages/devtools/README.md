@@ -66,21 +66,28 @@ Both `firestoreMockPlugin(controller, options)` and `<MockDevtoolsPanel />` acce
 
 `firestoreMockPlugin` additionally accepts `id`, `name` and `defaultOpen` for the TanStack Devtools shell.
 
-### Recovering from simulated errors
+### Making toggles visible on already-mounted pages
 
-A simulated `error` fails live streams **terminally**, matching real `onSnapshot` semantics. Consumers must re-subscribe once the state recovers. Use `onStateChange` to hook your re-subscription mechanism — e.g. refreshing the atoms or queries that read from the collection:
+Two states are only observable at **subscription time**: a simulated `error` fails live streams terminally (matching `onSnapshot` semantics), and `loading` makes streams silent. A consumer that already holds data keeps showing it — with effect-atom, a result retains its previous value across `registry.refresh` and even component remounts, so neither is enough to reveal the toggled state.
+
+Give the read a fresh **atom identity** instead: key it through `Atom.family` by an epoch that `onStateChange` bumps. A new epoch is a new atom, and a new atom starts from `Initial` against the toggled state — spinner for `loading`, failure for `error`, data on recovery:
 
 ```tsx
+const mockEpochAtom = Atom.make(0);
+
+const postsAtom = Atom.family((_epoch: number) =>
+  runtime.atom(/* your stream */),
+);
+
 firestoreMockPlugin(mock.controller, {
-  onStateChange: (collectionPath, state) => {
-    if (state._tag !== 'Error') {
-      registry.refresh(postsAtom); // effect-atom example
-    }
-  },
+  onStateChange: () => registry.update(mockEpochAtom, (epoch) => epoch + 1),
 });
+
+// In components:
+const result = useAtomValue(postsAtom(useAtomValue(mockEpochAtom)));
 ```
 
-The same applies to `loading`: an already-resolved effect keeps its value; refresh it while the collection is loading to see your initial loading UI again.
+Outside mock mode the epoch never changes, so the family behaves like a single shared atom. See `example/app` for the full wiring.
 
 ## License
 

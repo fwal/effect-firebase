@@ -355,9 +355,12 @@ import { firestoreMockPlugin } from '@effect-firebase/devtools';
 <TanStackDevtools
   plugins={[
     firestoreMockPlugin(mockBackend.controller, {
-      // Stream errors are terminal (onSnapshot semantics): refresh the
-      // affected atoms after a toggle so they re-subscribe.
-      onStateChange: () => refreshPosts(),
+      // `loading` streams never emit and `error` streams fail terminally
+      // (onSnapshot semantics), while atom results retain their previous
+      // value across refreshes and remounts. Bumping an epoch that keys the
+      // read atoms (Atom.family) gives them a fresh identity, so they
+      // re-subscribe from Initial against the toggled state.
+      onStateChange: () => bumpEpoch((epoch) => epoch + 1),
     }),
   ]}
 />;
@@ -365,6 +368,8 @@ import { firestoreMockPlugin } from '@effect-firebase/devtools';
 
 The example app wires this up behind an env flag — run `pnpm example:mock`
 and open the devtools panel on the Firestore page. See
+[`example/app/src/lib/atoms.ts`](./example/app/src/lib/atoms.ts) (the
+`mockEpochAtom` / `Atom.family` pattern),
 [`example/app/src/lib/mock.ts`](./example/app/src/lib/mock.ts) and
 [`example/app/src/app/app.tsx`](./example/app/src/app/app.tsx).
 

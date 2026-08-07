@@ -30,6 +30,16 @@ export const firestoreLayerAtom = Atom.keepAlive(
 );
 
 /**
+ * Bumped by the Firestore Mock devtools after every state toggle (mock mode
+ * only). Views key their data subtree on this value, so a toggle remounts
+ * the subtree: the old atoms are disposed and the fresh subscriptions start
+ * from `Initial` against the new state. A plain refresh is not enough —
+ * atom results keep their previous value while re-running, and a stream in
+ * the `loading` state never emits, so the stale data would stay on screen.
+ */
+export const mockEpochAtom = Atom.keepAlive(Atom.make(0));
+
+/**
  * Runtime atom — rebuilds whenever `firestoreLayerAtom` changes in the
  * registry (via `registry.set` / `useAtomSet`; `initialValues` is only read
  * when the registry is created). All Effect/Stream atoms in this app are
@@ -58,10 +68,17 @@ export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
     .pipe(Atom.setIdleTTL('30 seconds')),
 );
 
-// Live list of latest posts. A single canonical atom (no family) so every
-// subscriber shares one Firestore subscription.
-export const latestPostsAtom = clientRuntime.atom(
-  Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
+// Live list of latest posts, keyed by the mock epoch. All subscribers pass
+// the same epoch, so they share one Firestore subscription; a bumped epoch
+// yields a *new* atom identity that re-subscribes from `Initial`. That is
+// what makes the devtools' simulated `loading`/`error` states visible on an
+// already-mounted page — an atom's retained value survives both refreshes
+// and remounts, so only a fresh identity starts over. Outside mock mode the
+// epoch is always `0` and this behaves like a single canonical atom.
+export const latestPostsAtom = Atom.family((_epoch: number) =>
+  clientRuntime.atom(
+    Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
+  ),
 );
 
 // Mutations — writable atoms exposing AsyncResult state and a setter.

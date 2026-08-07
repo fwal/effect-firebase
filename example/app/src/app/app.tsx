@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { Layer } from 'effect';
 import { Client } from '@effect-firebase/client';
-import { RegistryProvider, useAtomRefresh } from '@effect/atom-react';
+import { RegistryProvider, useAtomSet } from '@effect/atom-react';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import {
@@ -16,7 +16,7 @@ import {
 } from '@effect-firebase/devtools';
 import SideMenu from '../components/menu/side-menu.js';
 import MenuItem from '../components/menu/menu-item.js';
-import { firestoreLayerAtom, latestPostsAtom } from '../lib/atoms.js';
+import { firestoreLayerAtom, mockEpochAtom } from '../lib/atoms.js';
 import { mockBackend } from '../lib/mock.js';
 
 interface AppProps {
@@ -31,12 +31,14 @@ const useMockBackend = import.meta.env['VITE_MOCK_BACKEND'] === '1';
 
 /**
  * One TanStack Devtools shell hosting the router panel and, in mock mode,
- * the Firestore Mock panel. Mounted inside the RegistryProvider so state
- * toggles can refresh the atoms whose streams ended on a simulated error
- * (stream errors are terminal, matching onSnapshot semantics).
+ * the Firestore Mock panel. Every state toggle bumps `mockEpochAtom`, which
+ * remounts the data views: their atoms are disposed and the fresh
+ * subscriptions start from `Initial` against the toggled state. A refresh
+ * would not be enough — atoms keep their previous value while re-running,
+ * and a `loading` stream never emits, so stale data would stay on screen.
  */
 function Devtools() {
-  const refreshPosts = useAtomRefresh(latestPostsAtom);
+  const bumpEpoch = useAtomSet(mockEpochAtom);
   const plugins = useMemo(() => {
     const all: Array<TanStackDevtoolsReactPlugin> = [
       {
@@ -48,16 +50,14 @@ function Devtools() {
       all.push(
         firestoreMockPlugin(mockBackend.controller, {
           defaultOpen: true,
-          onStateChange: (collectionPath) => {
-            if (collectionPath === 'posts' || collectionPath === '*') {
-              refreshPosts();
-            }
+          onStateChange: () => {
+            bumpEpoch((epoch) => epoch + 1);
           },
         }),
       );
     }
     return all;
-  }, [refreshPosts]);
+  }, [bumpEpoch]);
   return <TanStackDevtools plugins={plugins} />;
 }
 
