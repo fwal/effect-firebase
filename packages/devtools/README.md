@@ -19,8 +19,16 @@ import { TanStackDevtools } from '@tanstack/react-devtools';
 import { make, fixture } from '@effect-firebase/mock';
 import { firestoreMockPlugin } from '@effect-firebase/devtools';
 
+// Fixtures built with fixture()/rawFixture() from @effect-firebase/mock —
+// see that package's README.
+const posts = fixture(PostModel, {
+  collectionPath: 'posts',
+  idField: 'id',
+  docs: [new PostModel({/* ... */})],
+});
+
 const mock = make({
-  fixtures: [posts, authors],
+  fixtures: [posts],
 });
 
 // Provide mock.layer wherever your app builds its Effect runtime.

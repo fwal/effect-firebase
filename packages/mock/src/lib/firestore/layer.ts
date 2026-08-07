@@ -40,7 +40,8 @@ import {
 
 export interface LayerOptions {
   /**
-   * Fixtures to seed the backend with.
+   * Fixtures to seed the backend with. Only fixtures whose models require no
+   * encoding services are supported (`Fixture<never>`).
    */
   readonly fixtures?: ReadonlyArray<Fixture>;
   /**
@@ -61,7 +62,11 @@ const ID_ALPHABET =
 const generateId: Effect.Effect<string> = Effect.gen(function* () {
   let id = '';
   for (let i = 0; i < 20; i++) {
-    const index = yield* Random.nextIntBetween(0, ID_ALPHABET.length);
+    // halfOpen keeps the index strictly below the alphabet length
+    // (nextIntBetween includes the upper bound by default).
+    const index = yield* Random.nextIntBetween(0, ID_ALPHABET.length, {
+      halfOpen: true,
+    });
     id += ID_ALPHABET[index];
   }
   return id;
@@ -180,13 +185,17 @@ const makeFirestore = (
       Effect.gen(function* () {
         yield* validate(validateCollectionPath(path));
         let id = yield* generateId;
-        const snapshot = yield* SubscriptionRef.get(ref);
-        while (snapshot.docs[`${path}/${id}`] !== undefined) {
-          id = yield* generateId;
-        }
-        const docPath = `${path}/${id}`;
+        let docPath = `${path}/${id}`;
+        // Collision-check against the docs the write actually sees, so a
+        // concurrently created document at the same path is never replaced.
         yield* write(path, (docs, timestamp) =>
-          Effect.succeed({ ...docs, [docPath]: applySet(data, timestamp) }),
+          Effect.gen(function* () {
+            while (docs[docPath] !== undefined) {
+              id = yield* generateId;
+              docPath = `${path}/${id}`;
+            }
+            return { ...docs, [docPath]: applySet(data, timestamp) };
+          }),
         );
         return { id, path: docPath };
       }),
@@ -459,30 +468,32 @@ export const make = (options: LayerOptions = {}): MockHandle => {
   const ref = Effect.runSync(SubscriptionRef.make(emptySnapshot));
   const latency = Effect.runSync(Ref.make(initialLatency));
   const initialRef = Effect.runSync(Ref.make(emptySnapshot));
-  const seeded = Effect.runSync(Ref.make(false));
 
   const controller = makeController(ref, latency, {
     ref: initialRef,
     latency: initialLatency,
   });
 
-  const seedOnce = Effect.gen(function* () {
-    if (yield* Ref.getAndSet(seeded, true)) {
-      return;
-    }
-    let docs: Record<string, DocData> = {};
-    for (const fixture of options.fixtures ?? []) {
-      docs = { ...docs, ...(yield* fixture.build) };
-    }
-    const snapshot: StoreSnapshot = { docs, states: initialStates };
-    yield* Ref.set(initialRef, snapshot);
-    // Keep anything written before the layer was built (e.g. via the
-    // controller); fixtures only fill in the seeded documents.
-    yield* SubscriptionRef.update(ref, (current) => ({
-      ...current,
-      docs: { ...docs, ...current.docs },
-    }));
-  });
+  // Effect.cached deduplicates concurrent builds: every provider awaits the
+  // same seeding run, so none can observe a partially seeded store.
+  const seedOnce = Effect.runSync(
+    Effect.cached(
+      Effect.gen(function* () {
+        let docs: Record<string, DocData> = {};
+        for (const fixture of options.fixtures ?? []) {
+          docs = { ...docs, ...(yield* fixture.build) };
+        }
+        const snapshot: StoreSnapshot = { docs, states: initialStates };
+        yield* Ref.set(initialRef, snapshot);
+        // Keep anything written before the layer was built (e.g. via the
+        // controller); fixtures only fill in the seeded documents.
+        yield* SubscriptionRef.update(ref, (current) => ({
+          ...current,
+          docs: { ...docs, ...current.docs },
+        }));
+      }),
+    ),
+  );
 
   return {
     controller,
@@ -500,9 +511,12 @@ export const make = (options: LayerOptions = {}): MockHandle => {
  * An in-memory, reactive `FirestoreService` backend.
  *
  * The returned layer provides both the `FirestoreService` implementation and
- * a {@link MockController} for driving it at runtime. Every `Effect.provide`
- * gets a fresh, isolated store — use {@link make} instead when external code
- * (like a devtools panel) needs a shared handle on the store.
+ * a {@link MockController} for driving it at runtime. Every *build* of the
+ * layer gets a fresh, isolated store. Note that Effect memoizes layers, so
+ * providing the same layer value multiple times within one memoization scope
+ * shares a single store — call `layer()` again (or provide with
+ * `{ local: true }`) when you need separate stores, or use {@link make} when
+ * external code (like a devtools panel) needs a shared handle on the store.
  *
  * @example
  * ```ts

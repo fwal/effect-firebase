@@ -70,27 +70,25 @@ import { Client } from '@effect-firebase/client';
 import { firestoreLayerAtom } from '../lib/atoms.js';
 
 export function App({ children }) {
-  const layer = useMemo(() => {
+  // useState initializer: Firebase setup runs once per mount and the layer
+  // keeps a stable identity.
+  const [layer] = useState(() => {
     const firestore = initializeFirestore(initializeApp({...}), {...});
     connectFirestoreEmulator(firestore, 'localhost', 8080);
     return Client.layer({ firestore });
-  }, []);
-
-  const initialValues = useMemo(
-    () => [[firestoreLayerAtom, layer] as const] as const,
-    [layer],
-  );
+  });
 
   return (
-    <RegistryProvider initialValues={initialValues}>
+    <RegistryProvider initialValues={[[firestoreLayerAtom, layer] as const]}>
       {children}
     </RegistryProvider>
   );
 }
 ```
 
-Wrap the layer in `useMemo` so Firebase initialization doesn't re-run on
-every render. Note that `RegistryProvider` reads `initialValues` only when
+Create the layer in a `useState` initializer so Firebase initialization runs
+once per mount with a stable identity (a side-effecting `useMemo` is rejected
+by the React Compiler lint). Note that `RegistryProvider` reads `initialValues` only when
 the registry is first created — changing the array (or the layer's identity)
 on a later render is silently ignored. To swap the layer at runtime, set the
 atom's value in the registry instead — `registry.set(firestoreLayerAtom, newLayer)`

@@ -24,6 +24,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * @see https://firebase.google.com/docs/firestore/manage-data/data-types#value_type_ordering
  */
 const rank = (value: unknown): number => {
+  if (value === undefined) return -1;
   if (value === null) return 0;
   if (typeof value === 'boolean') return 1;
   if (typeof value === 'number') return 2;
@@ -32,7 +33,8 @@ const rank = (value: unknown): number => {
   if (value instanceof FirestoreSchema.Reference) return 5;
   if (value instanceof FirestoreSchema.GeoPoint) return 6;
   if (Array.isArray(value)) return 7;
-  return 8;
+  if (isRecord(value)) return 8;
+  return 9;
 };
 
 const compareNumbers = (a: number, b: number): number =>
@@ -109,7 +111,9 @@ export const compare = (a: unknown, b: unknown): number => {
     }
     return compareNumbers(aKeys.length, bKeys.length);
   }
-  return 0;
+  // undefined vs undefined and opaque values (sentinels, bigints, ...):
+  // equal only on identity, so unrelated values never compare as equal.
+  return a === b ? 0 : 1;
 };
 
 /**

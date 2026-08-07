@@ -213,11 +213,12 @@ export const applyConstraints = (
     );
   }
 
-  if (limit !== undefined) {
-    results = results.slice(0, limit);
-  }
+  // Firestore rejects queries combining `limit()` and `limitToLast()`;
+  // the mock applies `limitToLast` and ignores `limit` in that case.
   if (limitToLast !== undefined) {
     results = results.slice(Math.max(0, results.length - limitToLast));
+  } else if (limit !== undefined) {
+    results = results.slice(0, limit);
   }
 
   return results;

@@ -418,6 +418,32 @@ describe('layer', () => {
         { fixtures: [postFixture] },
       ));
 
+    it('falls back to the wildcard state after clearState', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const controller = yield* MockController;
+          yield* controller.setState('posts', 'data');
+          expect((yield* firestore.query('posts', [])).length).toBe(2);
+          yield* controller.clearState('posts');
+          expect(yield* firestore.query('posts', [])).toEqual([]);
+        }),
+        { fixtures: [postFixture], states: { [MockState.All]: 'empty' } },
+      ));
+
+    it('sets and removes documents directly', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const controller = yield* MockController;
+          yield* controller.setDoc('posts/9', { title: 'Direct', views: 1 });
+          expect(Option.isSome(yield* firestore.get('posts/9'))).toBe(true);
+          yield* controller.removeDoc('posts/9');
+          expect(Option.isNone(yield* firestore.get('posts/9'))).toBe(true);
+        }),
+        { fixtures: [postFixture] },
+      ));
+
     it('simulates latency', () =>
       run(
         Effect.gen(function* () {

@@ -63,7 +63,15 @@ export const fixture = <
           ),
         );
       }
-      result[`${options.collectionPath}/${id}`] = data;
+      const path = `${options.collectionPath}/${id}`;
+      if (path in result) {
+        return yield* Effect.die(
+          new Error(
+            `fixture(${options.collectionPath}): duplicate document ID '${id}'`,
+          ),
+        );
+      }
+      result[path] = data;
     }
     return result;
   }) as Fixture<S['EncodingServices']>['build'],
@@ -101,16 +109,29 @@ export const generatedFixture = <
   options: {
     readonly collectionPath: string;
     readonly idField: Id;
-    /** Number of documents to generate. */
+    /** Number of documents to generate. Must be a non-negative integer. */
     readonly count: number;
     /** Seed for deterministic generation. Defaults to `1`. */
     readonly seed?: number;
-    /** Custom document ID per index. Defaults to `generated-0001`, ... */
+    /**
+     * Custom document ID for the zero-based document index.
+     * The default ID uses the one-based position: `generated-0001`, ...
+     */
     readonly id?: (index: number) => string;
   },
 ): Fixture<S['EncodingServices']> => ({
   collectionPath: options.collectionPath,
   build: Effect.gen(function* () {
+    if (!Number.isInteger(options.count) || options.count < 0) {
+      return yield* Effect.die(
+        new Error(
+          `generatedFixture(${options.collectionPath}): count must be a non-negative integer, got ${options.count}`,
+        ),
+      );
+    }
+    if (options.count === 0) {
+      return {};
+    }
     const arbitrary = Schema.toArbitrary(model as Schema.Top);
     const samples = FastCheck.sample(arbitrary, {
       numRuns: options.count,
@@ -128,7 +149,15 @@ export const generatedFixture = <
         options.id?.(index) ??
         `generated-${String(index + 1).padStart(Math.max(digits, 4), '0')}`;
       const { [options.idField as string]: _ignored, ...data } = encoded;
-      result[`${options.collectionPath}/${id}`] = data;
+      const path = `${options.collectionPath}/${id}`;
+      if (path in result) {
+        return yield* Effect.die(
+          new Error(
+            `generatedFixture(${options.collectionPath}): duplicate document ID '${id}'`,
+          ),
+        );
+      }
+      result[path] = data;
     }
     return result;
   }) as Fixture<S['EncodingServices']>['build'],

@@ -130,6 +130,25 @@ describe('applyConstraints', () => {
     ).toEqual(['1', '4']);
   });
 
+  it('supports and filters', () => {
+    expect(
+      ids(
+        applyConstraints(posts, [
+          new Query.And({
+            constraints: [
+              new Query.Where({
+                field: 'status',
+                op: '==',
+                value: 'published',
+              }),
+              new Query.Where({ field: 'views', op: '>', value: 25 }),
+            ],
+          }),
+        ]),
+      ),
+    ).toEqual(['2']);
+  });
+
   it('orders ascending and descending', () => {
     expect(
       ids(
@@ -167,6 +186,19 @@ describe('applyConstraints', () => {
       ids(
         applyConstraints(posts, [
           ...ordered,
+          new Query.LimitToLast({ count: 2 }),
+        ]),
+      ),
+    ).toEqual(['2', '4']);
+  });
+
+  it('prefers limitToLast when combined with limit', () => {
+    const ordered = [new Query.OrderBy({ field: 'views', direction: 'asc' })];
+    expect(
+      ids(
+        applyConstraints(posts, [
+          ...ordered,
+          new Query.Limit({ count: 3 }),
           new Query.LimitToLast({ count: 2 }),
         ]),
       ),

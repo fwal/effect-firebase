@@ -102,6 +102,40 @@ describe('generatedFixture', () => {
     expect(Object.keys(docs)).toEqual(['posts/custom-0', 'posts/custom-1']);
   });
 
+  it('produces an empty fixture for count 0 and rejects negative counts', async () => {
+    const empty = await build(
+      generatedFixture(Post, {
+        collectionPath: 'posts',
+        idField: 'id',
+        count: 0,
+      }),
+    );
+    expect(empty).toEqual({});
+
+    await expect(
+      build(
+        generatedFixture(Post, {
+          collectionPath: 'posts',
+          idField: 'id',
+          count: -1,
+        }),
+      ),
+    ).rejects.toThrow(/non-negative integer/);
+  });
+
+  it('rejects duplicate document IDs', async () => {
+    await expect(
+      build(
+        generatedFixture(Post, {
+          collectionPath: 'posts',
+          idField: 'id',
+          count: 2,
+          id: () => 'same',
+        }),
+      ),
+    ).rejects.toThrow(/duplicate document ID 'same'/);
+  });
+
   it('seeds a mock backend whose documents decode through a repository', () =>
     Effect.runPromise(
       Effect.gen(function* () {
@@ -115,6 +149,9 @@ describe('generatedFixture', () => {
         ]);
         expect(posts.length).toBe(10);
         for (const post of posts) {
+          // IDs are recovered from the document path after generatedFixture
+          // strips the stored idField.
+          expect(post.id).toMatch(/^generated-\d{4}$/);
           expect(typeof post.title).toBe('string');
           expect(typeof post.views).toBe('number');
           expect(Option.isOption(post.optional)).toBe(true);

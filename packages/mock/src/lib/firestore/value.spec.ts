@@ -30,6 +30,22 @@ describe('compare', () => {
     expect(compare(later, earlier)).toBeGreaterThan(0);
   });
 
+  it('orders pre-1970 timestamps by instant and roundtrips them', () => {
+    const earlier = FirestoreSchema.Timestamp.fromMillis(-2_500);
+    const later = FirestoreSchema.Timestamp.fromMillis(-1_500);
+    expect(earlier.nanoseconds).toBeGreaterThanOrEqual(0);
+    expect(later.nanoseconds).toBeGreaterThanOrEqual(0);
+    expect(earlier.toMillis()).toBe(-2_500);
+    expect(later.toMillis()).toBe(-1_500);
+    expect(compare(earlier, later)).toBeLessThan(0);
+  });
+
+  it('never equates unrelated opaque values', () => {
+    expect(equals(undefined, { a: 1 })).toBe(false);
+    expect(equals(Firestore.delete(), Firestore.delete())).toBe(false);
+    expect(equals(undefined, undefined)).toBe(true);
+  });
+
   it('orders mixed types by Firestore type rank', () => {
     // null < boolean < number < timestamp < string
     expect(compare(null, true)).toBeLessThan(0);

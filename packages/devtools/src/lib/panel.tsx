@@ -278,8 +278,10 @@ export function MockDevtoolsPanel({
   };
 
   const applyLatency = (value: number): void => {
-    setLatencyMs(value);
-    runEffect(controller.setLatency(`${value} millis`));
+    // The input's min={0} doesn't stop typed negative or invalid values.
+    const latency = Number.isFinite(value) ? Math.max(0, value) : 0;
+    setLatencyMs(latency);
+    runEffect(controller.setLatency(`${latency} millis`));
   };
 
   const stateRow = (key: string, explicitOnly: boolean) => {

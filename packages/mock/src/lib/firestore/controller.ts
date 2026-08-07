@@ -45,7 +45,8 @@ export interface MockControllerShape {
 
   /**
    * Seed additional documents from a fixture. Existing documents at the same
-   * paths are replaced; live streams re-emit.
+   * paths are replaced; live streams re-emit. Only fixtures whose models
+   * require no encoding services are supported (`Fixture<never>`).
    */
   readonly seed: (fixture: Fixture) => Effect.Effect<void, Schema.SchemaError>;
 
