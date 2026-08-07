@@ -48,6 +48,48 @@ describe('generatedFixture', () => {
     expect(a).not.toEqual(c);
   });
 
+  it('generates dates within the range a Firestore Timestamp can store', async () => {
+    const docs = await build(
+      generatedFixture(Post, {
+        collectionPath: 'posts',
+        idField: 'id',
+        count: 50,
+      }),
+    );
+    const min = Date.parse('0001-01-01T00:00:00Z');
+    const max = Date.parse('9999-12-31T23:59:59.999Z');
+    for (const data of Object.values(docs)) {
+      const createdAt = (data as Record<string, { toMillis(): number }>)[
+        'createdAt'
+      ];
+      const millis = createdAt.toMillis();
+      expect(millis).toBeGreaterThanOrEqual(min);
+      expect(millis).toBeLessThanOrEqual(max);
+    }
+  });
+
+  it('honors toArbitrary annotations on model fields', async () => {
+    const titles = ['Getting started', 'Release notes', 'Roadmap'];
+
+    class Curated extends Model.Class<Curated>('Curated')({
+      id: Model.GeneratedByDb(PostId),
+      title: Schema.String.annotate({
+        toArbitrary: () => (fc) => fc.constantFrom(...titles),
+      }),
+    }) {}
+
+    const docs = await build(
+      generatedFixture(Curated, {
+        collectionPath: 'posts',
+        idField: 'id',
+        count: 10,
+      }),
+    );
+    for (const data of Object.values(docs)) {
+      expect(titles).toContain((data as Record<string, unknown>)['title']);
+    }
+  });
+
   it('supports custom document IDs', async () => {
     const docs = await build(
       generatedFixture(Post, {

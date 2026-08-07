@@ -89,6 +89,24 @@ const manyPosts = generatedFixture(PostModel, {
 });
 ```
 
+Generation is tunable per field on the schema itself. Built-in checks guide it automatically (`Schema.isBetween` keeps numbers in range, `Schema.isMinLength` bounds strings), and a `toArbitrary` annotation replaces the generator entirely:
+
+```typescript
+class PostModel extends Model.Class<PostModel>('PostModel')({
+  // ...
+  title: Schema.String.annotate({
+    toArbitrary: () => (fc) =>
+      fc.constantFrom('Getting started', 'Release notes', 'Roadmap'),
+  }),
+  views: Schema.Number.check(
+    Schema.isInt(),
+    Schema.isBetween({ minimum: 0, maximum: 5000 }),
+  ),
+}) {}
+```
+
+The Firestore date/time fields (`Firestore.DateTimeInsert`, ...) are pre-annotated to generate instants within the range a Firestore `Timestamp` can actually store (years 1–9999).
+
 ## Simulated states
 
 The layer also provides a `MockController` service for driving the backend at runtime — from tests, a dev panel, or a devtools plugin:
