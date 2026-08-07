@@ -120,7 +120,42 @@ describe('MockDevtoolsPanel', () => {
       ) as HTMLElement,
     );
 
-    expect(seen).toEqual([['posts', 'Empty']]);
+    // The callback fires only after the state change has been applied.
+    expect(seen).toEqual([]);
+    await waitFor(() => {
+      expect(seen).toEqual([['posts', 'Empty']]);
+    });
+    const states = await Effect.runPromise(handle.controller.states);
+    expect(states['posts']?._tag).toBe('Empty');
+  });
+
+  it('notifies onStateChange with the wildcard on reset and clear', async () => {
+    const handle = makeHandle();
+    await seed(handle);
+    const seen: Array<[string, string]> = [];
+
+    render(
+      <MockDevtoolsPanel
+        controller={handle.controller}
+        onStateChange={(collection, state) => {
+          seen.push([collection, state._tag]);
+        }}
+      />,
+    );
+    await screen.findByText('posts');
+
+    fireEvent.click(screen.getByText('reset'));
+    await waitFor(() => {
+      expect(seen).toEqual([['*', 'Data']]);
+    });
+
+    fireEvent.click(screen.getByText('clear'));
+    await waitFor(() => {
+      expect(seen).toEqual([
+        ['*', 'Data'],
+        ['*', 'Data'],
+      ]);
+    });
   });
 });
 

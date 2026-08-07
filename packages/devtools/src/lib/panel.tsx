@@ -18,9 +18,11 @@ export interface MockDevtoolsPanelProps {
    */
   readonly collections?: ReadonlyArray<string>;
   /**
-   * Called after a state toggle has been applied. Use this to re-subscribe
+   * Called after a state change has been applied. Use this to re-subscribe
    * consumers that terminated on a simulated error — e.g. refresh the atoms
-   * or queries reading from the collection.
+   * or queries reading from the collection. Clearing the wildcard state and
+   * resetting the backend notify with the wildcard key (`'*'`) and the
+   * `data` state.
    */
   readonly onStateChange?: (
     collectionPath: string,
@@ -238,10 +240,41 @@ export function MockDevtoolsPanel({
   const toInput = (name: StateName): MockState.StateInput =>
     name === 'error' ? MockState.error(errorCode) : name;
 
+  /**
+   * Notify only after the controller effect has applied, so a refresh
+   * triggered by the callback re-subscribes against the new state.
+   */
+  const notifyAfter = (
+    effect: Effect.Effect<void>,
+    collectionPath: string,
+    state: MockState.State,
+  ): void => {
+    void Effect.runPromise(effect).then(() => {
+      onStateChange?.(collectionPath, state);
+    });
+  };
+
   const setState = (collectionPath: string, name: StateName): void => {
     const state = MockState.fromInput(toInput(name));
-    runEffect(controller.setState(collectionPath, state));
-    onStateChange?.(collectionPath, state);
+    notifyAfter(
+      controller.setState(collectionPath, state),
+      collectionPath,
+      state,
+    );
+  };
+
+  // Clearing the wildcard and resetting both recover erroring collections,
+  // so they notify with the wildcard key for consumers to refresh broadly.
+  const clearAll = (): void => {
+    notifyAfter(
+      controller.clearState(MockState.All),
+      MockState.All,
+      MockState.data,
+    );
+  };
+
+  const reset = (): void => {
+    notifyAfter(controller.reset, MockState.All, MockState.data);
   };
 
   const applyLatency = (value: number): void => {
@@ -288,7 +321,7 @@ export function MockDevtoolsPanel({
           type="button"
           style={actionButtonStyle}
           title="Remove the wildcard state"
-          onClick={() => runEffect(controller.clearState(MockState.All))}
+          onClick={clearAll}
         >
           clear
         </button>
@@ -321,7 +354,7 @@ export function MockDevtoolsPanel({
           type="button"
           style={actionButtonStyle}
           title="Restore initial fixtures and clear all states"
-          onClick={() => runEffect(controller.reset)}
+          onClick={reset}
         >
           reset
         </button>

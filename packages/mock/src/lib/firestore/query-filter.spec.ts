@@ -147,6 +147,17 @@ describe('applyConstraints', () => {
     ).toEqual(['4', '2', '3', '1']);
   });
 
+  it('excludes documents missing an orderBy field, like Firestore', () => {
+    // Post '4' has no 'tags' field.
+    expect(
+      ids(
+        applyConstraints(posts, [
+          new Query.OrderBy({ field: 'tags', direction: 'asc' }),
+        ]),
+      ),
+    ).toEqual(['1', '3', '2']);
+  });
+
   it('applies limit and limitToLast', () => {
     const ordered = [new Query.OrderBy({ field: 'views', direction: 'asc' })];
     expect(

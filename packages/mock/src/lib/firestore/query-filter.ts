@@ -177,8 +177,13 @@ export const applyConstraints = (
     }
   }
 
-  let results = snapshots.filter(([, data]) =>
-    filters.every((filter) => matchesFilter(data, filter)),
+  // Firestore excludes documents that lack a field named by an orderBy.
+  let results = snapshots.filter(
+    ([, data]) =>
+      filters.every((filter) => matchesFilter(data, filter)) &&
+      orderBys.every(
+        (orderBy) => fieldValue(data, orderBy.field) !== undefined,
+      ),
   );
 
   results = [...results].sort(compareSnapshots(orderBys));
