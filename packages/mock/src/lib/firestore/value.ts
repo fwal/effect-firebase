@@ -112,8 +112,43 @@ export const compare = (a: unknown, b: unknown): number => {
     return compareNumbers(aKeys.length, bKeys.length);
   }
   // undefined vs undefined and opaque values (sentinels, bigints, ...):
-  // equal only on identity, so unrelated values never compare as equal.
-  return a === b ? 0 : 1;
+  // equal only on identity; distinct values get a stable, antisymmetric
+  // order so sorting stays deterministic across engines.
+  if (a === b) {
+    return 0;
+  }
+  return compareOpaque(a, b);
+};
+
+const isWeakKey = (value: unknown): value is WeakKey =>
+  (typeof value === 'object' && value !== null) || typeof value === 'function';
+
+const opaqueIds = new WeakMap<WeakKey, number>();
+let nextOpaqueId = 0;
+
+const opaqueId = (value: WeakKey): number => {
+  let id = opaqueIds.get(value);
+  if (id === undefined) {
+    id = nextOpaqueId++;
+    opaqueIds.set(value, id);
+  }
+  return id;
+};
+
+const compareOpaque = (a: unknown, b: unknown): number => {
+  const aIsWeak = isWeakKey(a);
+  const bIsWeak = isWeakKey(b);
+  if (aIsWeak && bIsWeak) {
+    // First-seen order: arbitrary but stable and antisymmetric.
+    return compareNumbers(opaqueId(a), opaqueId(b));
+  }
+  if (aIsWeak !== bIsWeak) {
+    return aIsWeak ? 1 : -1;
+  }
+  // Distinct primitives (bigints, symbols): order by their string form.
+  const aString = String(a);
+  const bString = String(b);
+  return aString < bString ? -1 : aString > bString ? 1 : 0;
 };
 
 /**

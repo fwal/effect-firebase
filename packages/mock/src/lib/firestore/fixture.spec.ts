@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { Effect, Option, Schema } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { Firestore, Query } from 'effect-firebase';
-import { generatedFixture } from './fixture.js';
+import { fixture, generatedFixture } from './fixture.js';
 import { layer } from './layer.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -17,6 +17,28 @@ class Post extends Model.Class<Post>('Post')({
 
 const build = (fixture: ReturnType<typeof generatedFixture>) =>
   Effect.runPromise(fixture.build as Effect.Effect<Record<string, unknown>>);
+
+describe('fixture', () => {
+  it('rejects document IDs containing a path separator', async () => {
+    await expect(
+      build(
+        fixture(Post, {
+          collectionPath: 'posts',
+          idField: 'id',
+          docs: [
+            new Post({
+              id: PostId.make('child/item'),
+              title: 'Nested',
+              views: 0,
+              createdAt: DateTime.makeUnsafe(1_000),
+              optional: Option.none(),
+            }),
+          ],
+        }),
+      ),
+    ).rejects.toThrow(/must not contain '\/'/);
+  });
+});
 
 describe('generatedFixture', () => {
   it('generates the requested number of schema-valid documents', async () => {
@@ -88,6 +110,19 @@ describe('generatedFixture', () => {
     for (const data of Object.values(docs)) {
       expect(titles).toContain((data as Record<string, unknown>)['title']);
     }
+  });
+
+  it('rejects custom document IDs containing a path separator', async () => {
+    await expect(
+      build(
+        generatedFixture(Post, {
+          collectionPath: 'posts',
+          idField: 'id',
+          count: 1,
+          id: () => 'child/item',
+        }),
+      ),
+    ).rejects.toThrow(/must not contain '\/'/);
   });
 
   it('supports custom document IDs', async () => {

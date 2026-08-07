@@ -21,6 +21,23 @@ export interface Fixture<R = never> {
 }
 
 /**
+ * Document IDs become a single path segment; a separator would silently move
+ * the document out of the intended collection.
+ */
+const validateId = (
+  builder: string,
+  collectionPath: string,
+  id: string,
+): Effect.Effect<void> =>
+  id.includes('/')
+    ? Effect.die(
+        new Error(
+          `${builder}(${collectionPath}): document ID '${id}' must not contain '/'`,
+        ),
+      )
+    : Effect.void;
+
+/**
  * Create a fixture from hard-coded models. Documents are encoded through the
  * model's schema, so reads exercise the exact same decoding path as real data.
  *
@@ -63,6 +80,7 @@ export const fixture = <
           ),
         );
       }
+      yield* validateId('fixture', options.collectionPath, id);
       const path = `${options.collectionPath}/${id}`;
       if (path in result) {
         return yield* Effect.die(
@@ -148,6 +166,7 @@ export const generatedFixture = <
       const id =
         options.id?.(index) ??
         `generated-${String(index + 1).padStart(Math.max(digits, 4), '0')}`;
+      yield* validateId('generatedFixture', options.collectionPath, id);
       const { [options.idField as string]: _ignored, ...data } = encoded;
       const path = `${options.collectionPath}/${id}`;
       if (path in result) {

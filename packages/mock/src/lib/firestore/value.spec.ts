@@ -46,6 +46,16 @@ describe('compare', () => {
     expect(equals(undefined, undefined)).toBe(true);
   });
 
+  it('orders distinct opaque values antisymmetrically and stably', () => {
+    const a = Firestore.delete();
+    const b = Firestore.delete();
+    expect(compare(a, b)).toBe(-compare(b, a));
+    expect(compare(a, b)).not.toBe(0);
+    expect(compare(a, b)).toBe(compare(a, b));
+    expect(compare(a, a)).toBe(0);
+    expect(compare(1n, 2n)).toBe(-compare(2n, 1n));
+  });
+
   it('orders mixed types by Firestore type rank', () => {
     // null < boolean < number < timestamp < string
     expect(compare(null, true)).toBeLessThan(0);
