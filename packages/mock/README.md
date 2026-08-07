@@ -76,6 +76,19 @@ const settings = rawFixture('settings', {
 });
 ```
 
+To fill a page with volume (long lists, pagination, layout stress), `generatedFixture` derives documents from the model's schema via `Schema.toArbitrary` and fast-check — bundled with effect, no extra dependency. Generation is deterministic per seed, so data doesn't churn across reloads. Generated values satisfy the schema but read as noise; use hand-written `fixture` docs for demo-quality content — both compose in the same layer:
+
+```typescript
+import { generatedFixture } from '@effect-firebase/mock';
+
+const manyPosts = generatedFixture(PostModel, {
+  collectionPath: 'posts',
+  idField: 'id',
+  count: 50,
+  seed: 1, // optional, the default
+});
+```
+
 ## Simulated states
 
 The layer also provides a `MockController` service for driving the backend at runtime — from tests, a dev panel, or a devtools plugin:
