@@ -12,6 +12,7 @@
     "start": "nx start",
     "example:emulator": "nx run @example/backend:emulator",
     "example:hosting": "nx run @example/app:dev",
+    "example:mock": "VITE_MOCK_BACKEND=1 nx run @example/app:dev",
     "release": "nx release --skip-publish"
   },
   "private": true,

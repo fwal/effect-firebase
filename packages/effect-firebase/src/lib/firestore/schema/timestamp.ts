@@ -8,16 +8,16 @@ export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
   nanoseconds: Schema.Number,
 }) {
   static fromDate(date: Date): Timestamp {
-    return new Timestamp({
-      seconds: Math.floor(date.getTime() / 1000),
-      nanoseconds: (date.getTime() % 1000) * 1000000,
-    });
+    return Timestamp.fromMillis(date.getTime());
   }
 
   static fromMillis(millis: number): Timestamp {
+    const seconds = Math.floor(millis / 1000);
     return new Timestamp({
-      seconds: Math.floor(millis / 1000),
-      nanoseconds: (millis % 1000) * 1000000,
+      seconds,
+      // Nanoseconds are always non-negative (matching Firestore), so the
+      // seconds/nanos split roundtrips for pre-1970 instants too.
+      nanoseconds: (millis - seconds * 1000) * 1000000,
     });
   }
 
