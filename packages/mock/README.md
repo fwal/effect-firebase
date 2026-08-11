@@ -128,6 +128,8 @@ const mock = layer({
 `make()` returns a handle instead of just a layer: the same options as `layer()`, plus direct access to the controller as a plain value. Every controller effect requires no services, so React components, Storybook decorators or test helpers can run them with `Effect.runPromise` directly. This is what the [`@effect-firebase/devtools`](../devtools) panel builds on:
 
 ```typescript
+import { Effect } from 'effect';
+import { Atom } from 'effect/unstable/reactivity';
 import { make } from '@effect-firebase/mock';
 
 const mock = make({ fixtures: [posts] });

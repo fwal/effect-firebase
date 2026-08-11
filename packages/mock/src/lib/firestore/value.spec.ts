@@ -54,6 +54,13 @@ describe('compare', () => {
     expect(compare(a, b)).toBe(compare(a, b));
     expect(compare(a, a)).toBe(0);
     expect(compare(1n, 2n)).toBe(-compare(2n, 1n));
+
+    // Distinct symbols share a string form but are not equal.
+    const x = Symbol('x');
+    const y = Symbol('x');
+    expect(compare(x, y)).not.toBe(0);
+    expect(compare(x, y)).toBe(-compare(y, x));
+    expect(compare(x, x)).toBe(0);
   });
 
   it('orders mixed types by Firestore type rank', () => {

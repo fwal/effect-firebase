@@ -135,6 +135,18 @@ const opaqueId = (value: WeakKey): number => {
   return id;
 };
 
+const symbolIds = new Map<symbol, number>();
+let nextSymbolId = 0;
+
+const symbolId = (value: symbol): number => {
+  let id = symbolIds.get(value);
+  if (id === undefined) {
+    id = nextSymbolId++;
+    symbolIds.set(value, id);
+  }
+  return id;
+};
+
 const compareOpaque = (a: unknown, b: unknown): number => {
   const aIsWeak = isWeakKey(a);
   const bIsWeak = isWeakKey(b);
@@ -145,7 +157,12 @@ const compareOpaque = (a: unknown, b: unknown): number => {
   if (aIsWeak !== bIsWeak) {
     return aIsWeak ? 1 : -1;
   }
-  // Distinct primitives (bigints, symbols): order by their string form.
+  if (typeof a === 'symbol' && typeof b === 'symbol') {
+    // Two Symbol('x') share a string form but are distinct values; order
+    // them by first-seen identity like other opaque objects.
+    return compareNumbers(symbolId(a), symbolId(b));
+  }
+  // Distinct bigints: order by their string form.
   const aString = String(a);
   const bString = String(b);
   return aString < bString ? -1 : aString > bString ? 1 : 0;

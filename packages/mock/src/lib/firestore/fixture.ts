@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
+import { validateCollectionPath } from './store.js';
 import type { DocData } from './value.js';
 
 /**
@@ -47,6 +48,10 @@ export const fixture = <
 ): Fixture<S['EncodingServices']> => ({
   collectionPath: options.collectionPath,
   build: Effect.gen(function* () {
+    const invalidPath = validateCollectionPath(options.collectionPath);
+    if (invalidPath !== undefined) {
+      return yield* Effect.die(new Error(`fixture: ${invalidPath}`));
+    }
     const result: Record<string, DocData> = {};
     for (const doc of options.docs) {
       const encoded = (yield* Schema.encodeEffect(model as Schema.Top)(

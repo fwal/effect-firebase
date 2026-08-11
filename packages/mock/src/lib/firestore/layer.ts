@@ -184,6 +184,8 @@ const makeFirestore = (
     add: (path, data) =>
       Effect.gen(function* () {
         yield* validate(validateCollectionPath(path));
+        // Like the real SDK, add generates a random 20-char ID without an
+        // occupancy check — collision odds are ~62^-20.
         const id = yield* generateId;
         const docPath = `${path}/${id}`;
         yield* write(path, (docs, timestamp) =>

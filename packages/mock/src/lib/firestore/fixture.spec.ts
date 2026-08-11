@@ -48,6 +48,18 @@ describe('fixture', () => {
     ).rejects.toThrow(/must not contain '\/'/);
   });
 
+  it('rejects invalid collection paths', async () => {
+    await expect(
+      build(
+        fixture(Post, {
+          collectionPath: 'posts/a',
+          idField: 'id',
+          docs: [post('x', 1)],
+        }),
+      ),
+    ).rejects.toThrow(/Invalid collection path/);
+  });
+
   it('rejects duplicate document IDs', async () => {
     await expect(
       build(posts({ docs: [post('same', 1), post('same', 2)] })),
