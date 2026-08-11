@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DateTime, Effect, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { Firestore, Query } from 'effect-firebase';
-import { fixture, generatedFixture } from './fixture.js';
+import { fixture, type Fixture } from './fixture.js';
 import { layer } from './layer.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -15,159 +15,42 @@ class Post extends Model.Class<Post>('Post')({
   optional: Firestore.OptionalDeletable(Schema.String),
 }) {}
 
-const build = (fixture: ReturnType<typeof generatedFixture>) =>
-  Effect.runPromise(fixture.build as Effect.Effect<Record<string, unknown>>);
+const build = (target: Fixture) =>
+  Effect.runPromise(target.build as Effect.Effect<Record<string, unknown>>);
+
+const post = (id: string, views: number) =>
+  new Post({
+    id: PostId.make(id),
+    title: `Post ${id}`,
+    views,
+    createdAt: DateTime.makeUnsafe(1_000 + views),
+    optional: Option.none(),
+  });
+
+const posts = (options: { readonly docs: ReadonlyArray<Post> }) =>
+  fixture(Post, {
+    collectionPath: 'posts',
+    idField: 'id',
+    docs: options.docs,
+  });
 
 describe('fixture', () => {
+  it('keys documents by their id field', async () => {
+    const docs = await build(posts({ docs: [post('a', 1), post('b', 2)] }));
+    expect(Object.keys(docs)).toEqual(['posts/a', 'posts/b']);
+    // The id field is stripped from the stored data — it lives in the path.
+    expect(docs['posts/a']).not.toHaveProperty('id');
+  });
+
   it('rejects document IDs containing a path separator', async () => {
     await expect(
-      build(
-        fixture(Post, {
-          collectionPath: 'posts',
-          idField: 'id',
-          docs: [
-            new Post({
-              id: PostId.make('child/item'),
-              title: 'Nested',
-              views: 0,
-              createdAt: DateTime.makeUnsafe(1_000),
-              optional: Option.none(),
-            }),
-          ],
-        }),
-      ),
+      build(posts({ docs: [post('child/item', 0)] })),
     ).rejects.toThrow(/must not contain '\/'/);
-  });
-});
-
-describe('generatedFixture', () => {
-  it('generates the requested number of schema-valid documents', async () => {
-    const docs = await build(
-      generatedFixture(Post, {
-        collectionPath: 'posts',
-        idField: 'id',
-        count: 25,
-      }),
-    );
-    const paths = Object.keys(docs);
-    expect(paths.length).toBe(25);
-    expect(paths[0]).toBe('posts/generated-0001');
-    expect(paths.every((path) => /^posts\/generated-\d{4}$/.test(path))).toBe(
-      true,
-    );
-  });
-
-  it('is deterministic for the same seed and diverges for another', async () => {
-    const options = {
-      collectionPath: 'posts',
-      idField: 'id',
-      count: 5,
-    } as const;
-    const a = await build(generatedFixture(Post, options));
-    const b = await build(generatedFixture(Post, options));
-    const c = await build(generatedFixture(Post, { ...options, seed: 2 }));
-    expect(a).toEqual(b);
-    expect(a).not.toEqual(c);
-  });
-
-  it('generates dates within the range a Firestore Timestamp can store', async () => {
-    const docs = await build(
-      generatedFixture(Post, {
-        collectionPath: 'posts',
-        idField: 'id',
-        count: 50,
-      }),
-    );
-    const min = Date.parse('0001-01-01T00:00:00Z');
-    const max = Date.parse('9999-12-31T23:59:59.999Z');
-    for (const data of Object.values(docs)) {
-      const createdAt = (data as Record<string, { toMillis(): number }>)[
-        'createdAt'
-      ];
-      const millis = createdAt.toMillis();
-      expect(millis).toBeGreaterThanOrEqual(min);
-      expect(millis).toBeLessThanOrEqual(max);
-    }
-  });
-
-  it('honors toArbitrary annotations on model fields', async () => {
-    const titles = ['Getting started', 'Release notes', 'Roadmap'];
-
-    class Curated extends Model.Class<Curated>('Curated')({
-      id: Model.GeneratedByDb(PostId),
-      title: Schema.String.annotate({
-        toArbitrary: () => (fc) => fc.constantFrom(...titles),
-      }),
-    }) {}
-
-    const docs = await build(
-      generatedFixture(Curated, {
-        collectionPath: 'posts',
-        idField: 'id',
-        count: 10,
-      }),
-    );
-    for (const data of Object.values(docs)) {
-      expect(titles).toContain((data as Record<string, unknown>)['title']);
-    }
-  });
-
-  it('rejects custom document IDs containing a path separator', async () => {
-    await expect(
-      build(
-        generatedFixture(Post, {
-          collectionPath: 'posts',
-          idField: 'id',
-          count: 1,
-          id: () => 'child/item',
-        }),
-      ),
-    ).rejects.toThrow(/must not contain '\/'/);
-  });
-
-  it('supports custom document IDs', async () => {
-    const docs = await build(
-      generatedFixture(Post, {
-        collectionPath: 'posts',
-        idField: 'id',
-        count: 2,
-        id: (index) => `custom-${index}`,
-      }),
-    );
-    expect(Object.keys(docs)).toEqual(['posts/custom-0', 'posts/custom-1']);
-  });
-
-  it('produces an empty fixture for count 0 and rejects negative counts', async () => {
-    const empty = await build(
-      generatedFixture(Post, {
-        collectionPath: 'posts',
-        idField: 'id',
-        count: 0,
-      }),
-    );
-    expect(empty).toEqual({});
-
-    await expect(
-      build(
-        generatedFixture(Post, {
-          collectionPath: 'posts',
-          idField: 'id',
-          count: -1,
-        }),
-      ),
-    ).rejects.toThrow(/non-negative integer/);
   });
 
   it('rejects duplicate document IDs', async () => {
     await expect(
-      build(
-        generatedFixture(Post, {
-          collectionPath: 'posts',
-          idField: 'id',
-          count: 2,
-          id: () => 'same',
-        }),
-      ),
+      build(posts({ docs: [post('same', 1), post('same', 2)] })),
     ).rejects.toThrow(/duplicate document ID 'same'/);
   });
 
@@ -179,27 +62,20 @@ describe('generatedFixture', () => {
           idField: 'id',
           spanPrefix: 'test.PostRepository',
         });
-        const posts = yield* repo.query([
+        const found = yield* repo.query([
           new Query.OrderBy({ field: 'views', direction: 'asc' }),
         ]);
-        expect(posts.length).toBe(10);
-        for (const post of posts) {
-          // IDs are recovered from the document path after generatedFixture
-          // strips the stored idField.
-          expect(post.id).toMatch(/^generated-\d{4}$/);
-          expect(typeof post.title).toBe('string');
-          expect(typeof post.views).toBe('number');
-          expect(Option.isOption(post.optional)).toBe(true);
+        expect(found.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+        for (const p of found) {
+          expect(typeof p.title).toBe('string');
+          expect(typeof p.views).toBe('number');
+          expect(Option.isOption(p.optional)).toBe(true);
         }
       }).pipe(
         Effect.provide(
           layer({
             fixtures: [
-              generatedFixture(Post, {
-                collectionPath: 'posts',
-                idField: 'id',
-                count: 10,
-              }),
+              posts({ docs: [post('c', 3), post('a', 1), post('b', 2)] }),
             ],
           }),
         ),

@@ -184,18 +184,10 @@ const makeFirestore = (
     add: (path, data) =>
       Effect.gen(function* () {
         yield* validate(validateCollectionPath(path));
-        let id = yield* generateId;
-        let docPath = `${path}/${id}`;
-        // Collision-check against the docs the write actually sees, so a
-        // concurrently created document at the same path is never replaced.
+        const id = yield* generateId;
+        const docPath = `${path}/${id}`;
         yield* write(path, (docs, timestamp) =>
-          Effect.gen(function* () {
-            while (docs[docPath] !== undefined) {
-              id = yield* generateId;
-              docPath = `${path}/${id}`;
-            }
-            return { ...docs, [docPath]: applySet(data, timestamp) };
-          }),
+          Effect.succeed({ ...docs, [docPath]: applySet(data, timestamp) }),
         );
         return { id, path: docPath };
       }),

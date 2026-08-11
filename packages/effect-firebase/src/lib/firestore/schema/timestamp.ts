@@ -1,22 +1,5 @@
 import { DateTime, Effect, Schema, SchemaGetter, SchemaIssue } from 'effect';
 
-// Firestore Timestamps are only valid between 0001-01-01T00:00:00Z and
-// 9999-12-31T23:59:59.999Z; derived arbitraries must stay in that range.
-const FIRESTORE_MIN_MILLIS = -62135596800000;
-const FIRESTORE_MAX_MILLIS = 253402300799999;
-
-/**
- * `Schema.DateTimeUtc` restricted, for arbitrary generation, to the range a
- * Firestore Timestamp can represent. Used as the decoded side of the
- * timestamp codecs so `Schema.toArbitrary` on models produces storable dates.
- */
-export const DateTimeUtcArbitrary = Schema.DateTimeUtc.annotate({
-  toArbitrary: () => (fc) =>
-    fc
-      .integer({ min: FIRESTORE_MIN_MILLIS, max: FIRESTORE_MAX_MILLIS })
-      .map((millis) => DateTime.makeUnsafe(millis)),
-});
-
 /**
  * Class representing a Timestamp in Firestore.
  */
@@ -71,7 +54,7 @@ export const TimestampInstance = Schema.instanceOf(Timestamp, {
  * Schema representing a timestamp as a DateTime.Utc.
  */
 export const TimestampDateTimeUtc = TimestampInstance.pipe(
-  Schema.decodeTo(DateTimeUtcArbitrary, {
+  Schema.decodeTo(Schema.DateTimeUtc, {
     decode: SchemaGetter.transform((ts: Timestamp) =>
       DateTime.makeUnsafe(ts.toMillis()),
     ),
@@ -100,7 +83,7 @@ export const AnyTimestampDateTimeUtc = Schema.Union([
   TimestampInstance,
   ServerTimestampInstance,
 ]).pipe(
-  Schema.decodeTo(DateTimeUtcArbitrary, {
+  Schema.decodeTo(Schema.DateTimeUtc, {
     decode: SchemaGetter.transformOrFail(
       (input: Timestamp | ServerTimestamp) => {
         if (input instanceof Timestamp) {

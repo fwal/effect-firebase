@@ -53,28 +53,25 @@ export const docsInCollection = (
     .map(([path, data]) => makeSnapshot(path, data));
 };
 
-const isDocPath = (path: string): boolean => {
+/**
+ * Validate a path, returning an error message when it is malformed.
+ * Documents sit at an even number of segments, collections at an odd number;
+ * `split` never yields fewer than one segment, so requiring every segment to
+ * be non-empty already rules out the empty path.
+ */
+const validatePath = (path: string, kind: 'document' | 'collection') => {
   const segments = path.split('/');
-  return (
-    segments.length >= 2 &&
-    segments.length % 2 === 0 &&
+  const parity = kind === 'document' ? 0 : 1;
+  return segments.length % 2 === parity &&
     segments.every((segment) => segment.length > 0)
-  );
-};
-
-const isCollectionPath = (path: string): boolean => {
-  const segments = path.split('/');
-  return (
-    segments.length % 2 === 1 && segments.every((segment) => segment.length > 0)
-  );
+    ? undefined
+    : `Invalid ${kind} path '${path}': expected a non-empty path with an ${
+        parity === 0 ? 'even' : 'odd'
+      } number of segments`;
 };
 
 export const validateDocPath = (path: string): string | undefined =>
-  isDocPath(path)
-    ? undefined
-    : `Invalid document path '${path}': expected a non-empty path with an even number of segments`;
+  validatePath(path, 'document');
 
 export const validateCollectionPath = (path: string): string | undefined =>
-  isCollectionPath(path)
-    ? undefined
-    : `Invalid collection path '${path}': expected a non-empty path with an odd number of segments`;
+  validatePath(path, 'collection');

@@ -19,14 +19,6 @@ export interface FirestoreMockPluginOptions extends Omit<
   'controller'
 > {
   /**
-   * Plugin ID shown to TanStack Devtools. Defaults to `effect-firebase-mock`.
-   */
-  readonly id?: string;
-  /**
-   * Tab label in the devtools shell. Defaults to `Firestore Mock`.
-   */
-  readonly name?: string;
-  /**
    * Open this panel by default when the devtools shell opens.
    */
   readonly defaultOpen?: boolean;
@@ -53,13 +45,12 @@ export const firestoreMockPlugin = (
   controller: MockControllerShape,
   options: FirestoreMockPluginOptions = {},
 ): TanStackDevtoolsReactPlugin => ({
-  id: options.id ?? 'effect-firebase-mock',
-  name: options.name ?? 'Firestore Mock',
+  id: 'effect-firebase-mock',
+  name: 'Firestore Mock',
   defaultOpen: options.defaultOpen,
   render: (
     <MockDevtoolsPanel
       controller={controller}
-      collections={options.collections}
       onStateChange={options.onStateChange}
     />
   ),

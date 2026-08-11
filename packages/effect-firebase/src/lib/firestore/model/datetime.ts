@@ -31,7 +31,7 @@ const ServerDateTimeSchema = Schema.Union([
   FirestoreSchema.TimestampInstance,
   FirestoreSchema.ServerTimestampInstance,
 ]).pipe(
-  Schema.decodeTo(Schema.UndefinedOr(FirestoreSchema.DateTimeUtcArbitrary), {
+  Schema.decodeTo(Schema.UndefinedOr(Schema.DateTimeUtc), {
     decode: SchemaGetter.transformOrFail(
       (input: FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp) => {
         if (input instanceof FirestoreSchema.Timestamp) {

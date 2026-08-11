@@ -190,7 +190,10 @@ const materialize = (
     return now;
   }
   if (value instanceof Firestore.ArrayUnion) {
-    return dedupe(value.values.map((item) => materialize(item, now)));
+    return missingFrom(
+      [],
+      value.values.map((item) => materialize(item, now)),
+    );
   }
   if (value instanceof Firestore.ArrayRemove) {
     return [];
@@ -209,16 +212,6 @@ const materialize = (
     return result;
   }
   return value;
-};
-
-const dedupe = (values: ReadonlyArray<unknown>): Array<unknown> => {
-  const result: Array<unknown> = [];
-  for (const value of values) {
-    if (!result.some((existing) => equals(existing, value))) {
-      result.push(value);
-    }
-  }
-  return result;
 };
 
 const applyField = (

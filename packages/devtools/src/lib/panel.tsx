@@ -13,11 +13,6 @@ export interface MockDevtoolsPanelProps {
    */
   readonly controller: MockControllerShape;
   /**
-   * Extra collection paths to always show, even before any document or
-   * state exists for them.
-   */
-  readonly collections?: ReadonlyArray<string>;
-  /**
    * Called after a state change has been applied. Use this to re-subscribe
    * consumers that terminated on a simulated error — e.g. refresh the atoms
    * or queries reading from the collection. Clearing the wildcard state and
@@ -49,18 +44,8 @@ const ERROR_CODES = [
   'deadline-exceeded',
 ] as const;
 
-const stateName = (state: MockState.State): StateName => {
-  switch (state._tag) {
-    case 'Data':
-      return 'data';
-    case 'Empty':
-      return 'empty';
-    case 'Loading':
-      return 'loading';
-    case 'Error':
-      return 'error';
-  }
-};
+const stateName = (state: MockState.State): StateName =>
+  state._tag.toLowerCase() as StateName;
 
 /** The collection path a document path belongs to. */
 const collectionOf = (docPath: string): string =>
@@ -91,9 +76,6 @@ const styles = {
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
-    // Explicit height so host-page or devtools-shell CSS resets that stretch
-    // divs cannot distort the layout; same for row/buttonGroup below.
-    height: 'auto',
     paddingBottom: 10,
     borderBottom: '1px solid #2a2d35',
     marginBottom: 10,
@@ -124,7 +106,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    height: 'auto',
     padding: '4px 0',
   } satisfies CSSProperties,
   collection: {
@@ -142,11 +123,9 @@ const styles = {
   buttonGroup: {
     display: 'flex',
     gap: 4,
-    height: 'auto',
   } satisfies CSSProperties,
   emptyMessage: {
     color: '#9ca3af',
-    height: 'auto',
     padding: '8px 0',
   } satisfies CSSProperties,
 };
@@ -179,10 +158,6 @@ const actionButtonStyle: CSSProperties = {
   cursor: 'pointer',
 };
 
-const runEffect = (effect: Effect.Effect<void>): void => {
-  void Effect.runPromise(effect);
-};
-
 /**
  * A devtools panel for the `@effect-firebase/mock` backend: toggle each
  * collection between data / empty / loading / error, pick the simulated
@@ -193,7 +168,6 @@ const runEffect = (effect: Effect.Effect<void>): void => {
  */
 export function MockDevtoolsPanel({
   controller,
-  collections,
   onStateChange,
 }: MockDevtoolsPanelProps) {
   const [snapshot, setSnapshot] = useState<StoreSnapshot>();
@@ -218,7 +192,7 @@ export function MockDevtoolsPanel({
   }, [controller]);
 
   const rows = useMemo(() => {
-    const known = new Set<string>(collections ?? []);
+    const known = new Set<string>();
     for (const docPath of Object.keys(snapshot?.docs ?? {})) {
       known.add(collectionOf(docPath));
     }
@@ -228,7 +202,7 @@ export function MockDevtoolsPanel({
       }
     }
     return [...known].sort();
-  }, [snapshot, collections]);
+  }, [snapshot]);
 
   const docCount = (collectionPath: string): number => {
     const prefix = `${collectionPath}/`;
@@ -241,26 +215,14 @@ export function MockDevtoolsPanel({
   const toInput = (name: StateName): MockState.StateInput =>
     name === 'error' ? MockState.error(errorCode) : name;
 
-  /**
-   * Notify only after the controller effect has applied, so a refresh
-   * triggered by the callback re-subscribes against the new state.
-   */
-  const notifyAfter = (
-    effect: Effect.Effect<void>,
-    collectionPath: string,
-    state: MockState.State,
-  ): void => {
-    void Effect.runPromise(effect).then(() => {
-      onStateChange?.(collectionPath, state);
-    });
-  };
-
+  // Notify only after the controller effect has applied, so a refresh
+  // triggered by the callback re-subscribes against the new state.
   const setState = (collectionPath: string, name: StateName): void => {
     const state = MockState.fromInput(toInput(name));
-    notifyAfter(
-      controller.setState(collectionPath, state),
-      collectionPath,
-      state,
+    void Effect.runPromise(controller.setState(collectionPath, state)).then(
+      () => {
+        onStateChange?.(collectionPath, state);
+      },
     );
   };
 
@@ -288,7 +250,7 @@ export function MockDevtoolsPanel({
     // The input's min={0} doesn't stop typed negative or invalid values.
     const latency = Number.isFinite(value) ? Math.max(0, value) : 0;
     setLatencyMs(latency);
-    runEffect(controller.setLatency(`${latency} millis`));
+    void Effect.runPromise(controller.setLatency(`${latency} millis`));
   };
 
   const stateRow = (key: string, explicitOnly: boolean) => {

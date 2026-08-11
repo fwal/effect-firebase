@@ -76,36 +76,15 @@ const settings = rawFixture('settings', {
 });
 ```
 
-To fill a page with volume (long lists, pagination, layout stress), `generatedFixture` derives documents from the model's schema via `Schema.toArbitrary` and fast-check — bundled with effect, no extra dependency. Generation is deterministic per seed, so data doesn't churn across reloads. Generated values satisfy the schema but read as noise; use hand-written `fixture` docs for demo-quality content — both compose in the same layer:
+To fill a page with volume (long lists, pagination, layout stress), map over an array — `fixture` takes any `ReadonlyArray` of models:
 
 ```typescript
-import { generatedFixture } from '@effect-firebase/mock';
-
-const manyPosts = generatedFixture(PostModel, {
+const manyPosts = fixture(PostModel, {
   collectionPath: 'posts',
   idField: 'id',
-  count: 50,
-  seed: 1, // optional, the default
+  docs: Array.from({ length: 50 }, (_, i) => makePost(i)),
 });
 ```
-
-Generation is tunable per field on the schema itself. Built-in checks guide it automatically (`Schema.isBetween` keeps numbers in range, `Schema.isMinLength` bounds strings), and a `toArbitrary` annotation replaces the generator entirely:
-
-```typescript
-class PostModel extends Model.Class<PostModel>('PostModel')({
-  // ...
-  title: Schema.String.annotate({
-    toArbitrary: () => (fc) =>
-      fc.constantFrom('Getting started', 'Release notes', 'Roadmap'),
-  }),
-  views: Schema.Number.check(
-    Schema.isInt(),
-    Schema.isBetween({ minimum: 0, maximum: 5000 }),
-  ),
-}) {}
-```
-
-The Firestore date/time fields (`Firestore.DateTimeInsert`, ...) are pre-annotated to generate instants within the range a Firestore `Timestamp` can actually store (years 1–9999).
 
 ## Simulated states
 
