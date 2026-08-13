@@ -7,6 +7,7 @@ import {
   GeoPoint,
   Timestamp,
 } from 'firebase-admin/firestore';
+import { DateTime } from 'effect';
 import { FirestoreSchema, Firestore } from 'effect-firebase';
 
 /**
@@ -31,6 +32,12 @@ export const firestoreEncode = (
 
   if (data instanceof FirestoreSchema.Timestamp) {
     return Timestamp.fromMillis(data.toMillis());
+  }
+  // Decoded models expose timestamps as Effect DateTime values; without this
+  // they would fall through to the plain-object branch and encode to garbage
+  // (notably when used as query cursor values).
+  if (DateTime.isDateTime(data)) {
+    return Timestamp.fromMillis(DateTime.toEpochMillis(data));
   }
   if (data instanceof FirestoreSchema.GeoPoint) {
     return new GeoPoint(data.latitude, data.longitude);
