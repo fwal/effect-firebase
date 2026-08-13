@@ -16,7 +16,7 @@ import {
   TextArea,
 } from '../components/core';
 import {
-  latestPostsAtom,
+  paginatedPostsAtom,
   addPostAtom,
   updatePostAtom,
   deletePostAtom,
@@ -180,7 +180,8 @@ function PostForm({
 }
 
 export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
-  const result = useAtomValue(latestPostsAtom);
+  const result = useAtomValue(paginatedPostsAtom);
+  const fetchMore = useAtomSet(paginatedPostsAtom);
   const remove = useAtomSet(deletePostAtom, { mode: 'promise' });
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -200,7 +201,7 @@ export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
         .onFailure((cause) => (
           <EmptyState message={`Error: ${Cause.pretty(cause)}`} />
         ))
-        .onSuccess((posts) =>
+        .onSuccess(({ items: posts, hasMore, isFetchingMore }) =>
           posts.length === 0 ? (
             <EmptyState message="No posts found. Create one above!" />
           ) : (
@@ -252,6 +253,17 @@ export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
                   </CardContent>
                 </Card>
               ))}
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="secondary"
+                    isLoading={isFetchingMore}
+                    onClick={() => fetchMore()}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
             </>
           ),
         )

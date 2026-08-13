@@ -1,7 +1,8 @@
-import { Effect, Layer, Stream } from 'effect';
+import { Effect, Layer, Stream, pipe } from 'effect';
 import { Atom } from 'effect/unstable/reactivity';
-import { FirestoreService } from 'effect-firebase';
+import { FirestoreService, Query } from 'effect-firebase';
 import { PostId, PostModel, PostRepository } from '@example/shared';
+import { makePaginatedQueryAtom } from './pagination.js';
 
 /**
  * Indirection that makes the Firestore layer swappable at the registry level.
@@ -63,6 +64,24 @@ export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
 export const latestPostsAtom = clientRuntime.atom(
   Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
 );
+
+// Realtime paginated feed (growing-limit pattern, REACT.md §Pagination).
+// Reading yields { items, hasMore, isFetchingMore }; writing (any value)
+// grows the window by one page. The whole window is one live listener.
+export const paginatedPostsAtom = makePaginatedQueryAtom(clientRuntime, {
+  pageSize: 5,
+  stream: (limit) =>
+    Stream.unwrap(
+      Effect.map(PostRepository, (r) =>
+        r.queryStream(
+          pipe(
+            Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+            Query.addLimit(limit),
+          ),
+        ),
+      ),
+    ),
+});
 
 // Mutations — writable atoms exposing AsyncResult state and a setter.
 // `concurrent: true` lets invocations overlap; the default interrupts the
