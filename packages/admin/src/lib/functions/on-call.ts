@@ -1,12 +1,13 @@
-import { Effect, pipe, Schema } from 'effect';
+import { Cause, Effect, Exit, pipe, Schema } from 'effect';
 import {
   onCall,
   CallableFunction,
   CallableOptions,
   CallableRequest,
   CallableResponse,
+  HttpsError,
 } from 'firebase-functions/https';
-import { run, Runtime } from './run.js';
+import { runExit, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import {
   CallableContext,
@@ -14,9 +15,23 @@ import {
   encodeOutput,
   extractContext,
 } from './on-call-helpers.js';
+import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
 
 interface CallEffectOptions<R> extends CallableOptions {
   runtime: Runtime<R>;
+  /**
+   * Recover from errors raised during function setup (input decoding or
+   * output encoding). The returned effect either succeeds with a fallback
+   * response for the client or fails with an `HttpsError` to reject the call.
+   *
+   * When omitted, an input decode failure is rejected with an
+   * `invalid-argument` HttpsError and an output encode failure with an
+   * `internal` HttpsError.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    request: CallableRequest,
+  ) => Effect.Effect<unknown, HttpsError, R>;
 }
 
 interface CallEffectOptionsWithInput<
@@ -31,6 +46,10 @@ interface CallEffectOptionsWithOutput<
   O extends Schema.Top,
 > extends CallEffectOptions<R> {
   outputSchema: O;
+  onSetupError?: (
+    error: FunctionSetupError,
+    request: CallableRequest,
+  ) => Effect.Effect<Schema.Codec.Encoded<O>, HttpsError, R>;
 }
 
 interface CallEffectOptionsWithBoth<
@@ -40,7 +59,24 @@ interface CallEffectOptionsWithBoth<
 > extends CallEffectOptions<R> {
   inputSchema: I;
   outputSchema: O;
+  onSetupError?: (
+    error: FunctionSetupError,
+    request: CallableRequest,
+  ) => Effect.Effect<Schema.Codec.Encoded<O>, HttpsError, R>;
 }
+
+/**
+ * Default recovery: reject the call with an HttpsError that reflects the
+ * setup phase that failed.
+ */
+const defaultSetupErrorResponse = (
+  error: FunctionSetupError,
+): Effect.Effect<never, HttpsError> =>
+  Effect.fail(
+    error.phase === 'decode-input'
+      ? new HttpsError('invalid-argument', error.cause.message)
+      : new HttpsError('internal', 'Failed to encode function output'),
+  );
 
 /**
  * Create a Firebase Functions callable trigger that runs an effect.
@@ -93,12 +129,19 @@ export function onCallEffect<R>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>,
 ): CallableFunction<unknown, unknown> {
-  const { inputSchema, outputSchema } = options;
+  const { inputSchema, outputSchema, onSetupError } = options;
 
   return onCall(options, async (request, response) => {
     const effect = pipe(
       // Step 1: Decode input if schema provided (uses helper)
-      inputSchema ? decodeInput(inputSchema)(request) : Effect.succeed(request),
+      inputSchema
+        ? decodeInput(inputSchema)(request).pipe(
+            Effect.mapError(
+              (cause) =>
+                new FunctionSetupError({ phase: 'decode-input', cause }),
+            ),
+          )
+        : Effect.succeed(request),
 
       // Step 2: Run handler with decoded input or raw request
       Effect.andThen((inputOrRequest) => {
@@ -114,20 +157,42 @@ export function onCallEffect<R>(
       // Step 3: Encode output if schema provided (uses helper)
       Effect.andThen((output) =>
         outputSchema
-          ? encodeOutput(outputSchema)(output)
+          ? encodeOutput(outputSchema)(output).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new FunctionSetupError({ phase: 'encode-output', cause }),
+              ),
+            )
           : Effect.succeed(output),
+      ),
+
+      // Step 4: Recover from setup errors (schema decode/encode failures)
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        onSetupError
+          ? onSetupError(error, request)
+          : defaultSetupErrorResponse(error),
       ),
     ).pipe(Effect.withSpan('onCallEffect'));
 
-    return await run(
+    const exit = await runExit(
       options.runtime,
-      effect as Effect.Effect<unknown, never, R>,
-    ).catch((error) => {
-      logger.error('Defect in onCall', {
-        inner: error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      effect as Effect.Effect<unknown, unknown, R>,
+    );
+
+    if (Exit.isSuccess(exit)) {
+      return exit.value;
+    }
+
+    const error = Cause.squash(exit.cause);
+    if (error instanceof HttpsError) {
+      // Expected rejection: let Firebase serialize the HttpsError so the
+      // client receives its code and message instead of a generic internal.
       throw error;
+    }
+    logger.error('Defect in onCall', {
+      inner: error,
+      stack: error instanceof Error ? error.stack : undefined,
     });
+    throw error;
   });
 }

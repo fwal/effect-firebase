@@ -7,9 +7,21 @@ import {
 import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
+import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
+  /**
+   * Recover from errors raised during function setup (message data not
+   * matching the schema). Use this to e.g. acknowledge and skip malformed
+   * messages instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: CloudEvent<MessagePublishedData<unknown>>,
+  ) => Effect.Effect<void, never, R>;
 }
 
 interface MessagePublishedEffectOptionsWithSchema<
@@ -25,14 +37,21 @@ interface MessagePublishedEffectOptionsWithSchema<
 function decodeMessageData<S extends Schema.Top>(
   schema: S,
   event: CloudEvent<MessagePublishedData<unknown>>,
-): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
+): Effect.Effect<
+  Schema.Schema.Type<S>,
+  FunctionSetupError,
+  S['DecodingServices']
+> {
   const messageData = event.data.message.json;
   return Schema.decodeUnknownEffect(schema)(messageData).pipe(
     Effect.mapError(
-      (error) =>
-        new Error(`Failed to decode Pub/Sub message: ${error.message}`),
+      (cause) => new FunctionSetupError({ phase: 'decode-message', cause }),
     ),
-  ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
+  ) as Effect.Effect<
+    Schema.Schema.Type<S>,
+    FunctionSetupError,
+    S['DecodingServices']
+  >;
 }
 
 /**
@@ -79,7 +98,14 @@ export function onMessagePublishedEffect<R>(
         // Pass raw event to handler
         return yield* handler(event);
       }
-    }).pipe(Effect.withSpan('onMessagePublishedEffect'));
+    }).pipe(
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        options.onSetupError
+          ? options.onSetupError(error, event)
+          : Effect.die(error),
+      ),
+      Effect.withSpan('onMessagePublishedEffect'),
+    );
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

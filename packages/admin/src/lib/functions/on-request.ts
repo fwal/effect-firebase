@@ -9,9 +9,23 @@ import { type Response } from 'express';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { parseBody, sendJson } from './on-request-helpers.js';
+import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
 
 interface RequestEffectOptions<R> extends HttpsOptions {
   runtime: Runtime<R>;
+  /**
+   * Recover from errors raised during function setup (body parsing or
+   * response encoding). The returned effect is responsible for writing a
+   * response to the client.
+   *
+   * When omitted, a body parse failure responds with status 400 and a
+   * response encode failure with status 500.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    request: Request,
+    response: Response,
+  ) => Effect.Effect<void, never, R>;
 }
 
 interface RequestEffectOptionsWithBody<
@@ -38,6 +52,28 @@ interface RequestEffectOptionsWithBoth<
   responseSchema: O;
   successStatus?: number;
 }
+
+/**
+ * Default recovery: respond with 400 for an invalid request body and 500 for
+ * a response encoding failure.
+ */
+const defaultSetupErrorResponse = (
+  error: FunctionSetupError,
+  response: Response,
+): Effect.Effect<void> =>
+  Effect.sync(() => {
+    if (error.phase === 'decode-body') {
+      logger.warn('Invalid request body in onRequest', {
+        error: error.cause.message,
+      });
+      response.status(400).json({ error: 'Invalid request body' });
+    } else {
+      logger.error('Failed to encode response in onRequest', {
+        error: error.cause.message,
+      });
+      response.status(500).send();
+    }
+  });
 
 /**
  * Create a Firebase Functions HTTP trigger that runs an effect.
@@ -96,12 +132,20 @@ export function onRequestEffect<R>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>,
 ): HttpsFunction {
-  const { bodySchema, responseSchema, successStatus = 200 } = options;
+  const { bodySchema, responseSchema, successStatus = 200, onSetupError } =
+    options;
 
   return onRequest(options, async (request, response) => {
     const effect = pipe(
       // Step 1: Parse body if schema provided
-      bodySchema ? parseBody(bodySchema)(request) : Effect.succeed(request),
+      bodySchema
+        ? parseBody(bodySchema)(request).pipe(
+            Effect.mapError(
+              (cause) =>
+                new FunctionSetupError({ phase: 'decode-body', cause }),
+            ),
+          )
+        : Effect.succeed(request),
 
       // Step 2: Run handler with parsed body or raw request
       Effect.andThen((bodyOrRequest) => {
@@ -117,8 +161,20 @@ export function onRequestEffect<R>(
       // Step 3: Send JSON response if schema provided
       Effect.andThen((output) =>
         responseSchema
-          ? sendJson(response, responseSchema, successStatus)(output)
+          ? sendJson(response, responseSchema, successStatus)(output).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new FunctionSetupError({ phase: 'encode-response', cause }),
+              ),
+            )
           : Effect.void,
+      ),
+
+      // Step 4: Recover from setup errors (schema decode/encode failures)
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        onSetupError
+          ? onSetupError(error, request, response)
+          : defaultSetupErrorResponse(error, response),
       ),
     ).pipe(Effect.withSpan('onRequestEffect'));
 
