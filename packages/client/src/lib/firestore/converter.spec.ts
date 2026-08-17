@@ -1,3 +1,4 @@
+import { DateTime } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   arrayRemove,
@@ -85,6 +86,28 @@ describe('Firestore Converter', () => {
       expect(result).toBeInstanceOf(FirebaseTimestamp);
       expect((result as FirebaseTimestamp).seconds).toBe(1705315800);
       expect((result as FirebaseTimestamp).nanoseconds).toBe(123000000);
+    });
+
+    it('should convert Effect DateTime to Firestore Timestamp', () => {
+      const result = firestoreEncode(
+        fakeFirestore,
+        DateTime.makeUnsafe(1705315800123),
+      );
+
+      expect(result).toBeInstanceOf(FirebaseTimestamp);
+      expect((result as FirebaseTimestamp).toMillis()).toBe(1705315800123);
+    });
+
+    it('should convert Effect DateTime nested in objects and arrays', () => {
+      const result = firestoreEncode(fakeFirestore, {
+        createdAt: DateTime.makeUnsafe(1705315800123),
+        history: [DateTime.makeUnsafe(1705315800000)],
+      }) as Record<string, unknown>;
+
+      expect(result.createdAt).toBeInstanceOf(FirebaseTimestamp);
+      expect((result.history as unknown[])[0]).toBeInstanceOf(
+        FirebaseTimestamp,
+      );
     });
 
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {
