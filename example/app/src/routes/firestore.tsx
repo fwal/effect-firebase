@@ -20,6 +20,7 @@ import {
   addPostAtom,
   updatePostAtom,
   deletePostAtom,
+  mockEpochAtom,
 } from '../lib/atoms.js';
 
 export const Route = createFileRoute('/firestore')({
@@ -180,8 +181,12 @@ function PostForm({
 }
 
 export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
-  const result = useAtomValue(paginatedPostsAtom);
-  const fetchMore = useAtomSet(paginatedPostsAtom);
+  // The epoch is bumped by the Firestore Mock devtools on every state
+  // toggle; a new epoch keys a new atom identity, so the list re-subscribes
+  // from `Initial` against the toggled state (always 0 outside mock mode).
+  const mockEpoch = useAtomValue(mockEpochAtom);
+  const result = useAtomValue(paginatedPostsAtom(mockEpoch));
+  const fetchMore = useAtomSet(paginatedPostsAtom(mockEpoch));
   const remove = useAtomSet(deletePostAtom, { mode: 'promise' });
   const [deleteError, setDeleteError] = useState<string | null>(null);
 

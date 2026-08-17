@@ -21,7 +21,8 @@ released against.
 5. [Pagination](#5-pagination)
 6. [Forms with validation](#6-forms-with-validation)
 7. [Testing with a mock layer](#7-testing-with-a-mock-layer)
-8. [Caveats](#8-caveats)
+8. [Developing against the mock backend](#8-developing-against-the-mock-backend)
+9. [Caveats](#9-caveats)
 
 ---
 
@@ -70,27 +71,25 @@ import { Client } from '@effect-firebase/client';
 import { firestoreLayerAtom } from '../lib/atoms.js';
 
 export function App({ children }) {
-  const layer = useMemo(() => {
+  // useState initializer: Firebase setup runs once per mount and the layer
+  // keeps a stable identity.
+  const [layer] = useState(() => {
     const firestore = initializeFirestore(initializeApp({...}), {...});
     connectFirestoreEmulator(firestore, 'localhost', 8080);
     return Client.layer({ firestore });
-  }, []);
-
-  const initialValues = useMemo(
-    () => [[firestoreLayerAtom, layer] as const] as const,
-    [layer],
-  );
+  });
 
   return (
-    <RegistryProvider initialValues={initialValues}>
+    <RegistryProvider initialValues={[[firestoreLayerAtom, layer] as const]}>
       {children}
     </RegistryProvider>
   );
 }
 ```
 
-Wrap the layer in `useMemo` so Firebase initialization doesn't re-run on
-every render. Note that `RegistryProvider` reads `initialValues` only when
+Create the layer in a `useState` initializer so Firebase initialization runs
+once per mount with a stable identity (a side-effecting `useMemo` is rejected
+by the React Compiler lint). Note that `RegistryProvider` reads `initialValues` only when
 the registry is first created — changing the array (or the layer's identity)
 on a later render is silently ignored. To swap the layer at runtime, set the
 atom's value in the registry instead — `registry.set(firestoreLayerAtom, newLayer)`
@@ -305,6 +304,10 @@ For infinite scroll, swap the button for an `IntersectionObserver` sentinel
 that calls `fetchMore()` when it becomes visible; repeated calls while a
 fetch is in flight (or when `hasMore` is false) are no-ops.
 
+(The example app additionally wraps the atom in an `Atom.family` keyed by the
+mock epoch — see [§8](#8-developing-against-the-mock-backend) — so devtools
+state toggles mint a fresh atom with the window reset to one page.)
+
 How it works: the atom subscribes with `limit(pages * pageSize + 1)` — one
 probe row beyond the visible window, never surfaced in `items`, so
 `hasMore = rows.length > visible` is exact. Each `fetchMore` re-subscribes
@@ -462,7 +465,57 @@ The components under test never change between production and test — only the
 layer at the registry boundary differs. Vitest needs `environment: 'jsdom'`;
 see the `test` block in [`example/app/vite.config.ts`](./example/app/vite.config.ts).
 
-## 8. Caveats
+## 8. Developing against the mock backend
+
+For building pages, `@effect-firebase/mock` goes further than per-method
+overrides: `make()` returns a full in-memory backend seeded from
+schema-encoded fixtures, with a controller for toggling every collection
+between **data / empty / loading / error** at runtime. Because the layer atom
+is the only seam, the swap is one `initialValues` entry:
+
+```tsx
+// lib/mock.ts — shared by the app runtime and the devtools panel
+export const mockBackend = make({
+  fixtures: [
+    fixture(PostModel, { collectionPath: 'posts', idField: 'id', docs: [...] }),
+  ],
+});
+
+// app.tsx — seed the registry with the mock instead of Client.layer
+<RegistryProvider
+  initialValues={[[firestoreLayerAtom, Layer.orDie(mockBackend.layer)] as const]}
+>
+```
+
+`@effect-firebase/devtools` ships the controller as a TanStack Devtools
+plugin, so the states can be flipped from a panel while the page is running:
+
+```tsx
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { firestoreMockPlugin } from '@effect-firebase/devtools';
+
+<TanStackDevtools
+  plugins={[
+    firestoreMockPlugin(mockBackend.controller, {
+      // `loading` streams never emit and `error` streams fail terminally
+      // (onSnapshot semantics), while atom results retain their previous
+      // value across refreshes and remounts. Bumping an epoch that keys the
+      // read atoms (Atom.family) gives them a fresh identity, so they
+      // re-subscribe from Initial against the toggled state.
+      onStateChange: () => bumpEpoch((epoch) => epoch + 1),
+    }),
+  ]}
+/>;
+```
+
+The example app wires this up behind an env flag — run `pnpm example:mock`
+and open the devtools panel on the Firestore page. See
+[`example/app/src/lib/atoms.ts`](./example/app/src/lib/atoms.ts) (the
+`mockEpochAtom` / `Atom.family` pattern),
+[`example/app/src/lib/mock.ts`](./example/app/src/lib/mock.ts) and
+[`example/app/src/app/app.tsx`](./example/app/src/app/app.tsx).
+
+## 9. Caveats
 
 - **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
   `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump

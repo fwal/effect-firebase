@@ -31,6 +31,16 @@ export const firestoreLayerAtom = Atom.keepAlive(
 );
 
 /**
+ * Bumped by the Firestore Mock devtools after every state toggle (mock mode
+ * only). Views key their data subtree on this value, so a toggle remounts
+ * the subtree: the old atoms are disposed and the fresh subscriptions start
+ * from `Initial` against the new state. A plain refresh is not enough —
+ * atom results keep their previous value while re-running, and a stream in
+ * the `loading` state never emits, so the stale data would stay on screen.
+ */
+export const mockEpochAtom = Atom.keepAlive(Atom.make(0));
+
+/**
  * Runtime atom — rebuilds whenever `firestoreLayerAtom` changes in the
  * registry (via `registry.set` / `useAtomSet`; `initialValues` is only read
  * when the registry is created). All Effect/Stream atoms in this app are
@@ -59,29 +69,41 @@ export const postByIdLiveAtom = Atom.family((id: typeof PostId.Type) =>
     .pipe(Atom.setIdleTTL('30 seconds')),
 );
 
-// Live list of latest posts. A single canonical atom (no family) so every
-// subscriber shares one Firestore subscription.
-export const latestPostsAtom = clientRuntime.atom(
-  Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
+// Live list of latest posts, keyed by the mock epoch. All subscribers pass
+// the same epoch, so they share one Firestore subscription; a bumped epoch
+// yields a *new* atom identity that re-subscribes from `Initial`. That is
+// what makes the devtools' simulated `loading`/`error` states visible on an
+// already-mounted page — an atom's retained value survives both refreshes
+// and remounts, so only a fresh identity starts over. Outside mock mode the
+// epoch is always `0` and this behaves like a single canonical atom.
+export const latestPostsAtom = Atom.family((_epoch: number) =>
+  clientRuntime.atom(
+    Stream.unwrap(Effect.map(PostRepository, (r) => r.latestPosts())),
+  ),
 );
 
 // Realtime paginated feed (growing-limit pattern, REACT.md §Pagination).
 // Reading yields { items, hasMore, isFetchingMore }; writing (any value)
 // grows the window by one page. The whole window is one live listener.
-export const paginatedPostsAtom = makePaginatedQueryAtom(clientRuntime, {
-  pageSize: 5,
-  stream: (limit) =>
-    Stream.unwrap(
-      Effect.map(PostRepository, (r) =>
-        r.queryStream(
-          pipe(
-            Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
-            Query.addLimit(limit),
+// Keyed by the mock epoch like latestPostsAtom above: a bumped epoch mints a
+// fresh paginated atom (window reset to one page) that re-subscribes from
+// `Initial`; outside mock mode the epoch is always `0`.
+export const paginatedPostsAtom = Atom.family((_epoch: number) =>
+  makePaginatedQueryAtom(clientRuntime, {
+    pageSize: 5,
+    stream: (limit) =>
+      Stream.unwrap(
+        Effect.map(PostRepository, (r) =>
+          r.queryStream(
+            pipe(
+              Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+              Query.addLimit(limit),
+            ),
           ),
         ),
       ),
-    ),
-});
+  }),
+);
 
 // Mutations — writable atoms exposing AsyncResult state and a setter.
 // `concurrent: true` lets invocations overlap; the default interrupts the

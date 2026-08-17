@@ -1,0 +1,348 @@
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Duration, Effect, Fiber, Stream } from 'effect';
+import {
+  MockState,
+  type MockControllerShape,
+  type StoreSnapshot,
+} from '@effect-firebase/mock';
+
+export interface MockDevtoolsPanelProps {
+  /**
+   * The controller of the mock backend, from `make()` in
+   * `@effect-firebase/mock`.
+   */
+  readonly controller: MockControllerShape;
+  /**
+   * Called after a state change has been applied. Use this to re-subscribe
+   * consumers that terminated on a simulated error — e.g. refresh the atoms
+   * or queries reading from the collection. Clearing the wildcard state and
+   * resetting the backend notify with the wildcard key (`'*'`) and the
+   * effective wildcard state after the operation (reset restores the
+   * backend's configured initial states, which may not be `data`).
+   */
+  readonly onStateChange?: (
+    collectionPath: string,
+    state: MockState.State,
+  ) => void;
+}
+
+type StateName = 'data' | 'empty' | 'loading' | 'error';
+
+const STATE_NAMES: ReadonlyArray<StateName> = [
+  'data',
+  'empty',
+  'loading',
+  'error',
+];
+
+const ERROR_CODES = [
+  'unavailable',
+  'permission-denied',
+  'unauthenticated',
+  'not-found',
+  'resource-exhausted',
+  'deadline-exceeded',
+] as const;
+
+const stateName = (state: MockState.State): StateName =>
+  state._tag.toLowerCase() as StateName;
+
+/** The collection path a document path belongs to. */
+const collectionOf = (docPath: string): string =>
+  docPath.split('/').slice(0, -1).join('/');
+
+const palette: Record<StateName, string> = {
+  data: '#22c55e',
+  empty: '#64748b',
+  loading: '#f59e0b',
+  error: '#ef4444',
+};
+
+const styles = {
+  panel: {
+    fontFamily:
+      "'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: '#e5e7eb',
+    background: '#16181d',
+    padding: 12,
+    height: '100%',
+    boxSizing: 'border-box',
+    overflow: 'auto',
+  } satisfies CSSProperties,
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingBottom: 10,
+    borderBottom: '1px solid #2a2d35',
+    marginBottom: 10,
+  } satisfies CSSProperties,
+  label: {
+    color: '#9ca3af',
+  } satisfies CSSProperties,
+  input: {
+    background: '#1f2229',
+    color: '#e5e7eb',
+    border: '1px solid #2a2d35',
+    borderRadius: 4,
+    padding: '2px 6px',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    width: 64,
+  } satisfies CSSProperties,
+  select: {
+    background: '#1f2229',
+    color: '#e5e7eb',
+    border: '1px solid #2a2d35',
+    borderRadius: 4,
+    padding: '2px 6px',
+    fontSize: 12,
+    fontFamily: 'inherit',
+  } satisfies CSSProperties,
+  row: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '4px 0',
+  } satisfies CSSProperties,
+  collection: {
+    flex: 1,
+    minWidth: 120,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  } satisfies CSSProperties,
+  count: {
+    color: '#9ca3af',
+    minWidth: 56,
+    textAlign: 'right',
+  } satisfies CSSProperties,
+  buttonGroup: {
+    display: 'flex',
+    gap: 4,
+  } satisfies CSSProperties,
+  emptyMessage: {
+    color: '#9ca3af',
+    padding: '8px 0',
+  } satisfies CSSProperties,
+};
+
+const stateButtonStyle = (
+  name: StateName,
+  active: boolean,
+  inherited: boolean,
+): CSSProperties => ({
+  background: active ? palette[name] : 'transparent',
+  color: active ? '#0b0d10' : palette[name],
+  opacity: active && inherited ? 0.6 : 1,
+  border: `1px solid ${palette[name]}`,
+  borderRadius: 4,
+  padding: '1px 8px',
+  fontSize: 11,
+  fontFamily: 'inherit',
+  fontWeight: active ? 700 : 400,
+  cursor: 'pointer',
+});
+
+const actionButtonStyle: CSSProperties = {
+  background: 'transparent',
+  color: '#9ca3af',
+  border: '1px solid #2a2d35',
+  borderRadius: 4,
+  padding: '1px 8px',
+  fontSize: 11,
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+};
+
+/**
+ * A devtools panel for the `@effect-firebase/mock` backend: toggle each
+ * collection between data / empty / loading / error, pick the simulated
+ * error code, control latency, and reset to the initial fixtures.
+ *
+ * Works standalone or embedded as a TanStack Devtools plugin via
+ * `firestoreMockPlugin`.
+ */
+export function MockDevtoolsPanel({
+  controller,
+  onStateChange,
+}: MockDevtoolsPanelProps) {
+  const [snapshot, setSnapshot] = useState<StoreSnapshot>();
+  const [errorCode, setErrorCode] =
+    useState<(typeof ERROR_CODES)[number]>('unavailable');
+  const [latencyMs, setLatencyMs] = useState(0);
+
+  useEffect(() => {
+    const fiber = Effect.runFork(
+      Stream.runForEach(controller.changes, (current) =>
+        Effect.sync(() => {
+          setSnapshot(current);
+        }),
+      ),
+    );
+    void Effect.runPromise(controller.latency).then((latency) => {
+      setLatencyMs(Duration.toMillis(latency));
+    });
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [controller]);
+
+  const rows = useMemo(() => {
+    const known = new Set<string>();
+    for (const docPath of Object.keys(snapshot?.docs ?? {})) {
+      known.add(collectionOf(docPath));
+    }
+    for (const key of Object.keys(snapshot?.states ?? {})) {
+      if (key !== MockState.All) {
+        known.add(key);
+      }
+    }
+    return [...known].sort();
+  }, [snapshot]);
+
+  const docCount = (collectionPath: string): number => {
+    const prefix = `${collectionPath}/`;
+    return Object.keys(snapshot?.docs ?? {}).filter(
+      (path) =>
+        path.startsWith(prefix) && !path.slice(prefix.length).includes('/'),
+    ).length;
+  };
+
+  const toInput = (name: StateName): MockState.StateInput =>
+    name === 'error' ? MockState.error(errorCode) : name;
+
+  // Notify only after the controller effect has applied, so a refresh
+  // triggered by the callback re-subscribes against the new state.
+  const setState = (collectionPath: string, name: StateName): void => {
+    const state = MockState.fromInput(toInput(name));
+    void Effect.runPromise(controller.setState(collectionPath, state)).then(
+      () => {
+        onStateChange?.(collectionPath, state);
+      },
+    );
+  };
+
+  // Clearing the wildcard and resetting notify with the wildcard key so
+  // consumers refresh broadly. The reported state is read back from the
+  // controller: reset restores the *initial* states, which may not be
+  // `data` when the backend was created with configured states.
+  const notifyEffectiveAfter = (effect: Effect.Effect<void>): void => {
+    void Effect.runPromise(
+      Effect.flatMap(effect, () => controller.states),
+    ).then((states) => {
+      onStateChange?.(MockState.All, MockState.resolve(states, MockState.All));
+    });
+  };
+
+  const clearAll = (): void => {
+    notifyEffectiveAfter(controller.clearState(MockState.All));
+  };
+
+  const reset = (): void => {
+    notifyEffectiveAfter(controller.reset);
+  };
+
+  const applyLatency = (value: number): void => {
+    // The input's min={0} doesn't stop typed negative or invalid values.
+    const latency = Number.isFinite(value) ? Math.max(0, value) : 0;
+    setLatencyMs(latency);
+    void Effect.runPromise(controller.setLatency(`${latency} millis`));
+  };
+
+  const stateRow = (key: string, explicitOnly: boolean) => {
+    const states = snapshot?.states ?? {};
+    const explicit = states[key];
+    const effective = explicitOnly ? explicit : MockState.resolve(states, key);
+    const inherited = explicit === undefined;
+    return (
+      <div style={styles.buttonGroup}>
+        {STATE_NAMES.map((name) => {
+          const active =
+            effective !== undefined && stateName(effective) === name;
+          return (
+            <button
+              key={name}
+              type="button"
+              style={stateButtonStyle(name, active, inherited)}
+              title={
+                name === 'error'
+                  ? `Fail with '${errorCode}'`
+                  : `Switch '${key}' to ${name}`
+              }
+              onClick={() => setState(key, name)}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div style={styles.panel}>
+      <div style={styles.toolbar}>
+        <span style={styles.label}>all collections</span>
+        {stateRow(MockState.All, true)}
+        <button
+          type="button"
+          style={actionButtonStyle}
+          title="Remove the wildcard state"
+          onClick={clearAll}
+        >
+          clear
+        </button>
+        <span style={{ flex: 1 }} />
+        <span style={styles.label}>error code</span>
+        <select
+          style={styles.select}
+          value={errorCode}
+          onChange={(event) =>
+            setErrorCode(event.target.value as (typeof ERROR_CODES)[number])
+          }
+        >
+          {ERROR_CODES.map((code) => (
+            <option key={code} value={code}>
+              {code}
+            </option>
+          ))}
+        </select>
+        <span style={styles.label}>latency</span>
+        <input
+          style={styles.input}
+          type="number"
+          min={0}
+          step={50}
+          value={latencyMs}
+          onChange={(event) => applyLatency(Number(event.target.value) || 0)}
+        />
+        <span style={styles.label}>ms</span>
+        <button
+          type="button"
+          style={actionButtonStyle}
+          title="Restore initial fixtures and clear all states"
+          onClick={reset}
+        >
+          reset
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <div style={styles.emptyMessage}>
+          No collections yet — seed fixtures or write a document.
+        </div>
+      ) : (
+        rows.map((collectionPath) => (
+          <div key={collectionPath} style={styles.row}>
+            <span style={styles.collection}>{collectionPath}</span>
+            <span style={styles.count}>{docCount(collectionPath)} docs</span>
+            {stateRow(collectionPath, false)}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
