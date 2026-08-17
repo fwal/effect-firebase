@@ -12,6 +12,7 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
+import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
 
 interface DocumentCreatedEffectOptions<
   R,
@@ -22,6 +23,17 @@ interface DocumentCreatedEffectOptions<
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
+  /**
+   * Recover from errors raised during function setup (document data not
+   * matching the schema). Use this to e.g. ignore or quarantine malformed
+   * documents instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>,
+  ) => Effect.Effect<void, never, R>;
 }
 
 /**
@@ -63,6 +75,11 @@ export function onDocumentCreatedEffect<
         }),
       ),
       Effect.flatMap((data) => handler(data as Schema.Schema.Type<S>, event)),
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        options.onSetupError
+          ? options.onSetupError(error, event)
+          : Effect.die(error),
+      ),
       Effect.withSpan('onDocumentCreatedEffect'),
     );
 
@@ -116,7 +133,14 @@ export function onDocumentCreatedWithAuthContextEffect<
         options.idField,
       );
       return yield* handler(event, data as Schema.Schema.Type<S>);
-    }).pipe(Effect.withSpan('onDocumentCreatedWithAuthContextEffect'));
+    }).pipe(
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        options.onSetupError
+          ? options.onSetupError(error, event)
+          : Effect.die(error),
+      ),
+      Effect.withSpan('onDocumentCreatedWithAuthContextEffect'),
+    );
 
     await run(
       options.runtime,

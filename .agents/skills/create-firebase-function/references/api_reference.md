@@ -379,6 +379,63 @@ event.params.postId  // string
 
 ## Error Handling
 
+### Setup Error Recovery (onSetupError)
+
+Setup errors are failures that happen outside the handler: input/body/document/message/task
+data that does not match the provided schema, or handler output that cannot be encoded with
+the output schema. They surface as a `FunctionSetupError` with a `phase`
+(`decode-input`, `encode-output`, `decode-body`, `encode-response`, `decode-document`,
+`decode-message`, `decode-task`) and the underlying `SchemaError` as `cause`.
+
+Every wrapper accepts an `onSetupError` option to recover:
+
+```typescript
+// Callable: return a fallback output or fail with an HttpsError
+export const myFunction = onCallEffect(
+  {
+    runtime,
+    inputSchema: Input,
+    outputSchema: Output,
+    onSetupError: (error, request) =>
+      Effect.fail(new HttpsError('invalid-argument', `Bad request: ${error.cause.message}`)),
+  },
+  (input) => handle(input)
+);
+
+// HTTP: write your own response
+export const api = onRequestEffect(
+  {
+    runtime,
+    bodySchema: Body,
+    responseSchema: Out,
+    onSetupError: (error, request, response) =>
+      Effect.sync(() => response.status(422).json({ error: error.cause.message })),
+  },
+  (body) => handle(body)
+);
+
+// Firestore trigger: e.g. skip malformed documents instead of logging a defect
+export const onPostCreated = onDocumentCreatedEffect(
+  {
+    document: 'posts/{postId}',
+    runtime,
+    schema: Post,
+    onSetupError: (error, event) =>
+      Effect.sync(() => logger.warn('Skipping malformed post', { id: event.params.postId })),
+  },
+  (post) => handle(post)
+);
+```
+
+Defaults when `onSetupError` is omitted:
+
+- `onCallEffect`: input decode failure → `HttpsError('invalid-argument')`; output encode failure → `HttpsError('internal')`
+- `onRequestEffect`: body parse failure → 400 `{ error: 'Invalid request body' }`; response encode failure → 500
+- Firestore/Pub/Sub/Tasks triggers: the setup error is treated as a defect and logged
+
+`onCallEffect` also propagates any `HttpsError` failed from the handler or recovery effect
+to the client with its code and message intact.
+
 ### Automatic Defect Logging
 
 All function wrappers automatically log defects (unhandled errors):

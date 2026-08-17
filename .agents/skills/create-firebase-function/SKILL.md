@@ -246,7 +246,8 @@ export const handleNotification = onMessagePublishedEffect(
 2. **Schema validation**: Always use input/output schemas for callables
 3. **Typed triggers**: Use schema + idField for Firestore triggers
 4. **Error handling**: Defects are logged automatically; use Effect.catchTag for recoverable errors
-5. **Layer composition**: Add repositories and services to your layer
+5. **Setup errors**: Use the `onSetupError` option to recover when incoming data doesn't match the schema (invalid callable input, malformed documents/messages); see the API reference for defaults per wrapper
+6. **Layer composition**: Add repositories and services to your layer
 
 ## File Organization
 

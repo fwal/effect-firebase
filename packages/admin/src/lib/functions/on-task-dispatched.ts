@@ -7,9 +7,21 @@ import {
 } from 'firebase-functions/v2/tasks';
 import { logger } from 'firebase-functions';
 import { run, Runtime } from './run.js';
+import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
 
 interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;
+  /**
+   * Recover from errors raised during function setup (task payload not
+   * matching the schema). Use this to e.g. acknowledge and skip malformed
+   * payloads instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    request: Request<unknown>,
+  ) => Effect.Effect<void, never, R>;
 }
 
 interface TaskDispatchedEffectOptionsWithSchema<
@@ -25,12 +37,20 @@ interface TaskDispatchedEffectOptionsWithSchema<
 function decodeTaskData<S extends Schema.Top>(
   schema: S,
   request: Request<unknown>,
-): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
+): Effect.Effect<
+  Schema.Schema.Type<S>,
+  FunctionSetupError,
+  S['DecodingServices']
+> {
   return Schema.decodeUnknownEffect(schema)(request.data).pipe(
     Effect.mapError(
-      (error) => new Error(`Failed to decode task payload: ${error.message}`),
+      (cause) => new FunctionSetupError({ phase: 'decode-task', cause }),
     ),
-  ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
+  ) as Effect.Effect<
+    Schema.Schema.Type<S>,
+    FunctionSetupError,
+    S['DecodingServices']
+  >;
 }
 
 /**
@@ -75,7 +95,14 @@ export function onTaskDispatchedEffect<R>(
         // Pass raw request to handler
         return yield* handler(request);
       }
-    }).pipe(Effect.withSpan('onTaskDispatchedEffect'));
+    }).pipe(
+      Effect.catchIf(isFunctionSetupError, (error) =>
+        options.onSetupError
+          ? options.onSetupError(error, request)
+          : Effect.die(error),
+      ),
+      Effect.withSpan('onTaskDispatchedEffect'),
+    );
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

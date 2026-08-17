@@ -1,4 +1,4 @@
-import { Effect, ManagedRuntime } from 'effect';
+import { Effect, Exit, ManagedRuntime } from 'effect';
 
 export type Runtime<R> =
   | ManagedRuntime.ManagedRuntime<R, never>
@@ -16,6 +16,22 @@ export async function run<A, R>(
 ): Promise<A> {
   const runner = typeof runtime === 'function' ? runtime() : runtime;
   return await runner.runPromise(effect);
+}
+
+/**
+ * Run an effect with a runtime and return its exit, so callers can
+ * distinguish expected failures (e.g. an HttpsError raised to signal an
+ * invalid request) from defects.
+ * @param runtime - The runtime to run the effect on.
+ * @param effect - The effect to run.
+ * @returns The exit of the effect.
+ */
+export async function runExit<A, E, R>(
+  runtime: Runtime<R>,
+  effect: Effect.Effect<A, E, R>,
+): Promise<Exit.Exit<A, E>> {
+  const runner = typeof runtime === 'function' ? runtime() : runtime;
+  return await runner.runPromiseExit(effect);
 }
 
 /**
