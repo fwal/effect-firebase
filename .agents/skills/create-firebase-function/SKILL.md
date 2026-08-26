@@ -4,7 +4,7 @@ description: |
   Create Firebase Cloud Functions using effect-firebase library with type-safe Effect patterns.
   Use when: (1) Creating callable functions (onCallEffect), (2) Creating HTTP endpoints (onRequestEffect),
   (3) Creating Firestore triggers (onDocumentCreated/Updated/Deleted/Written), (4) Creating Pub/Sub handlers (onMessagePublishedEffect),
-  (5) Setting up function runtime, (6) Adding schema validation to functions.
+  (5) Creating scheduled functions (onScheduleEffect), (6) Setting up function runtime, (7) Adding schema validation to functions.
 ---
 
 # Effect Firebase Functions
@@ -236,6 +236,25 @@ export const handleNotification = onMessagePublishedEffect(
     Effect.gen(function* () {
       // message is typed as NotificationMessage
       yield* Effect.log(`Sending to ${message.userId}: ${message.message}`);
+    })
+);
+```
+
+### Scheduled Function
+
+```typescript
+import { onScheduleEffect } from '@effect-firebase/admin';
+
+export const dailyCleanup = onScheduleEffect(
+  {
+    runtime,
+    schedule: 'every 24 hours',
+    timeZone: 'Europe/Copenhagen', // Optional
+  },
+  (event) =>
+    Effect.gen(function* () {
+      // event.jobName and event.scheduleTime available
+      yield* Effect.log(`Cleanup triggered at ${event.scheduleTime}`);
     })
 );
 ```
