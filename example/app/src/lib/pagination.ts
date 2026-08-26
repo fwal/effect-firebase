@@ -50,6 +50,10 @@ export const makePaginatedQueryAtom = <R, ER, A, E>(
     ) => Stream.Stream<ReadonlyArray<A>, E, R | Atom.AtomRegistry>;
   },
 ) => {
+  if (!Number.isSafeInteger(options.pageSize) || options.pageSize < 1) {
+    throw new RangeError('pageSize must be a positive integer');
+  }
+
   const pageCountAtom = Atom.make(1);
 
   const rowsAtom = runtime.atom((get) =>

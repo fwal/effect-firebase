@@ -177,6 +177,23 @@ describe('applyConstraints', () => {
     ).toEqual(['1', '3', '2']);
   });
 
+  it('resolves the __name__ sentinel to the document ID', () => {
+    // No document is excluded (every document has an ID), ordering follows
+    // the IDs, and __name__ cursor values compare against IDs.
+    expect(
+      ids(applyConstraints(posts, Query.orderByDocumentId('desc'))),
+    ).toEqual(['4', '3', '2', '1']);
+    expect(
+      ids(
+        applyConstraints(posts, [
+          new Query.OrderBy({ field: 'status', direction: 'asc' }),
+          ...Query.orderByDocumentId('asc'),
+          new Query.StartAfter({ values: ['published', '2'] }),
+        ]),
+      ),
+    ).toEqual(['3']);
+  });
+
   it('applies limit and limitToLast', () => {
     const ordered = [new Query.OrderBy({ field: 'views', direction: 'asc' })];
     expect(

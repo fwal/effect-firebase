@@ -82,6 +82,7 @@ repo.getOne(...constraints); // Effect<Post, NoSuchElementError | ...>
 ## Queries
 
 ```typescript
+import { pipe } from 'effect';
 import { Query } from 'effect-firebase';
 
 Query.where('status', '==', 'published');

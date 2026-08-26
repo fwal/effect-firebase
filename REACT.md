@@ -317,24 +317,34 @@ local cache, and the whole window stays live through a single listener.
 ### 5b. Prev/next page buttons — cursor stack
 
 For one-shot page-at-a-time UIs, use `Query.startAfter` with the last row's
-order-field value as the cursor, and keep a **stack** of cursors: push to go
-forward, pop to go back. Define an `Atom.family` keyed by the cursor
-(serialize to epoch millis — families key by `Equal` equality, so prefer a
-primitive):
+order-field value **plus its document ID** as the cursor (the ID tiebreaker
+keeps pages exact when several rows share the same `createdAt`), and keep a
+**stack** of cursors: push to go forward, pop to go back. Define an
+`Atom.family` keyed by the cursor, serialized to a string — families key by
+`Equal` equality, so prefer a primitive:
 
 ```ts
-export const postsPageAtom = Atom.family((cursorMillis: number | null) =>
+/** "<epochMillis>:<docId>" of the previous page's last row; null = first page. */
+type PageCursor = string | null;
+
+const cursorFor = (post: typeof PostModel.Type): PageCursor =>
+  `${DateTime.toEpochMillis(post.createdAt)}:${post.id}`;
+
+export const postsPageAtom = Atom.family((cursor: PageCursor) =>
   clientRuntime
     .atom(
       Effect.gen(function* () {
         const repo = yield* PostRepository;
+        const [millis, id] = cursor === null ? [] : cursor.split(/:(.*)/s);
         return yield* repo.query(
           pipe(
             Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
-            cursorMillis === null
+            Query.addOrderByDocumentId('desc'),
+            cursor === null
               ? (q: Query.Query<typeof PostModel>) => q
               : Query.addStartAfter(
-                  FirestoreSchema.Timestamp.fromMillis(cursorMillis),
+                  FirestoreSchema.Timestamp.fromMillis(Number(millis)),
+                  id,
                 ),
             Query.addLimit(PAGE_SIZE),
           ),
@@ -348,14 +358,14 @@ export const postsPageAtom = Atom.family((cursorMillis: number | null) =>
 ```tsx
 function PaginatedPosts() {
   // cursors[i] opens page i; null opens the first page
-  const [cursors, setCursors] = useState<Array<number | null>>([null]);
+  const [cursors, setCursors] = useState<Array<PageCursor>>([null]);
   const result = useAtomValue(postsPageAtom(cursors[cursors.length - 1]));
   // render items, then:
   // Previous: disabled={cursors.length === 1}
   //   onClick={() => setCursors((c) => c.slice(0, -1))}
   // Next: disabled={posts.length < PAGE_SIZE}
   //   onClick={() => setCursors((c) => [
-  //     ...c, DateTime.toEpochMillis(posts[posts.length - 1].createdAt),
+  //     ...c, cursorFor(posts[posts.length - 1]),
   //   ])}
 }
 ```
@@ -372,8 +382,10 @@ from the still-warm previous page.
   native `Timestamp`s, so `Query.addStartAfter(post.createdAt)` works — as
   do `FirestoreSchema.Timestamp` values and plain strings/numbers.
 - **Break ties on the order field.** If the field can hold duplicate values,
-  a single-value cursor can skip or repeat rows across a page boundary. Add
-  `Query.addOrderByDocumentId()` after the primary `orderBy` and pass the
+  a single-value cursor can skip or repeat rows across a page boundary — a
+  value cursor excludes _every_ row matching the cursor values, not just the
+  one you paged past. The recipe above guards against this by adding
+  `Query.addOrderByDocumentId()` after the primary `orderBy` and passing the
   last document's ID as a second cursor value:
   `Query.addStartAfter(lastCreatedAt, lastDocId)`. Server-generated
   timestamps rarely collide; ratings, counts, and user-entered dates do.
