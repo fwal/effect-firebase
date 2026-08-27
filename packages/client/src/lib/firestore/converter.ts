@@ -9,6 +9,7 @@ import {
   Firestore as FirebaseFirestore,
   FirestoreDataConverter,
   GeoPoint,
+  increment,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -54,6 +55,9 @@ export const firestoreEncode = (
   }
   if (data instanceof Firestore.ArrayRemove) {
     return arrayRemove(...data.values.map((v) => firestoreEncode(db, v)));
+  }
+  if (data instanceof Firestore.Increment) {
+    return increment(data.operand);
   }
   if (Array.isArray(data)) {
     return data.map((item) => firestoreEncode(db, item));

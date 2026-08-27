@@ -126,6 +126,23 @@ describe('Firestore Converter', () => {
       expect(result).toStrictEqual(FieldValue.serverTimestamp());
     });
 
+    it('should convert serverTimestamp() sentinel to Firestore field value', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const result = firestoreEncode(
+        fakeFirestore,
+        FirestoreHelper.serverTimestamp(),
+      );
+
+      expect(result).toStrictEqual(FieldValue.serverTimestamp());
+    });
+
+    it('should convert Increment to increment FieldValue', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const result = firestoreEncode(fakeFirestore, FirestoreHelper.increment(3));
+
+      expect(result).toStrictEqual(FieldValue.increment(3));
+    });
+
     it('should convert Delete to Firestore field value', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(fakeFirestore, FirestoreHelper.delete());

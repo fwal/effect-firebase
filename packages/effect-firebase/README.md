@@ -42,7 +42,10 @@ Built-in field helpers:
 | `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.         |
 | `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.      |
 | `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.    |
-| `Model.Array(schema)`                       | Array field.                                                 |
+| `Model.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`. |
+| `Model.Number`                              | Number field. Accepts `increment(n)` in `update`.            |
+| `Model.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.    |
+| `Model.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `add` and `update`.      |
 | `Model.GeoPoint`                            | Geographic point with latitude and longitude.                |
 | `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                            |
 

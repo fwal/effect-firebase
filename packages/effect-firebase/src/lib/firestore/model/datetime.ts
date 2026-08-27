@@ -87,6 +87,75 @@ export const DateTimeInsert: DateTimeInsert = Model.Field({
   json: Schema.DateTimeUtcFromString,
 });
 
+/**
+ * Adds `ServerTimestamp` sentinel support to a timestamp field's `insert` and
+ * `update` variants.
+ *
+ * The `get` and JSON variants keep the original type unchanged. The `insert`
+ * and `update` variants additionally accept a `ServerTimestamp` value
+ * (created via `serverTimestamp()`) which is converted to
+ * `FieldValue.serverTimestamp()` by the client/admin converters.
+ *
+ * Unlike `DateTimeInsert`/`DateTimeUpdate`, the field is not auto-managed:
+ * the server timestamp is written only when explicitly requested.
+ *
+ * @example
+ * ```ts
+ * class UserModel extends Class<UserModel>('UserModel')({
+ *   id: Schema.String,
+ *   lastSeenAt: Model.WithServerTimestamp(Model.DateTime),
+ * }) {}
+ *
+ * // insert/update variants accept:
+ * userRepo.update('id', { lastSeenAt: DateTime.makeUnsafe(0) }); // explicit
+ * userRepo.update('id', { lastSeenAt: serverTimestamp() });      // server time
+ * ```
+ */
+export type WithServerTimestamp<S extends Schema.Top> = VariantSchema.Field<{
+  readonly select: S;
+  readonly insert: Schema.Union<
+    readonly [S, typeof FirestoreSchema.ServerTimestampInstance]
+  >;
+  readonly update: Schema.Union<
+    readonly [S, typeof FirestoreSchema.ServerTimestampInstance]
+  >;
+  readonly json: S;
+  readonly jsonCreate: S;
+  readonly jsonUpdate: S;
+}>;
+
+const identity = (s: Schema.Top) => s;
+
+export const WithServerTimestamp: <
+  Field extends VariantSchema.Field<any> | Schema.Top,
+>(
+  self: Field,
+) => Field extends Schema.Top
+  ? WithServerTimestamp<Field>
+  : Field extends VariantSchema.Field<infer S>
+    ? VariantSchema.Field<{
+        readonly [K in keyof S]: S[K] extends Schema.Top
+          ? K extends 'insert' | 'update'
+            ? Schema.Union<
+                readonly [
+                  S[K],
+                  typeof FirestoreSchema.ServerTimestampInstance,
+                ]
+              >
+            : S[K]
+          : never;
+      }>
+    : never = Model.fieldEvolve({
+  select: identity,
+  insert: (s: Schema.Top) =>
+    Schema.Union([s, FirestoreSchema.ServerTimestampInstance]),
+  update: (s: Schema.Top) =>
+    Schema.Union([s, FirestoreSchema.ServerTimestampInstance]),
+  json: identity,
+  jsonCreate: identity,
+  jsonUpdate: identity,
+}) as any;
+
 export type DateTimeUpdate = VariantSchema.Field<{
   select: typeof FirestoreSchema.TimestampDateTimeUtc;
   insert: typeof ServerDateTimeSchema;

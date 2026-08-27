@@ -54,6 +54,9 @@ export const firestoreEncode = (
       ...data.values.map((v) => firestoreEncode(db, v)),
     );
   }
+  if (data instanceof Firestore.Increment) {
+    return FieldValue.increment(data.operand);
+  }
   if (Array.isArray(data)) {
     return data.map((item) => firestoreEncode(db, item));
   }

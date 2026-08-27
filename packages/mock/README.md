@@ -8,7 +8,7 @@ Beyond a plain test double, the mock is a small simulated backend built for **de
 - **Reactive streams** — `streamDoc` / `streamQuery` are live: writes and runtime toggles push new emissions through already-subscribed streams, just like `onSnapshot`.
 - **Simulated states** — flip any collection between `data`, `empty`, `loading` and `error` at runtime with the `MockController`, and watch your UI's spinner, empty and error paths render with no backend involved.
 - **Latency simulation** — add artificial delay to every operation.
-- **Write fidelity** — server timestamps materialize on write, `delete`/`arrayUnion`/`arrayRemove` sentinels are honored, and queries (where, orderBy, cursors, limits) are evaluated in-process.
+- **Write fidelity** — server timestamps materialize on write, `delete`/`arrayUnion`/`arrayRemove`/`increment` sentinels are honored, and queries (where, orderBy, cursors, limits) are evaluated in-process.
 
 ## Installation
 

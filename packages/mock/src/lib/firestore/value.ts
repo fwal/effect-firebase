@@ -17,7 +17,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   !(value instanceof FirestoreSchema.Reference) &&
   !(value instanceof Firestore.Delete) &&
   !(value instanceof Firestore.ArrayUnion) &&
-  !(value instanceof Firestore.ArrayRemove);
+  !(value instanceof Firestore.ArrayRemove) &&
+  !(value instanceof Firestore.Increment);
 
 /**
  * Firestore value type ordering, used when comparing values of different types.
@@ -197,7 +198,8 @@ export const fieldValue = (data: DocData, fieldPath: string): unknown => {
 
 /**
  * Recursively materialize sentinel values for storage:
- * `ServerTimestamp` becomes `now`, array sentinels collapse to plain arrays.
+ * `ServerTimestamp` becomes `now`, array sentinels collapse to plain arrays,
+ * `Increment` collapses to its operand.
  */
 const materialize = (
   value: unknown,
@@ -214,6 +216,9 @@ const materialize = (
   }
   if (value instanceof Firestore.ArrayRemove) {
     return [];
+  }
+  if (value instanceof Firestore.Increment) {
+    return value.operand;
   }
   if (Array.isArray(value)) {
     return value.map((item) => materialize(item, now));
@@ -250,6 +255,12 @@ const applyField = (
     return base.filter(
       (item) => !removals.some((removal) => equals(removal, item)),
     );
+  }
+  if (incoming instanceof Firestore.Increment) {
+    // Matches Firestore: a missing or non-numeric field is set to the operand.
+    return typeof existing === 'number'
+      ? existing + incoming.operand
+      : incoming.operand;
   }
   return materialize(incoming, now);
 };
