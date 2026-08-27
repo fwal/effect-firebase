@@ -80,6 +80,31 @@ export const PostRepository = Model.makeRepository(PostModel, {
 );
 ```
 
+### Writes at a known ID
+
+Besides `add` (auto-generated ID), repositories can write documents whose ID
+the caller already knows — documents keyed by user UID, external event IDs,
+join documents, and so on. Both encode through the model's insert schema, so
+insert-time fields like `Model.DateTimeInsert` are stamped:
+
+```typescript
+const program = Effect.gen(function* () {
+  const repo = yield* PostRepository;
+
+  // Upsert: creates the document, or overwrites it when it already exists
+  yield* repo.set(postId, { title: 'Hello', content: '...', status: 'draft' });
+
+  // Insert-if-absent: fails with AlreadyExistsError when the ID is taken,
+  // so a known ID can be claimed atomically (idempotency guards, uniqueness
+  // by document ID)
+  yield* repo.create(postId, {
+    title: 'Hello',
+    content: '...',
+    status: 'draft',
+  });
+});
+```
+
 ### Client app
 
 ```typescript

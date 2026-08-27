@@ -17,6 +17,7 @@ const NotInitiallized = <T>(): T =>
 export const noopLayer = Layer.succeed(FirestoreService, {
   get: NotInitiallized,
   add: NotInitiallized,
+  create: NotInitiallized,
   set: NotInitiallized,
   update: NotInitiallized,
   delete: NotInitiallized,

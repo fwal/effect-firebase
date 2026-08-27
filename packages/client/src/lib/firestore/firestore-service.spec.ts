@@ -15,6 +15,7 @@ const h = vi.hoisted(() => {
     runTransactionCalls: 0,
     batchesCreated: 0,
     commits: 0,
+    existingPaths: new Set<string>(),
   };
 
   const reset = () => {
@@ -24,6 +25,7 @@ const h = vi.hoisted(() => {
     state.runTransactionCalls = 0;
     state.batchesCreated = 0;
     state.commits = 0;
+    state.existingPaths = new Set<string>();
   };
 
   const idOf = (path: string) => path.split('/').pop() as string;
@@ -32,6 +34,7 @@ const h = vi.hoisted(() => {
     id: idOf(path),
     ref: { id: idOf(path), path },
     data: () => data,
+    exists: () => state.existingPaths.has(path),
   });
 
   const fakeDocRef = (path: string): Record<string, unknown> => {
@@ -341,6 +344,73 @@ describe('FirestoreService (client)', () => {
       ]);
       expect(h.state.txOps).toEqual([]);
       expect(h.state.batchOps).toEqual([]);
+    });
+  });
+
+  describe('create', () => {
+    it('runs in its own transaction and writes when the document is absent', async () => {
+      await run(withService((fs) => fs.create('posts/1', { title: 'a' })));
+
+      expect(h.state.runTransactionCalls).toBe(1);
+      expect(h.state.txOps).toEqual([
+        ['get', 'posts/1'],
+        ['set', 'posts/1', { title: 'a' }, undefined],
+      ]);
+      expect(h.state.directOps).toEqual([]);
+    });
+
+    it('fails with AlreadyExistsError when the document exists', async () => {
+      h.state.existingPaths.add('posts/1');
+      const error = await run(
+        withService((fs) => Effect.flip(fs.create('posts/1', { title: 'a' }))),
+      );
+
+      expect(error).toMatchObject({
+        _tag: 'AlreadyExistsError',
+        path: 'posts/1',
+      });
+      expect(h.state.txOps).toEqual([['get', 'posts/1']]);
+    });
+
+    it('joins an ambient transaction with a read-then-write', async () => {
+      await run(
+        withService((fs) =>
+          fs.withTransaction(fs.create('posts/1', { title: 'a' })),
+        ),
+      );
+
+      expect(h.state.runTransactionCalls).toBe(1);
+      expect(h.state.txOps).toEqual([
+        ['get', 'posts/1'],
+        ['set', 'posts/1', { title: 'a' }, undefined],
+      ]);
+    });
+
+    it('fails with AlreadyExistsError inside an ambient transaction', async () => {
+      h.state.existingPaths.add('posts/1');
+      const error = await run(
+        withService((fs) =>
+          fs.withTransaction(
+            Effect.flip(fs.create('posts/1', { title: 'a' })),
+          ),
+        ),
+      );
+
+      expect(error).toMatchObject({
+        _tag: 'AlreadyExistsError',
+        path: 'posts/1',
+      });
+    });
+
+    it('dies inside withBatch', async () => {
+      const exit = await runExit(
+        withService((fs) => fs.withBatch(fs.create('posts/1', { title: 'a' }))),
+      );
+
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+      }
     });
   });
 });

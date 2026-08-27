@@ -11,6 +11,7 @@ import {
   Stream,
 } from 'effect';
 import {
+  AlreadyExistsError,
   FirestoreError,
   FirestoreService,
   makeSnapshotPacker,
@@ -66,6 +67,16 @@ const mapError = (error: unknown) =>
   error instanceof Error
     ? FirestoreError.fromError(error)
     : new UnknownError(error);
+
+// gRPC status code 6 = ALREADY_EXISTS.
+const isAlreadyExists = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: unknown }).code === 6;
+
+const mapCreateError = (error: unknown, path: string) =>
+  isAlreadyExists(error) ? new AlreadyExistsError({ path }) : mapError(error);
 
 const isInvalidCredentialError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
@@ -257,6 +268,24 @@ const make = (db: Firestore) => {
             return { id: ref.id, path: ref.path };
           },
           catch: (error) => mapError(error),
+        });
+      }),
+    create: (path, data) =>
+      Effect.gen(function* () {
+        const writer = yield* currentWriter;
+        const ref = db.doc(path).withConverter(converter);
+        if (Option.isSome(writer)) {
+          // Staged creates surface an existing document as a
+          // FirestoreError at commit time, not as AlreadyExistsError.
+          yield* Effect.try({
+            try: () => void writer.value.create(ref, data),
+            catch: (error) => mapError(error),
+          });
+          return;
+        }
+        yield* Effect.tryPromise({
+          try: () => ref.create(data),
+          catch: (error) => mapCreateError(error, path),
         });
       }),
     set: (path, data, options) =>

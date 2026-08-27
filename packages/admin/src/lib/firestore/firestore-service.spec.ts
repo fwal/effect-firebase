@@ -16,6 +16,7 @@ const makeFakeDb = () => {
     runTransactionCalls: 0,
     batchesCreated: 0,
     commits: 0,
+    existingPaths: new Set<string>(),
   };
 
   const idOf = (path: string) => path.split('/').pop() as string;
@@ -35,6 +36,16 @@ const makeFakeDb = () => {
       get: async () => {
         state.directOps.push(['get', path]);
         return fakeSnapshot(path, { title: 'direct' });
+      },
+      create: async (data: unknown) => {
+        state.directOps.push(['create', path, data]);
+        if (state.existingPaths.has(path)) {
+          const error = new Error(
+            `6 ALREADY_EXISTS: Document already exists: ${path}`,
+          );
+          (error as unknown as { code: number }).code = 6;
+          throw error;
+        }
       },
       set: async (...args: unknown[]) => {
         state.directOps.push(['set', path, ...args]);
@@ -414,6 +425,61 @@ describe('FirestoreService (admin)', () => {
       ]);
       expect(state.txOps).toEqual([]);
       expect(state.batchOps).toEqual([]);
+    });
+  });
+
+  describe('create', () => {
+    it('creates directly when the document does not exist', async () => {
+      const { db, state } = makeFakeDb();
+      await run(
+        db,
+        withService((fs) => fs.create('posts/1', { title: 'a' })),
+      );
+
+      expect(state.directOps).toEqual([['create', 'posts/1', { title: 'a' }]]);
+    });
+
+    it('fails with AlreadyExistsError when the document exists', async () => {
+      const { db, state } = makeFakeDb();
+      state.existingPaths.add('posts/1');
+      const error = await run(
+        db,
+        withService((fs) =>
+          Effect.flip(fs.create('posts/1', { title: 'a' })),
+        ),
+      );
+
+      expect(error).toMatchObject({
+        _tag: 'AlreadyExistsError',
+        path: 'posts/1',
+      });
+    });
+
+    it('routes create through the transaction', async () => {
+      const { db, state } = makeFakeDb();
+      await run(
+        db,
+        withService((fs) =>
+          fs.withTransaction(fs.create('posts/1', { title: 'a' })),
+        ),
+      );
+
+      expect(state.txOps).toEqual([['create', 'posts/1', { title: 'a' }]]);
+      expect(state.directOps).toEqual([]);
+    });
+
+    it('stages create on the batch', async () => {
+      const { db, state } = makeFakeDb();
+      await run(
+        db,
+        withService((fs) =>
+          fs.withBatch(fs.create('posts/1', { title: 'a' })),
+        ),
+      );
+
+      expect(state.batchOps).toEqual([['create', 'posts/1', { title: 'a' }]]);
+      expect(state.commits).toBe(1);
+      expect(state.directOps).toEqual([]);
     });
   });
 });

@@ -16,6 +16,9 @@ export const MockFirestoreService = (
     add: () => {
       throw new Error('MockFirestoreService.add not implemented.');
     },
+    create: () => {
+      throw new Error('MockFirestoreService.create not implemented.');
+    },
     set: () => {
       throw new Error('MockFirestoreService.set not implemented.');
     },

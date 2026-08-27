@@ -1,5 +1,5 @@
 import { Effect, Context, Option, Stream } from 'effect';
-import { FirestoreError } from './errors.js';
+import { AlreadyExistsError, FirestoreError } from './errors.js';
 import { Snapshot } from './snapshot.js';
 import { UnknownError } from 'effect/Cause';
 import { Data } from './schema/data.js';
@@ -29,6 +29,33 @@ type FirestoreCRUD = {
   ) => Effect.Effect<
     { id: string; path: string },
     FirestoreError | UnknownError
+  >;
+
+  /**
+   * Create a document in the Firestore database, failing with
+   * {@link AlreadyExistsError} when a document already exists at the path.
+   * Useful for atomically claiming an ID (idempotency guards, uniqueness by
+   * document ID).
+   *
+   * Semantics and caveats:
+   * - With the admin SDK inside `withTransaction` or `withBatch`, the write
+   *   is staged and an existing document surfaces as a {@link FirestoreError}
+   *   at commit time instead of an {@link AlreadyExistsError}.
+   * - With the client SDK, a standalone `create` runs in its own transaction
+   *   (read, then conditional write). Inside `withTransaction` it performs a
+   *   transactional read first, so it must run before any transactional
+   *   writes. Inside `withBatch` it causes a defect (`Effect.die`) — batches
+   *   are write-only and cannot check existence.
+   *
+   * @param path - The path to the document.
+   * @param data - The data to create the document with.
+   */
+  readonly create: (
+    path: string,
+    data: typeof Data.Type,
+  ) => Effect.Effect<
+    void,
+    FirestoreError | AlreadyExistsError | UnknownError
   >;
 
   /**

@@ -3,7 +3,7 @@ import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
-import { FirestoreError } from '../errors.js';
+import { AlreadyExistsError, FirestoreError } from '../errors.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
 
@@ -34,6 +34,53 @@ export type Repository<
     | S['DecodingServices']
     | S['EncodingServices']
     | S['insert']['EncodingServices']
+  >;
+
+  /**
+   * Set (upsert) a document model at a known ID. Creates the document when
+   * it does not exist and overwrites it when it does. The data is encoded
+   * through the model's insert schema, so insert-time fields (for example
+   * `DateTimeInsert`) are stamped like they are for {@link add}.
+   * @param id - The ID to write the document model at.
+   * @param data - The data to set the document model with.
+   * @returns A unit value.
+   */
+  readonly set: (
+    id: IdSchema['Type'],
+    data: S['insert']['Type'],
+  ) => Effect.Effect<
+    void,
+    ModelError,
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['insert']['EncodingServices']
+    | S['fields'][Id]['EncodingServices']
+  >;
+
+  /**
+   * Create a document model at a known ID, failing with
+   * {@link AlreadyExistsError} when a document already exists at that ID.
+   * Useful for atomically claiming an ID (idempotency guards, uniqueness by
+   * document ID). The data is encoded through the model's insert schema,
+   * so insert-time fields (for example `DateTimeInsert`) are stamped like
+   * they are for {@link add}.
+   *
+   * See `FirestoreService.create` for transaction and batch caveats.
+   *
+   * @param id - The ID to create the document model at.
+   * @param data - The data to create the document model with.
+   * @returns A unit value.
+   */
+  readonly create: (
+    id: IdSchema['Type'],
+    data: S['insert']['Type'],
+  ) => Effect.Effect<
+    void,
+    ModelError | AlreadyExistsError,
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['insert']['EncodingServices']
+    | S['fields'][Id]['EncodingServices']
   >;
 
   /**
@@ -238,6 +285,59 @@ export const makeRepository = <
         }),
       );
 
+    // Create schema for set/create: required id + the insert data fields.
+    // The id field is omitted from the data fields (when present at all —
+    // generated ids are not part of the insert schema) since the explicit
+    // id argument decides the document path.
+    const InsertDataSchema = (
+      Model.insert as Schema.Struct<Schema.Struct.Fields>
+    ).mapFields(Struct.omit([options.idField as string]));
+
+    const setFieldsSchema = Schema.Struct({
+      [options.idField]: idSchema,
+    }).pipe(Schema.fieldsAssign(InsertDataSchema.fields));
+
+    const setSchema = Fetch.void({
+      Request: setFieldsSchema,
+      execute: (input: unknown) => {
+        const record = input as Record<string, unknown>;
+        const { [options.idField as string]: id, ...data } = record;
+        return firestore.set(`${options.collectionPath}/${id as string}`, data);
+      },
+    });
+
+    const set = (id: IdSchema['Type'], data: S['insert']['Type']) =>
+      setSchema({
+        ...(data as Record<string, unknown>),
+        [options.idField]: id,
+      } as Parameters<typeof setSchema>[0]).pipe(
+        Effect.withSpan(`${options.spanPrefix}.set`, {
+          attributes: { id, data },
+        }),
+      );
+
+    const createSchema = Fetch.void({
+      Request: setFieldsSchema,
+      execute: (input: unknown) => {
+        const record = input as Record<string, unknown>;
+        const { [options.idField as string]: id, ...data } = record;
+        return firestore.create(
+          `${options.collectionPath}/${id as string}`,
+          data,
+        );
+      },
+    });
+
+    const create = (id: IdSchema['Type'], data: S['insert']['Type']) =>
+      createSchema({
+        ...(data as Record<string, unknown>),
+        [options.idField]: id,
+      } as Parameters<typeof createSchema>[0]).pipe(
+        Effect.withSpan(`${options.spanPrefix}.create`, {
+          attributes: { id, data },
+        }),
+      );
+
     // Create schema for update: required id + partial data fields (all optional)
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
@@ -413,6 +513,8 @@ export const makeRepository = <
 
     return {
       add,
+      set,
+      create,
       update,
       getById,
       getByIdStream,

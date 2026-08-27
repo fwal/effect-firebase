@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Effect, Layer, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
+import { AlreadyExistsError } from '../errors.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
@@ -21,6 +22,7 @@ const makeLayer = (overrides: Partial<FirestoreServiceShape>) =>
   Layer.succeed(FirestoreService, {
     get: notMocked('get'),
     add: notMocked('add'),
+    create: notMocked('create'),
     set: notMocked('set'),
     update: notMocked('update'),
     delete: notMocked('delete'),
@@ -52,6 +54,45 @@ describe('Repository', () => {
 
       expect(addMock).toHaveBeenCalledWith('posts', { title: 'Hello' });
       expect(id).toBe('new-id');
+    });
+  });
+
+  describe('set', () => {
+    it('calls firestore.set with the document path and encoded data', async () => {
+      const setMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ set: setMock }));
+      await Effect.runPromise(repo.set(PostId.make('post-1'), { title: 'Hello' }));
+
+      expect(setMock).toHaveBeenCalledWith('posts/post-1', { title: 'Hello' });
+    });
+  });
+
+  describe('create', () => {
+    it('calls firestore.create with the document path and encoded data', async () => {
+      const createMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ create: createMock }));
+      await Effect.runPromise(
+        repo.create(PostId.make('post-1'), { title: 'Hello' }),
+      );
+
+      expect(createMock).toHaveBeenCalledWith('posts/post-1', {
+        title: 'Hello',
+      });
+    });
+
+    it('propagates AlreadyExistsError when the document exists', async () => {
+      const createMock = vi.fn((path: string) =>
+        Effect.fail(new AlreadyExistsError({ path })),
+      );
+      const repo = await Effect.runPromise(makeRepo({ create: createMock }));
+      const error = await Effect.runPromise(
+        Effect.flip(repo.create(PostId.make('post-1'), { title: 'Hello' })),
+      );
+
+      expect(error).toMatchObject({
+        _tag: 'AlreadyExistsError',
+        path: 'posts/post-1',
+      });
     });
   });
 

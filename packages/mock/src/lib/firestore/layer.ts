@@ -12,6 +12,7 @@ import {
   SubscriptionRef,
 } from 'effect';
 import {
+  AlreadyExistsError,
   FirestoreError,
   FirestoreSchema,
   FirestoreService,
@@ -158,13 +159,13 @@ const makeFirestore = (
         : Option.some(makeSnapshot(path, data));
     });
 
-  const write = (
+  const write = <E>(
     collectionPath: string,
     mutate: (
       docs: Readonly<Record<string, DocData>>,
       timestamp: FirestoreSchema.Timestamp,
-    ) => Effect.Effect<Readonly<Record<string, DocData>>, FirestoreError>,
-  ): Effect.Effect<void, FirestoreError> =>
+    ) => Effect.Effect<Readonly<Record<string, DocData>>, E>,
+  ): Effect.Effect<void, E | FirestoreError> =>
     Effect.gen(function* () {
       yield* sleep;
       yield* guard(collectionPath);
@@ -192,6 +193,16 @@ const makeFirestore = (
           Effect.succeed({ ...docs, [docPath]: applySet(data, timestamp) }),
         );
         return { id, path: docPath };
+      }),
+
+    create: (path, data) =>
+      Effect.gen(function* () {
+        yield* validate(validateDocPath(path));
+        yield* write(parentPath(path), (docs, timestamp) =>
+          docs[path] !== undefined
+            ? Effect.fail(new AlreadyExistsError({ path }))
+            : Effect.succeed({ ...docs, [path]: applySet(data, timestamp) }),
+        );
       }),
 
     set: (path, data, options) =>

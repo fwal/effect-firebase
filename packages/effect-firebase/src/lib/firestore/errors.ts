@@ -11,6 +11,17 @@ export class NotFoundError extends Data.TaggedError('NotFoundError')<{
   path: string;
 }> {}
 
+/**
+ * A document already exists at the target path. Failed `create` calls
+ * surface this error so callers can branch on "the ID is already claimed"
+ * without inspecting SDK-specific error codes.
+ */
+export class AlreadyExistsError extends Data.TaggedError(
+  'AlreadyExistsError',
+)<{
+  path: string;
+}> {}
+
 interface MaybeError {
   code?: unknown;
   name?: unknown;

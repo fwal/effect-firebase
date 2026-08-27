@@ -10,7 +10,11 @@ import {
   Result,
   Stream,
 } from 'effect';
-import { FirestoreError, FirestoreService } from 'effect-firebase';
+import {
+  AlreadyExistsError,
+  FirestoreError,
+  FirestoreService,
+} from 'effect-firebase';
 import type { FirestoreDataOptions, Snapshot } from 'effect-firebase';
 import type { FirebaseApp } from 'firebase/app';
 import {
@@ -69,6 +73,14 @@ class EffectFailure {
  * The write-staging surface shared by `Transaction` and `WriteBatch`.
  */
 type StagedWriter = Pick<WriteBatch, 'set' | 'update' | 'delete'>;
+
+/**
+ * Carries "the document already exists" across the `runTransaction` promise
+ * boundary so it can be mapped to a typed AlreadyExistsError.
+ */
+class AlreadyExistsSignal {
+  constructor(readonly path: string) {}
+}
 
 const make = (db: Firestore) => {
   const converter = makeConverter(db);
@@ -212,6 +224,53 @@ const make = (db: Firestore) => {
             addDoc(collection(db, path).withConverter(converter), data),
           catch: (error) => FirestoreError.fromError(error),
         }).pipe(Effect.map((ref) => ({ id: ref.id, path: ref.path })));
+      }),
+    create: (path, data) =>
+      Effect.gen(function* () {
+        const ref = doc(db, path).withConverter(converter);
+        const tx = yield* CurrentTransaction;
+        if (Option.isSome(tx)) {
+          // Client transactions require all reads before the first write,
+          // so this existence check must run before any transactional write.
+          const snapshot = yield* Effect.tryPromise({
+            try: () => tx.value.get(ref),
+            catch: (error) => FirestoreError.fromError(error),
+          });
+          if (snapshot.exists()) {
+            return yield* Effect.fail(new AlreadyExistsError({ path }));
+          }
+          yield* Effect.try({
+            try: () => void tx.value.set(ref, data),
+            catch: (error) => FirestoreError.fromError(error),
+          });
+          return;
+        }
+        const batch = yield* CurrentBatch;
+        if (Option.isSome(batch)) {
+          // Batches are write-only on the client SDK, so there is no way to
+          // check existence atomically.
+          return yield* Effect.die(
+            new Error(
+              'FirestoreService.create cannot be used inside withBatch with the client SDK.',
+            ),
+          );
+        }
+        // Standalone creates run in their own transaction: read, then write
+        // only when the document is absent.
+        yield* Effect.tryPromise({
+          try: () =>
+            runTransaction(db, async (transaction) => {
+              const snapshot = await transaction.get(ref);
+              if (snapshot.exists()) {
+                throw new AlreadyExistsSignal(path);
+              }
+              transaction.set(ref, data);
+            }),
+          catch: (error) =>
+            error instanceof AlreadyExistsSignal
+              ? new AlreadyExistsError({ path: error.path })
+              : FirestoreError.fromError(error),
+        });
       }),
     set: (path, data, options) =>
       Effect.gen(function* () {

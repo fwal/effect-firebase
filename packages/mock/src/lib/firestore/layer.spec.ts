@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DateTime, Effect, Fiber, Option, Schema, Stream } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import {
+  AlreadyExistsError,
   Firestore,
   FirestoreError,
   FirestoreSchema,
@@ -110,6 +111,33 @@ describe('layer', () => {
           expect(data['createdAt']).toBeInstanceOf(FirestoreSchema.Timestamp);
         }),
       ));
+
+    it('creates a document when absent and fails when it already exists', async () => {
+      const error = await run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+
+          yield* firestore.create('posts/1', { title: 'First', views: 1 });
+          const created = yield* firestore.get('posts/1');
+          expect((created as Option.Some<Snapshot>).value[1]['title']).toBe(
+            'First',
+          );
+
+          const failure = yield* Effect.flip(
+            firestore.create('posts/1', { title: 'Second', views: 2 }),
+          );
+
+          // The original document is untouched.
+          const after = yield* firestore.get('posts/1');
+          expect((after as Option.Some<Snapshot>).value[1]['title']).toBe(
+            'First',
+          );
+          return failure;
+        }),
+      );
+      expect(error).toBeInstanceOf(AlreadyExistsError);
+      expect((error as AlreadyExistsError).path).toBe('posts/1');
+    });
 
     it('fails update on a missing document with not-found', async () => {
       const error = await run(
