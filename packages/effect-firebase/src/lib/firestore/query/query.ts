@@ -19,22 +19,49 @@ import {
 // ============================================================================
 
 /**
- * Extract field keys from a Schema struct (Model).
+ * Extract field keys from a Schema struct (Model), including nested fields as dot notation strings.
+ *
+ * For example, given a schema:
+ * ```ts
+ *  const PostSchema = Schema.Struct({
+ *    title: Schema.String,  
+ *    author: Schema.Struct({
+ *      name: Schema.String,
+ *      age: Schema.Number
+ *    })
+ *  });
+ * 
+ * type PostSchema = Schema.Schema.Type<typeof PostSchema>
+ * type Keys =  FieldKeys<PostSchema> // "title" | "author.name" | "author.age"
+ ```
  */
-export type FieldKeys<S> = S extends { readonly fields: infer F }
-  ? keyof F & string
-  : never;
+type DotPrefix<T extends string> = T extends '' ? '' : `.${T}`
+export type FieldKeys<S> = (
+  S extends object ?
+  { [K in Exclude<keyof S, symbol>]: `${K}${DotPrefix<FieldKeys<S[K]>>}` }[Exclude<keyof S, symbol>]
+  : '') extends infer D ? Extract<D, string> : never
 
 /**
- * Extract the type of a specific field from a Schema.
+ * Extract the type of a specific field from a Schema, including nested fields.
+ * 
+ * For example, 
+ * `FieldType<typeof PostSchema, "title">` would be `string`.
+ * `FieldType<typeof PostSchema, "title2">` TypeError.
+ * `FieldType<typeof PostSchema, "author.name">` would be `string`.
+ * `FieldType<typeof PostSchema, "author.age">` would be `number`.
  */
-export type FieldType<S, K extends string> = S extends {
+export type FieldType<S, K extends FieldKeys<S>> = S extends {
   readonly Type: infer T;
 }
-  ? K extends keyof T
-    ? T[K]
-    : never
+  ? FieldType<T, K>
+  : K extends `${infer Head}.${infer Tail}`
+  ? Head extends keyof S
+  ? FieldType<S[Head], FieldKeys<S[Head]>>
+  : never
+  : K extends keyof S
+  ? S[K]
   : never;
+
 
 // ============================================================================
 // Query Builder Type
