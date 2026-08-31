@@ -26,12 +26,15 @@ export function onScheduleEffect<R, E>(
   return onSchedule(options, async (event) => {
     const effect = handler(event).pipe(Effect.withSpan('onScheduleEffect'));
 
+    // Rethrow after logging so the invocation is recorded as failed and
+    // Cloud Scheduler's retry configuration applies.
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
         logger.error('Defect in onSchedule', {
           inner: error,
           stack: error instanceof Error ? error.stack : undefined,
         });
+        throw error;
       },
     );
   });
