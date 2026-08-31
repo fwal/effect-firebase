@@ -7,6 +7,7 @@ import {
   GeoPoint,
   Timestamp,
 } from 'firebase-admin/firestore';
+import { DateTime } from 'effect';
 import { FirestoreSchema, Firestore } from 'effect-firebase';
 
 /**
@@ -31,6 +32,9 @@ export const firestoreEncode = (
 
   if (data instanceof FirestoreSchema.Timestamp) {
     return Timestamp.fromMillis(data.toMillis());
+  }
+  if (DateTime.isDateTime(data)) {
+    return Timestamp.fromMillis(DateTime.toEpochMillis(data));
   }
   if (data instanceof FirestoreSchema.GeoPoint) {
     return new GeoPoint(data.latitude, data.longitude);

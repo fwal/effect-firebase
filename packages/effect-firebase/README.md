@@ -82,12 +82,22 @@ repo.getOne(...constraints); // Effect<Post, NoSuchElementError | ...>
 ## Queries
 
 ```typescript
+import { pipe } from 'effect';
 import { Query } from 'effect-firebase';
 
 Query.where('status', '==', 'published');
 Query.orderBy('createdAt', 'desc');
 Query.limit(20);
-Query.startAfter(lastDoc);
+Query.startAfter(lastCreatedAt);
+
+// Cursor pagination with a document ID tiebreaker, so pages never skip
+// or repeat documents when the order field has duplicate values
+pipe(
+  Query.orderBy('createdAt', 'desc'),
+  Query.addOrderByDocumentId('desc'),
+  Query.addStartAfter(lastCreatedAt, lastDocId),
+  Query.addLimit(20),
+);
 
 // Combine
 Query.and(

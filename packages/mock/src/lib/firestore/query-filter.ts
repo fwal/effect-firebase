@@ -91,7 +91,13 @@ const orderValues = (
   orderBys: ReadonlyArray<Query.OrderBy>,
 ): ReadonlyArray<unknown> => {
   const [ref, data] = snapshot;
-  const values = orderBys.map((orderBy) => fieldValue(data, orderBy.field));
+  // The __name__ sentinel (Query.orderByDocumentId) resolves to the
+  // document ID, which lives on the ref rather than in the data.
+  const values = orderBys.map((orderBy) =>
+    orderBy.field === Query.documentIdFieldPath
+      ? ref.id
+      : fieldValue(data, orderBy.field),
+  );
   // Firestore implicitly orders by document ID as the final tiebreaker.
   return [...values, ref.id];
 };
@@ -178,11 +184,14 @@ export const applyConstraints = (
   }
 
   // Firestore excludes documents that lack a field named by an orderBy.
+  // The __name__ sentinel is exempt: every document has an ID.
   let results = snapshots.filter(
     ([, data]) =>
       filters.every((filter) => matchesFilter(data, filter)) &&
       orderBys.every(
-        (orderBy) => fieldValue(data, orderBy.field) !== undefined,
+        (orderBy) =>
+          orderBy.field === Query.documentIdFieldPath ||
+          fieldValue(data, orderBy.field) !== undefined,
       ),
   );
 

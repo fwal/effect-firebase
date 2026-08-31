@@ -18,10 +18,11 @@ released against.
 2. [Repository atoms](#2-repository-atoms)
 3. [Reading data](#3-reading-data)
 4. [Mutations](#4-mutations)
-5. [Forms with validation](#5-forms-with-validation)
-6. [Testing with a mock layer](#6-testing-with-a-mock-layer)
-7. [Developing against the mock backend](#7-developing-against-the-mock-backend)
-8. [Caveats](#8-caveats)
+5. [Pagination](#5-pagination)
+6. [Forms with validation](#6-forms-with-validation)
+7. [Testing with a mock layer](#7-testing-with-a-mock-layer)
+8. [Developing against the mock backend](#8-developing-against-the-mock-backend)
+9. [Caveats](#9-caveats)
 
 ---
 
@@ -241,7 +242,160 @@ function CreatePost() {
 If you also need the `AsyncResult` state (loading / success / error) for UI,
 use `useAtom(atom)` to get both `[result, set]`.
 
-## 5. Forms with validation
+## 5. Pagination
+
+Firestore paginates by **cursor**, not by offset — there is no "jump to page
+7". Two patterns cover the real use cases, and they mirror what the official
+FirebaseUI libraries do (FlutterFire UI uses the first, FirebaseUI-Android's
+Paging 3 adapter the second):
+
+### 5a. Realtime infinite loading — growing limit
+
+For a live feed with "load more" / infinite scroll, don't stitch cursor pages
+together — a single snapshot listener whose `limit` grows by one page at a
+time is simpler and immune to documents shifting between page boundaries.
+`makePaginatedQueryAtom`
+([`example/app/src/lib/pagination.ts`](./example/app/src/lib/pagination.ts))
+packages the state machine:
+
+```ts
+// example/app/src/lib/atoms.ts
+export const paginatedPostsAtom = makePaginatedQueryAtom(clientRuntime, {
+  pageSize: 5,
+  stream: (limit) =>
+    Stream.unwrap(
+      Effect.map(PostRepository, (r) =>
+        r.queryStream(
+          pipe(
+            Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+            Query.addLimit(limit),
+          ),
+        ),
+      ),
+    ),
+});
+```
+
+```tsx
+function PostList() {
+  const result = useAtomValue(paginatedPostsAtom);
+  const fetchMore = useAtomSet(paginatedPostsAtom);
+
+  return AsyncResult.builder(result)
+    .onInitial(() => <Spinner />)
+    .onFailure((cause) => <ErrorState message={Cause.pretty(cause)} />)
+    .onSuccess(({ items, hasMore, isFetchingMore }) => (
+      <>
+        {items.map((p) => (
+          <PostCard key={p.id} post={p} />
+        ))}
+        {hasMore && (
+          <Button isLoading={isFetchingMore} onClick={() => fetchMore()}>
+            Load more
+          </Button>
+        )}
+      </>
+    ))
+    .exhaustive();
+}
+```
+
+For infinite scroll, swap the button for an `IntersectionObserver` sentinel
+that calls `fetchMore()` when it becomes visible; repeated calls while a
+fetch is in flight (or when `hasMore` is false) are no-ops.
+
+(The example app additionally wraps the atom in an `Atom.family` keyed by the
+mock epoch — see [§8](#8-developing-against-the-mock-backend) — so devtools
+state toggles mint a fresh atom with the window reset to one page.)
+
+How it works: the atom subscribes with `limit(pages * pageSize + 1)` — one
+probe row beyond the visible window, never surfaced in `items`, so
+`hasMore = rows.length > visible` is exact. Each `fetchMore` re-subscribes
+with a larger limit; already-synced documents are served from Firestore's
+local cache, and the whole window stays live through a single listener.
+
+### 5b. Prev/next page buttons — cursor stack
+
+For one-shot page-at-a-time UIs, use `Query.startAfter` with the last row's
+order-field value **plus its document ID** as the cursor (the ID tiebreaker
+keeps pages exact when several rows share the same `createdAt`), and keep a
+**stack** of cursors: push to go forward, pop to go back. Define an
+`Atom.family` keyed by the cursor, serialized to a string — families key by
+`Equal` equality, so prefer a primitive:
+
+```ts
+/** "<epochMillis>:<docId>" of the previous page's last row; null = first page. */
+type PageCursor = string | null;
+
+const cursorFor = (post: typeof PostModel.Type): PageCursor =>
+  `${DateTime.toEpochMillis(post.createdAt)}:${post.id}`;
+
+export const postsPageAtom = Atom.family((cursor: PageCursor) =>
+  clientRuntime
+    .atom(
+      Effect.gen(function* () {
+        const repo = yield* PostRepository;
+        const [millis, id] = cursor === null ? [] : cursor.split(/:(.*)/s);
+        return yield* repo.query(
+          pipe(
+            Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+            Query.addOrderByDocumentId('desc'),
+            cursor === null
+              ? (q: Query.Query<typeof PostModel>) => q
+              : Query.addStartAfter(
+                  FirestoreSchema.Timestamp.fromMillis(Number(millis)),
+                  id,
+                ),
+            Query.addLimit(PAGE_SIZE),
+          ),
+        );
+      }),
+    )
+    .pipe(Atom.withReactivity(['posts'])),
+);
+```
+
+```tsx
+function PaginatedPosts() {
+  // cursors[i] opens page i; null opens the first page
+  const [cursors, setCursors] = useState<Array<PageCursor>>([null]);
+  const result = useAtomValue(postsPageAtom(cursors[cursors.length - 1]));
+  // render items, then:
+  // Previous: disabled={cursors.length === 1}
+  //   onClick={() => setCursors((c) => c.slice(0, -1))}
+  // Next: disabled={posts.length < PAGE_SIZE}
+  //   onClick={() => setCursors((c) => [
+  //     ...c, cursorFor(posts[posts.length - 1]),
+  //   ])}
+}
+```
+
+These are one-shot reads, so pair `Atom.withReactivity(['posts'])` with
+`reactivityKeys: ['posts']` on mutations to refresh mounted pages. Add
+`Atom.setIdleTTL` to the family if back-navigation should render instantly
+from the still-warm previous page.
+
+### Pagination notes
+
+- **Cursor values are encoded like document data.** Decoded models expose
+  timestamps as Effect `DateTime` values and the converters encode them to
+  native `Timestamp`s, so `Query.addStartAfter(post.createdAt)` works — as
+  do `FirestoreSchema.Timestamp` values and plain strings/numbers.
+- **Break ties on the order field.** If the field can hold duplicate values,
+  a single-value cursor can skip or repeat rows across a page boundary — a
+  value cursor excludes _every_ row matching the cursor values, not just the
+  one you paged past. The recipe above guards against this by adding
+  `Query.addOrderByDocumentId()` after the primary `orderBy` and passing the
+  last document's ID as a second cursor value:
+  `Query.addStartAfter(lastCreatedAt, lastDocId)`. Server-generated
+  timestamps rarely collide; ratings, counts, and user-entered dates do.
+- **`hasMore`:** fetch one row beyond the page (`limit(pageSize + 1)`) and
+  slice it off for an exact answer — the growing-limit helper does this
+  internally. `posts.length < PAGE_SIZE` is a cheaper heuristic that shows
+  one dead "Next" click when the collection size is an exact multiple of the
+  page size.
+
+## 6. Forms with validation
 
 `effect/Schema` implements
 [Standard Schema v1](https://github.com/standard-schema/standard-schema), and
@@ -290,7 +444,7 @@ See [`example/app/src/routes/firestore.tsx`](./example/app/src/routes/firestore.
 for the full form including edit mode (re-key the form on the editing id to
 load fresh defaults).
 
-## 6. Testing with a mock layer
+## 7. Testing with a mock layer
 
 `@effect-firebase/mock` exports `MockFirestoreService(overrides)`, which
 returns a `Layer<FirestoreService>` whose methods throw by default but accept
@@ -323,7 +477,7 @@ The components under test never change between production and test — only the
 layer at the registry boundary differs. Vitest needs `environment: 'jsdom'`;
 see the `test` block in [`example/app/vite.config.ts`](./example/app/vite.config.ts).
 
-## 7. Developing against the mock backend
+## 8. Developing against the mock backend
 
 For building pages, `@effect-firebase/mock` goes further than per-method
 overrides: `make()` returns a full in-memory backend seeded from
@@ -373,7 +527,7 @@ and open the devtools panel on the Firestore page. See
 [`example/app/src/lib/mock.ts`](./example/app/src/lib/mock.ts) and
 [`example/app/src/app/app.tsx`](./example/app/src/app/app.tsx).
 
-## 8. Caveats
+## 9. Caveats
 
 - **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
   `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump
