@@ -7,8 +7,9 @@
 3. [onRequestEffect](#onrequesteffect)
 4. [Firestore Triggers](#firestore-triggers)
 5. [Pub/Sub](#pubsub)
-6. [Context Types](#context-types)
-7. [Error Handling](#error-handling)
+6. [Scheduler](#scheduler)
+7. [Context Types](#context-types)
+8. [Error Handling](#error-handling)
 
 ---
 
@@ -342,6 +343,45 @@ interface PubSubOptions {
   minInstances?: number;
   maxInstances?: number;
   retry?: boolean;
+}
+```
+
+---
+
+## Scheduler
+
+### onScheduleEffect
+
+```typescript
+function onScheduleEffect<R, E>(
+  options: {
+    runtime: Runtime<R>;
+    schedule: string;
+  } & ScheduleOptions,
+  handler: (event: ScheduledEvent) => Effect.Effect<void, E, R>
+): ScheduleFunction;
+```
+
+### ScheduleOptions (from firebase-functions)
+
+```typescript
+interface ScheduleOptions {
+  schedule: string;        // Unix Crontab or AppEngine syntax
+  timeZone?: string;
+  retryCount?: number;
+  maxRetrySeconds?: number;
+  minBackoffSeconds?: number;
+  maxBackoffSeconds?: number;
+  maxDoublings?: number;
+}
+```
+
+### ScheduledEvent
+
+```typescript
+interface ScheduledEvent {
+  jobName?: string;      // Cloud Scheduler job name (undefined when invoked manually)
+  scheduleTime: string;  // RFC3339 UTC schedule time
 }
 ```
 
