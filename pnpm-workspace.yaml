@@ -5,6 +5,8 @@ packages:
 
 catalog:
   '@effect/atom-react': 4.0.0-rc.112
+  '@react-native-firebase/app': ^26.3.3
+  '@react-native-firebase/firestore': ^26.3.3
   '@effect/platform-browser': 4.0.0-rc.112
   '@effect/vitest': 4.0.0-rc.112
   effect: 4.0.0-rc.112

@@ -1,0 +1,47 @@
+{
+  "name": "@effect-firebase/react-native",
+  "version": "1.0.0-beta.5",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fwal/effect-firebase",
+    "directory": "packages/react-native"
+  },
+  "private": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@effect-firebase/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@react-native-firebase/app": "catalog:",
+    "@react-native-firebase/firestore": "catalog:",
+    "effect": "catalog:",
+    "effect-firebase": "workspace:*"
+  },
+  "peerDependencies": {
+    "@react-native-firebase/app": ">=24.0.0",
+    "@react-native-firebase/firestore": ">=24.0.0",
+    "effect": "catalog:",
+    "effect-firebase": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

@@ -16,6 +16,7 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 | [effect-firebase](./packages/effect-firebase) | Core schemas, models, and query builder |
 | [@effect-firebase/admin](./packages/admin)    | Firebase Admin SDK + Cloud Functions    |
 | [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
+| [@effect-firebase/react-native](./packages/react-native) | React Native Firebase SDK    |
 | [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
 
 ## Guides
