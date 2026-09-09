@@ -8,3 +8,4 @@ export * from './on-document-deleted.js';
 export * from './on-document-written.js';
 export * from './on-message-published.js';
 export * from './on-task-dispatched.js';
+export * from './on-schedule.js';

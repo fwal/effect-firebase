@@ -1,3 +1,4 @@
+import { DateTime } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   FieldValue,
@@ -80,6 +81,17 @@ describe('Firestore Converter', () => {
       expect(result).toBeInstanceOf(AdminTimestamp);
       expect((result as AdminTimestamp).seconds).toBe(1705315800);
       expect((result as AdminTimestamp).nanoseconds).toBe(123000000);
+    });
+
+    it('should convert Effect DateTime to Firestore Timestamp', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const result = firestoreEncode(
+        fakeFirestore,
+        DateTime.makeUnsafe(1705315800123),
+      );
+
+      expect(result).toBeInstanceOf(AdminTimestamp);
+      expect((result as AdminTimestamp).toMillis()).toBe(1705315800123);
     });
 
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {

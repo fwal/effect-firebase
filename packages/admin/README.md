@@ -104,6 +104,17 @@ export const processEmail = onTaskDispatchedEffect(
 );
 ```
 
+### Scheduled (`onSchedule`)
+
+```typescript
+import { onScheduleEffect } from '@effect-firebase/admin';
+
+export const cleanup = onScheduleEffect(
+  { runtime, schedule: 'every 24 hours' },
+  (event) => Effect.log(`Running cleanup job: ${event.jobName}`),
+);
+```
+
 ## Cloud Logging
 
 `Admin.layer` automatically replaces the default Effect logger with one that writes structured logs to Cloud Logging:

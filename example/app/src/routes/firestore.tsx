@@ -16,7 +16,7 @@ import {
   TextArea,
 } from '../components/core';
 import {
-  latestPostsAtom,
+  paginatedPostsAtom,
   addPostAtom,
   updatePostAtom,
   deletePostAtom,
@@ -185,7 +185,8 @@ export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
   // toggle; a new epoch keys a new atom identity, so the list re-subscribes
   // from `Initial` against the toggled state (always 0 outside mock mode).
   const mockEpoch = useAtomValue(mockEpochAtom);
-  const result = useAtomValue(latestPostsAtom(mockEpoch));
+  const result = useAtomValue(paginatedPostsAtom(mockEpoch));
+  const fetchMore = useAtomSet(paginatedPostsAtom(mockEpoch));
   const remove = useAtomSet(deletePostAtom, { mode: 'promise' });
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -205,7 +206,7 @@ export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
         .onFailure((cause) => (
           <EmptyState message={`Error: ${Cause.pretty(cause)}`} />
         ))
-        .onSuccess((posts) =>
+        .onSuccess(({ items: posts, hasMore, isFetchingMore }) =>
           posts.length === 0 ? (
             <EmptyState message="No posts found. Create one above!" />
           ) : (
@@ -257,6 +258,17 @@ export function PostList({ onEdit }: { onEdit: (post: Post) => void }) {
                   </CardContent>
                 </Card>
               ))}
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="secondary"
+                    isLoading={isFetchingMore}
+                    onClick={() => fetchMore()}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
             </>
           ),
         )

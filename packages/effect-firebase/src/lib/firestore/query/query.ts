@@ -90,6 +90,35 @@ export const orderBy = <S, K extends FieldKeys<S> = string & FieldKeys<S>>(
 ): Query<S> => [new OrderBy({ field, direction })] as Query<S>;
 
 /**
+ * The sentinel field path that orders by document ID, understood by both the
+ * client and admin SDKs (equivalent to `FieldPath.documentId()`).
+ */
+export const documentIdFieldPath = '__name__';
+
+/**
+ * Create an orderBy constraint on the document ID.
+ *
+ * Useful as a cursor tiebreaker: when paginating with `startAfter` on a field
+ * that can have duplicate values (e.g. timestamps), add a document ID ordering
+ * and pass the last document's ID as a second cursor value so pages never
+ * skip or repeat documents.
+ *
+ * @example
+ * ```ts
+ * pipe(
+ *   Query.orderBy('createdAt', 'desc'),
+ *   Query.addOrderByDocumentId(),
+ *   Query.addStartAfter(lastTimestamp, lastDocId),
+ *   Query.addLimit(10),
+ * )
+ * ```
+ */
+export const orderByDocumentId = <S>(
+  direction: OrderByDirection = 'asc',
+): Query<S> =>
+  [new OrderBy({ field: documentIdFieldPath, direction })] as Query<S>;
+
+/**
  * Create a limit constraint.
  *
  * @example
@@ -242,6 +271,17 @@ export const addOrderBy =
   ) =>
   (query: Query<S>): Query<S> =>
     [...query, new OrderBy({ field, direction })] as Query<S>;
+
+/**
+ * Pipeable version of orderByDocumentId that appends to an existing query.
+ */
+export const addOrderByDocumentId =
+  (direction: OrderByDirection = 'asc') =>
+  <S>(query: Query<S>): Query<S> =>
+    [
+      ...query,
+      new OrderBy({ field: documentIdFieldPath, direction }),
+    ] as Query<S>;
 
 /**
  * Pipeable version of limit that appends to an existing query.
