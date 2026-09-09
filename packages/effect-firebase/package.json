@@ -23,7 +23,9 @@
   },
   "files": [
     "dist",
-    "!**/*.tsbuildinfo"
+    "!**/*.tsbuildinfo",
+    "AGENTS.md",
+    "MIGRATION.md"
   ],
   "dependencies": {
     "tslib": "^2.8.1"

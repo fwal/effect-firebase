@@ -14,7 +14,7 @@ import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
  * ```ts
  * class PostModel extends Class<PostModel>('PostModel')({
  *   id: Schema.String,
- *   tags: Model.WithArrayFields(Schema.Array(Schema.String)),
+ *   tags: Firestore.WithArrayFields(Schema.Array(Schema.String)),
  * }) {}
  *
  * // update variant accepts:
@@ -73,7 +73,7 @@ export const WithArrayFields: <
  * @example
  * ```ts
  * class PostModel extends Class<PostModel>('PostModel')({
- *   tags: Model.Array(Schema.String),
+ *   tags: Firestore.Array(Schema.String),
  * }) {}
  * ```
  */

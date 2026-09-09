@@ -259,10 +259,11 @@ export type Repository<
  *
  * @example
  * ```ts
- * import { Model } from 'effect-firebase';
+ * import { Model } from 'effect/unstable/schema';
+ * import { Firestore } from 'effect-firebase';
  * import { PostModel } from './post.js';
  *
- * const PostRepository = Model.makeRepository(PostModel, {
+ * const PostRepository = Firestore.makeRepository(PostModel, {
  *   collectionPath: 'posts',
  *   idField: 'id',
  *   spanPrefix: 'example.PostRepository',

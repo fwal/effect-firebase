@@ -11,17 +11,19 @@ Firebase integration for [Effect](https://effect.website). Provides schemas, mod
 
 ## Packages
 
-| Package                                       | Description                             |
-| --------------------------------------------- | --------------------------------------- |
-| [effect-firebase](./packages/effect-firebase) | Core schemas, models, and query builder |
-| [@effect-firebase/admin](./packages/admin)    | Firebase Admin SDK + Cloud Functions    |
-| [@effect-firebase/client](./packages/client)  | Firebase Client SDK                     |
-| [@effect-firebase/mock](./packages/mock)      | In-memory mock for testing              |
+| Package                                          | Description                             |
+| ------------------------------------------------ | --------------------------------------- |
+| [effect-firebase](./packages/effect-firebase)    | Core schemas, models, and query builder |
+| [@effect-firebase/admin](./packages/admin)       | Firebase Admin SDK + Cloud Functions    |
+| [@effect-firebase/client](./packages/client)     | Firebase Client SDK                     |
+| [@effect-firebase/mock](./packages/mock)         | In-memory mock for testing              |
+| [@effect-firebase/devtools](./packages/devtools) | Devtools panel for the mock backend     |
 
 ## Guides
 
 - [React patterns](./REACT.md) — atoms, live queries, mutations, forms, and testing from React
-- [Migration guide](./MIGRATION.md) — upgrading from earlier versions
+- [Migration guide](./packages/effect-firebase/MIGRATION.md) — upgrading from earlier versions (ships in the npm package)
+- [Agent guide](./packages/effect-firebase/AGENTS.md) — condensed usage reference for coding agents (ships in the npm package)
 
 ## Installation
 
@@ -31,7 +33,7 @@ npm install effect-firebase effect
 # Pick one or more SDK packages:
 npm install @effect-firebase/admin firebase-admin firebase-functions
 npm install @effect-firebase/client firebase
-npm install --save-dev @effect-firebase/mock
+npm install --save-dev @effect-firebase/mock @effect-firebase/devtools
 ```
 
 ## Usage
@@ -40,16 +42,17 @@ npm install --save-dev @effect-firebase/mock
 
 ```typescript
 import { Schema } from 'effect';
-import { Model } from 'effect-firebase';
+import { Model } from 'effect/unstable/schema';
+import { Firestore } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
   id: Model.GeneratedByDb(PostId),
-  createdAt: Model.DateTimeInsert,
-  updatedAt: Model.DateTimeUpdate,
-  author: Model.Reference(AuthorId, 'authors'),
+  createdAt: Firestore.DateTimeInsert,
+  updatedAt: Firestore.DateTimeUpdate,
+  author: Firestore.Reference(AuthorId, 'authors'),
   title: Schema.String,
   content: Schema.String,
   status: Schema.Literal('draft', 'published'),
@@ -60,9 +63,9 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
 
 ```typescript
 import { Effect } from 'effect';
-import { Model, Query } from 'effect-firebase';
+import { Firestore, Query } from 'effect-firebase';
 
-export const PostRepository = Model.makeRepository(PostModel, {
+export const PostRepository = Firestore.makeRepository(PostModel, {
   collectionPath: 'posts',
   idField: 'id',
   spanPrefix: 'PostRepository',
@@ -116,7 +119,7 @@ known ID without clobbering, read and branch inside
 `Firestore.withTransaction`; a bare `getById`-then-`set` is a race.
 
 **It has to pick a schema variant before it knows which operation it is.**
-That choice decides what happens to insert-only fields — `Model.DateTimeInsert`
+That choice decides what happens to insert-only fields — `Firestore.DateTimeInsert`
 (`createdAt`) is stamped by `Model.insert` and omitted by `Model.update`:
 
 | `variant`            | payload                               | on an existing document                               |
@@ -231,6 +234,7 @@ await Effect.runPromise(
 - `onDocumentCreatedEffect`, `onDocumentUpdatedEffect`, `onDocumentDeletedEffect`, `onDocumentWrittenEffect` — Firestore triggers
 - `onMessagePublishedEffect` — Pub/Sub
 - `onTaskDispatchedEffect` — Cloud Tasks
+- `onScheduleEffect` — Cloud Scheduler
 
 ## Development
 
