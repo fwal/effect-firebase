@@ -48,7 +48,8 @@ type AddPrefixToKeys<Prefix extends string, T> = {
  * Structural view of the schema combinators a field path may pass through.
  * These are the public properties `Schema.Struct`, `Schema.Class`,
  * `Schema.optional`/`optionalKey`, `Schema.Union`, `Schema.decodeTo` (and
- * `OptionFromUndefinedOr` etc.) and `Schema.Record` expose.
+ * `OptionFromUndefinedOr` etc.) and `Schema.Record` expose. Record
+ * segments are checked against the record's key schema.
  */
 type Walkable = Schema.Top & {
   readonly fields?: Record<string, Schema.Top>;
@@ -76,7 +77,12 @@ const child = (schema: Schema.Top, key: string): Option.Option<Schema.Top> => {
     return field === undefined ? Option.none() : Option.some(field);
   }
   if (s.key !== undefined && s.value !== undefined) {
-    return Option.some(s.value);
+    // A Record admits any key its key schema accepts; a segment the key
+    // schema rejects (e.g. a template literal or branded key) is not a
+    // field, so the caller rejects it like any undeclared key.
+    return Schema.is(s.key as Schema.Schema<unknown>)(key)
+      ? Option.some(s.value)
+      : Option.none();
   }
   if (s.from !== undefined) {
     return child(s.from, key);

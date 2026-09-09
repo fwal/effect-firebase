@@ -15,6 +15,10 @@ class Doc extends Model.Class<Doc>('Doc')({
   variant: Model.Struct({ likes: FirestoreNumber.Number }),
   klass: Inner,
   record: Schema.Record(Schema.String, Schema.Number),
+  keyed: Schema.Record(
+    Schema.TemplateLiteral(['k_', Schema.String]),
+    Schema.Number,
+  ),
   scalar: Schema.String,
 }) {}
 
@@ -39,6 +43,11 @@ describe('resolveFieldPath', () => {
 
   it('resolves any key under a Record to its value schema', () => {
     expect(resolves('record.anything')).toBe(true);
+  });
+
+  it('checks Record segments against a constrained key schema', () => {
+    expect(resolves('keyed.k_visits')).toBe(true);
+    expect(resolves('keyed.visits')).toBe(false);
   });
 
   it('returns None for undeclared segments and for paths into scalars', () => {
