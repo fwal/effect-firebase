@@ -1,0 +1,128 @@
+import {
+  arrayRemove,
+  arrayUnion,
+  deleteField,
+  doc,
+  DocumentData,
+  DocumentReference,
+  FieldValue,
+  Firestore as FirebaseFirestore,
+  FirestoreDataConverter,
+  GeoPoint,
+  serverTimestamp,
+  Timestamp,
+} from '@react-native-firebase/firestore';
+import { DateTime } from 'effect';
+import { FirestoreSchema, Firestore } from 'effect-firebase';
+
+/**
+ * React Native Firebase only exports DocumentReference as a type, so
+ * instanceof checks are impossible through the public API. Document
+ * references are identified structurally instead.
+ */
+const isDocumentReference = (
+  value: object,
+): value is DocumentReference<DocumentData, DocumentData> =>
+  'firestore' in value &&
+  typeof (value as { path?: unknown }).path === 'string' &&
+  typeof (value as { get?: unknown }).get === 'function';
+
+/**
+ * Encode a value to Firestore client sdk format.
+ * @param db The Firestore instance.
+ * @param data The value to encode.
+ * @returns The encoded value.
+ */
+export const firestoreEncode = (
+  db: FirebaseFirestore,
+  data: unknown,
+): unknown => {
+  if (
+    data === null ||
+    data instanceof Timestamp ||
+    data instanceof GeoPoint ||
+    data instanceof FieldValue
+  ) {
+    return data;
+  }
+
+  if (typeof data === 'object' && isDocumentReference(data)) {
+    return data;
+  }
+
+  if (data instanceof FirestoreSchema.Timestamp) {
+    return Timestamp.fromMillis(data.toMillis());
+  }
+  // Decoded models expose timestamps as Effect DateTime values; without this
+  // they would fall through to the plain-object branch and encode to garbage
+  // (notably when used as query cursor values).
+  if (DateTime.isDateTime(data)) {
+    return Timestamp.fromMillis(DateTime.toEpochMillis(data));
+  }
+  if (data instanceof FirestoreSchema.GeoPoint) {
+    return new GeoPoint(data.latitude, data.longitude);
+  }
+  if (data instanceof FirestoreSchema.Reference) {
+    return doc(db, data.path);
+  }
+  if (data instanceof FirestoreSchema.ServerTimestamp) {
+    return serverTimestamp();
+  }
+  if (data instanceof Firestore.Delete) {
+    return deleteField();
+  }
+  if (data instanceof Firestore.ArrayUnion) {
+    return arrayUnion(...data.values.map((v) => firestoreEncode(db, v)));
+  }
+  if (data instanceof Firestore.ArrayRemove) {
+    return arrayRemove(...data.values.map((v) => firestoreEncode(db, v)));
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => firestoreEncode(db, item));
+  }
+  if (typeof data === 'object' && data !== null) {
+    // If it's already a Firebase type, leave it alone (optimization)
+    return Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, firestoreEncode(db, v)]),
+    );
+  }
+
+  return data;
+};
+
+/**
+ * Decode a value from Firestore client sdk format.
+ * @param data The value to decode.
+ * @returns The decoded value.
+ */
+export const firestoreDecode = (data: DocumentData): DocumentData => {
+  if (data instanceof Timestamp) {
+    return FirestoreSchema.Timestamp.fromMillis(data.toMillis());
+  }
+  if (data instanceof GeoPoint) {
+    return new FirestoreSchema.GeoPoint({
+      latitude: data.latitude,
+      longitude: data.longitude,
+    });
+  }
+  if (Array.isArray(data)) {
+    return data.map(firestoreDecode);
+  }
+  if (typeof data === 'object' && data !== null) {
+    if (isDocumentReference(data)) {
+      return FirestoreSchema.Reference.makeFromPath(data.path);
+    }
+    return Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, firestoreDecode(v)]),
+    );
+  }
+  return data;
+};
+
+export const makeConverter = (
+  db: FirebaseFirestore,
+): FirestoreDataConverter<DocumentData, DocumentData> => ({
+  toFirestore: (modelObject) =>
+    firestoreEncode(db, modelObject) as DocumentData,
+  fromFirestore: (snapshot) => firestoreDecode(snapshot.data()),
+});

@@ -25,6 +25,9 @@
       "path": "./packages/devtools"
     },
     {
+      "path": "./packages/react-native"
+    },
+    {
       "path": "./example/app"
     }
   ],
