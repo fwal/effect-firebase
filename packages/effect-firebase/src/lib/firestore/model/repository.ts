@@ -6,6 +6,13 @@ import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
+import {
+  isFieldPath,
+  resolveFieldPath,
+  type UpdateData,
+} from './update-path.js';
+
+export type { UpdateData } from './update-path.js';
 
 export type ModelError =
   FirestoreError | UnknownError | NoSuchElementError | Schema.SchemaError;
@@ -122,14 +129,23 @@ export type Repository<
   >;
 
   /**
-   * Update a document model.
+   * Update a document model. Fails with `FirestoreError` code `not-found`
+   * if the document is absent.
+   *
+   * `data` is any subset of the `update` variant's fields, plus Firestore
+   * dot-separated paths into nested maps (`'metaData.deleted': true`)
+   * which update just that nested field. A whole-field key replaces the
+   * whole value, so `metaData: { ... }` overwrites the entire map. Keys
+   * the model does not declare fail with a `SchemaError` naming the key;
+   * an empty payload fails with `FirestoreError` code `invalid-argument`.
+   *
    * @param id - The ID of the document model to update.
-   * @param data - The partial data to update the document model with. All fields are optional.
+   * @param data - The fields and field paths to update. See {@link UpdateData}.
    * @returns A unit value.
    */
   readonly update: (
     id: IdSchema['Type'],
-    data: Partial<Omit<S['update']['Type'], Id>>,
+    data: UpdateData<Omit<S['update']['Type'], Id>>,
   ) => Effect.Effect<
     void,
     ModelError,
@@ -392,7 +408,9 @@ export const makeRepository = <
       );
     };
 
-    // Create schema for update: required id + partial data fields (all optional)
+    // Request schema for update: required id + partial data fields (all
+    // optional). Encoded strictly, so an undeclared key fails with a
+    // SchemaError naming it instead of being dropped from the payload.
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
     )
@@ -403,30 +421,88 @@ export const makeRepository = <
       [options.idField]: idSchema,
     }).pipe(Schema.fieldsAssign(PartialDataSchema.fields));
 
-    const updateSchema = Fetch.void({
-      Request: updateFieldsSchema,
-      execute: (input: unknown) => {
-        const record = input as Record<string, unknown>;
-        const { [options.idField as string]: id, ...data } = record;
-        return firestore.update(
-          `${options.collectionPath}/${id as string}`,
-          data,
+    const encodeUpdateFields = Schema.encodeUnknownEffect(
+      updateFieldsSchema,
+      Fetch.strictEncoding,
+    );
+
+    // A dotted key ('metaData.deleted') names a nested field. It resolves to
+    // its leaf schema in Model.update and is encoded on its own, wrapped in a
+    // one-key struct so a failure still reports the offending path. A key
+    // that does not resolve stays in the struct payload, where the strict
+    // encoder rejects it by name. Encoders are cached per path because
+    // Schema.encodeUnknownEffect compiles on construction.
+    type LeafEncoder = (
+      value: unknown,
+    ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
+    const leafEncoders = new Map<string, LeafEncoder>();
+    const leafEncoder = (path: string): Option.Option<LeafEncoder> => {
+      const cached = leafEncoders.get(path);
+      if (cached !== undefined) return Option.some(cached);
+      return Option.map(resolveFieldPath(PartialDataSchema, path), (leaf) => {
+        const encodeLeaf = Schema.encodeUnknownEffect(
+          Schema.Struct({ [path]: leaf }),
+          Fetch.strictEncoding,
         );
-      },
-    });
+        const encoder: LeafEncoder = (value) =>
+          Effect.map(
+            encodeLeaf({ [path]: value }),
+            (encoded) => (encoded as Record<string, unknown>)[path],
+          );
+        leafEncoders.set(path, encoder);
+        return encoder;
+      });
+    };
 
     const update = (
       id: IdSchema['Type'],
-      data: Partial<Omit<S['update']['Type'], Id>>,
+      data: UpdateData<Omit<S['update']['Type'], Id>>,
     ) =>
-      updateSchema({
-        [options.idField]: id,
-        ...data,
-      } as Parameters<typeof updateSchema>[0]).pipe(
+      Effect.gen(function* () {
+        const fields: Record<string, unknown> = { [options.idField]: id };
+        const paths: Array<readonly [string, unknown, LeafEncoder]> = [];
+        for (const [key, value] of Object.entries(
+          data as Record<string, unknown>,
+        )) {
+          const encoder = isFieldPath(key) ? leafEncoder(key) : Option.none();
+          if (Option.isSome(encoder)) {
+            paths.push([key, value, encoder.value]);
+          } else {
+            fields[key] = value;
+          }
+        }
+
+        const { [options.idField as string]: encodedId, ...payload } =
+          (yield* encodeUpdateFields(fields)) as Record<string, unknown>;
+        for (const [key, value, encode] of paths) {
+          payload[key] = yield* encode(value);
+        }
+
+        // Firestore rejects an empty update with a message about argument
+        // shape; name the actual problem instead.
+        if (Object.keys(payload).length === 0) {
+          return yield* new FirestoreError({
+            code: 'invalid-argument',
+            name: 'FirestoreError',
+            message: `${options.spanPrefix}.update: at least one field must be updated (payload was empty)`,
+          });
+        }
+
+        yield* firestore.update(
+          `${options.collectionPath}/${encodedId as string}`,
+          payload,
+        );
+      }).pipe(
         Effect.withSpan(`${options.spanPrefix}.update`, {
           attributes: { id, data },
         }),
-      );
+      ) as Effect.Effect<
+        void,
+        ModelError,
+        | S['DecodingServices']
+        | S['EncodingServices']
+        | S['update']['EncodingServices']
+      >;
 
     const getByIdSchema = Fetch.findOneOption({
       Request: idSchema,

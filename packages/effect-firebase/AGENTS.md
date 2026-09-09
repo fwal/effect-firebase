@@ -130,19 +130,19 @@ service via `Admin.layer`/`Client.layer`/mock).
 
 Repository methods (all fail with `ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`):
 
-| Method                                | Returns                        | Notes                                                                 |
-| ------------------------------------- | ------------------------------ | --------------------------------------------------------------------- |
-| `add(data)`                           | `Effect<Id>`                   | `data: typeof Model.insert.Type`. Firestore picks the id.             |
-| `set(id, { data, variant?, merge? })` | `Effect<void>`                 | Upsert at a known id. See "Choosing `set` variant" below.             |
-| `update(id, partial)`                 | `Effect<void>`                 | Fails `FirestoreError` code `not-found` if absent. Accepts sentinels. |
-| `getById(id)`                         | `Effect<Option<Model>>`        | `Option.none()` when missing.                                         |
-| `getByIdStream(id)`                   | `Stream<Option<Model>>`        | Live `onSnapshot`.                                                    |
-| `delete(id)`                          | `Effect<void>`                 |                                                                       |
-| `deleteRecursive(id)`                 | `Effect<void>`                 | **Admin SDK only**; dies on the client layer.                         |
-| `query(constraints)`                  | `Effect<ReadonlyArray<Model>>` |                                                                       |
-| `queryStream(constraints)`            | `Stream<ReadonlyArray<Model>>` | Live.                                                                 |
-| `getByQuery(constraints)`             | `Effect<Option<Model>>`        | First match.                                                          |
-| `getByQueryStream(constraints)`       | `Stream<Option<Model>>`        | Live first match.                                                     |
+| Method                                | Returns                        | Notes                                                                   |
+| ------------------------------------- | ------------------------------ | ----------------------------------------------------------------------- |
+| `add(data)`                           | `Effect<Id>`                   | `data: typeof Model.insert.Type`. Firestore picks the id.               |
+| `set(id, { data, variant?, merge? })` | `Effect<void>`                 | Upsert at a known id. See "Choosing `set` variant" below.               |
+| `update(id, data)`                    | `Effect<void>`                 | Fails `not-found` if absent. Sentinels + dotted field paths. See below. |
+| `getById(id)`                         | `Effect<Option<Model>>`        | `Option.none()` when missing.                                           |
+| `getByIdStream(id)`                   | `Stream<Option<Model>>`        | Live `onSnapshot`.                                                      |
+| `delete(id)`                          | `Effect<void>`                 |                                                                         |
+| `deleteRecursive(id)`                 | `Effect<void>`                 | **Admin SDK only**; dies on the client layer.                           |
+| `query(constraints)`                  | `Effect<ReadonlyArray<Model>>` |                                                                         |
+| `queryStream(constraints)`            | `Stream<ReadonlyArray<Model>>` | Live.                                                                   |
+| `getByQuery(constraints)`             | `Effect<Option<Model>>`        | First match.                                                            |
+| `getByQueryStream(constraints)`       | `Stream<Option<Model>>`        | Live first match.                                                       |
 
 ### Choosing `set` variant
 
@@ -160,6 +160,30 @@ cannot know which case it is in. `variant` decides how insert-only fields
 To create-only at a known id without clobbering, read then write inside
 `Firestore.withTransaction`; a bare `getById` then `set` is a race. Prefer
 `add` (always insert) or `update` (always update) when the intent is fixed.
+
+### Updating nested fields
+
+`update` takes any subset of `Model.update.Type` plus Firestore dotted field
+paths into nested maps. A dotted key touches only that nested field; a
+whole-field key replaces the whole map (Firestore semantics).
+
+```ts
+yield * repo.update(id, { 'metaData.deleted': true }); // only metaData.deleted
+yield * repo.update(id, { metaData: { deleted: true, tags: [] } }); // replaces metaData
+```
+
+Paths are typed (`UpdateData<T>`) and descend through `Schema.Struct`,
+`Model.Struct`, `Schema.Class`, `Schema.Record` (any key), `Schema.optional`
+and `OptionalDeletable`; arrays, `DateTime`, `Timestamp`, `GeoPoint`,
+`Reference` and sentinel classes are leaves. Each leaf is encoded through its
+own field schema, so a nested `Firestore.Number` accepts `increment(n)` at
+`'stats.likes'`.
+
+Keys the model does not declare (typos, paths into scalars) fail with
+`SchemaError` naming the key; they are never dropped. An empty payload fails
+with `FirestoreError` code `invalid-argument` instead of the SDK's "At least
+one field must be updated". `add` and `set` reject undeclared keys the same
+way.
 
 ## Queries
 
@@ -406,6 +430,9 @@ root: https://github.com/fwal/effect-firebase/blob/main/REACT.md.
    variants that helper allows.
 9. Style used throughout the library: explicit lambdas (`Effect.map((x) => f(x))`),
    no point-free `Effect.map(f)`.
+10. Nested updates use dotted keys (`'a.b': v`), not nested partial objects:
+    `{ a: { b: v } }` replaces the whole `a` map. Undeclared keys fail with
+    `SchemaError`; `update` never silently drops them.
 
 ## Where to look
 

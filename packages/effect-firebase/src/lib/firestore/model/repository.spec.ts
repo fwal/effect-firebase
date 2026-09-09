@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Effect, Layer, Option, Schema } from 'effect';
+import { DateTime, Effect, Layer, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
 import * as FirestoreModel from './datetime.js';
+import * as FirestoreNumber from './number.js';
+import { OptionalDeletable } from './optional.js';
+import { increment } from '../fields/increment.js';
+import { Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
@@ -20,6 +24,21 @@ class StampedModel extends Model.Class<StampedModel>('StampedModel')({
   title: Schema.String,
   createdAt: FirestoreModel.DateTimeInsert,
   updatedAt: FirestoreModel.DateTimeUpdate,
+}) {}
+
+/** Nested maps declared through the combinators a field path may cross. */
+class NestedModel extends Model.Class<NestedModel>('NestedModel')({
+  id: Model.GeneratedByDb(PostId),
+  title: Schema.String,
+  metaData: Schema.Struct({
+    deleted: Schema.Boolean,
+    tags: Schema.Array(Schema.String),
+  }),
+  stats: Model.Struct({ likes: FirestoreNumber.Number }),
+  profile: OptionalDeletable(
+    Schema.Struct({ lastSeenAt: TimestampDateTimeUtc }),
+  ),
+  counters: Schema.Record(Schema.String, Schema.Number),
 }) {}
 
 const notMocked = (name: string) => (): never => {
@@ -53,6 +72,16 @@ const makeStampedRepo = (overrides: Partial<FirestoreServiceShape>) =>
     idField: 'id',
     spanPrefix: 'test',
   }).pipe(Effect.provide(makeLayer(overrides)));
+
+const makeNestedRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(NestedModel, {
+    collectionPath: 'posts',
+    idField: 'id',
+    spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
+const failureOf = <A, E>(effect: Effect.Effect<A, E>) =>
+  Effect.runPromise(Effect.flip(effect));
 
 const snap = (id: string, data: Record<string, unknown>): Snapshot =>
   [{ id, path: `posts/${id}` }, data] as const;
@@ -242,6 +271,23 @@ describe('Repository', () => {
     });
   });
 
+  describe('set strictness', () => {
+    it('rejects a key the model does not declare', async () => {
+      const setMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ set: setMock }));
+      const error = await failureOf(
+        repo.set(PostId.make('post-1'), {
+          // @ts-expect-error not a declared field
+          data: { title: 'Hello', extra: 1 },
+        }),
+      );
+
+      expect(error._tag).toBe('SchemaError');
+      expect(String(error)).toContain('extra');
+      expect(setMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('update', () => {
     it('calls firestore.update with the correct path and partial data', async () => {
       const updateMock = vi.fn(() => Effect.succeed(undefined));
@@ -252,6 +298,139 @@ describe('Repository', () => {
 
       expect(updateMock).toHaveBeenCalledWith('posts/post-1', {
         title: 'Updated',
+      });
+    });
+
+    it('rejects a key the model does not declare instead of dropping it (#63)', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ update: updateMock }));
+      const error = await failureOf(
+        repo.update(PostId.make('post-1'), {
+          // @ts-expect-error not a declared field
+          'metaData.deleted': true,
+        }),
+      );
+
+      expect(error._tag).toBe('SchemaError');
+      expect(String(error)).toContain('metaData.deleted');
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it('fails an empty payload with invalid-argument before reaching Firestore', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ update: updateMock }));
+      const error = await failureOf(repo.update(PostId.make('post-1'), {}));
+
+      expect(error).toMatchObject({
+        _tag: 'FirestoreError',
+        code: 'invalid-argument',
+      });
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    describe('field paths', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      it('passes a dotted path into a nested struct through unchanged', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'Updated',
+            'metaData.deleted': true,
+          }),
+        );
+
+        expect(updateMock).toHaveBeenCalledWith('posts/post-1', {
+          title: 'Updated',
+          'metaData.deleted': true,
+        });
+      });
+
+      it('encodes a nested leaf through its own field schema', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            'profile.lastSeenAt': DateTime.makeUnsafe(1_000),
+          }),
+        );
+
+        const encoded = payloadOf(updateMock)['profile.lastSeenAt'];
+        expect(encoded).toBeInstanceOf(Timestamp);
+        expect((encoded as Timestamp).toMillis()).toBe(1_000);
+      });
+
+      it('accepts a sentinel on a nested field declared for it', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { 'stats.likes': increment(1) }),
+        );
+
+        expect(payloadOf(updateMock)['stats.likes']).toEqual(increment(1));
+      });
+
+      it('resolves dynamic keys through a Record field', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { 'counters.visits': 3 }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({ 'counters.visits': 3 });
+      });
+
+      it('rejects a path whose leaf is not declared, naming the path', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(PostId.make('post-1'), {
+            // @ts-expect-error `nope` is not a field of metaData
+            'metaData.nope': true,
+          }),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('metaData.nope');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('rejects a leaf value of the wrong type, naming the path', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(PostId.make('post-1'), {
+            // @ts-expect-error deleted is a boolean
+            'metaData.deleted': 'yes',
+          }),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('metaData.deleted');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('does not treat a scalar field as a map', () => {
+        const repo = Effect.runSync(makeNestedRepo({}));
+        const write = repo.update(PostId.make('post-1'), {
+          // @ts-expect-error title is a string, not a map
+          'title.length': 1,
+        });
+        expect(write).toBeDefined();
       });
     });
   });
