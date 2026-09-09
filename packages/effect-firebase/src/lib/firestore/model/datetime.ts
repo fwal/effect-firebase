@@ -103,7 +103,7 @@ export const DateTimeInsert: DateTimeInsert = Model.Field({
  * ```ts
  * class UserModel extends Class<UserModel>('UserModel')({
  *   id: Schema.String,
- *   lastSeenAt: Model.WithServerTimestamp(Model.DateTime),
+ *   lastSeenAt: Firestore.WithServerTimestamp(Firestore.DateTime),
  * }) {}
  *
  * // insert/update variants accept:
@@ -137,10 +137,7 @@ export const WithServerTimestamp: <
         readonly [K in keyof S]: S[K] extends Schema.Top
           ? K extends 'insert' | 'update'
             ? Schema.Union<
-                readonly [
-                  S[K],
-                  typeof FirestoreSchema.ServerTimestampInstance,
-                ]
+                readonly [S[K], typeof FirestoreSchema.ServerTimestampInstance]
               >
             : S[K]
           : never;

@@ -13,19 +13,21 @@ npm install effect-firebase effect
 
 ## Models
 
-Define a model with `Model.Class`. Each field declares how it behaves across variants: `get` (read), `add` (create), `update` (partial update), and `json` (serialization).
+Define a model with `Model.Class` from `effect/unstable/schema`; Firestore-specific field helpers come from the `Firestore` namespace. Each field declares how it behaves across variants: `select` (read), `insert` (create), `update` (partial update), and `json` / `jsonCreate` / `jsonUpdate` (serialization).
 
 ```typescript
 import { Schema } from 'effect';
-import { Model } from 'effect-firebase';
+import { Model } from 'effect/unstable/schema';
+import { Firestore } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
+const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
 
 class PostModel extends Model.Class<PostModel>('PostModel')({
-  id: Model.GeneratedByDb(PostId), // excluded from add and update
-  createdAt: Model.DateTimeInsert, // set on create, excluded from update
-  updatedAt: Model.DateTimeUpdate, // set on every write
-  author: Model.Reference(AuthorId, 'authors'), // stored as DocumentReference
+  id: Model.GeneratedByDb(PostId), // excluded from insert and update
+  createdAt: Firestore.DateTimeInsert, // set on create, excluded from update
+  updatedAt: Firestore.DateTimeUpdate, // set on every write
+  author: Firestore.Reference(AuthorId, 'authors'), // stored as DocumentReference
   title: Schema.String,
   content: Schema.String,
   status: Schema.Literal('draft', 'published'),
@@ -34,28 +36,28 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
 
 Built-in field helpers:
 
-| Helper                                      | Behaviour                                                    |
-| ------------------------------------------- | ------------------------------------------------------------ |
-| `Model.GeneratedByDb(schema)`               | Auto-generated (e.g. IDs). Excluded from `add` and `update`. |
-| `Model.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.          |
-| `Model.DateTimeUpdate`                      | Server timestamp on every write.                             |
-| `Model.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.         |
-| `Model.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.      |
-| `Model.OptionalDeletable(schema)`           | Optional field that can be deleted with a sentinel value.    |
-| `Model.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`. |
-| `Model.Number`                              | Number field. Accepts `increment(n)` in `update`.            |
-| `Model.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.    |
-| `Model.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `add` and `update`.      |
-| `Model.GeoPoint`                            | Geographic point with latitude and longitude.                |
-| `Model.Field({get, add, update, json})`     | Fully custom per-variant schemas.                            |
+| Helper                                          | Behaviour                                                       |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| `Model.GeneratedByDb(schema)`                   | Auto-generated (e.g. IDs). Excluded from `insert` and `update`. |
+| `Firestore.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.             |
+| `Firestore.DateTimeUpdate`                      | Server timestamp on every write.                                |
+| `Firestore.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.            |
+| `Firestore.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.         |
+| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Firestore.delete()`.   |
+| `Firestore.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`.    |
+| `Firestore.Number`                              | Number field. Accepts `increment(n)` in `update`.               |
+| `Firestore.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.       |
+| `Firestore.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `insert` and `update`.      |
+| `Firestore.GeoPoint`                            | Geographic point with latitude and longitude.                   |
+| `Model.Field({ select, insert, update, json })` | Fully custom per-variant schemas.                               |
 
 ## Repository
 
 ```typescript
 import { Effect } from 'effect';
-import { Model, Query } from 'effect-firebase';
+import { Firestore, Query } from 'effect-firebase';
 
-export const PostRepository = Model.makeRepository(PostModel, {
+export const PostRepository = Firestore.makeRepository(PostModel, {
   collectionPath: 'posts',
   idField: 'id',
   spanPrefix: 'PostRepository',
@@ -71,16 +73,19 @@ Available methods on every repository:
 
 ```typescript
 repo.add(data); // Effect<PostId>
-repo.update(id, data); // Effect<void>
-repo.set(id, data); // Effect<void>
-repo.remove(id); // Effect<void>
-repo.getById(id); // Effect<Post, NoSuchElementError | SchemaError | FirestoreError>
-repo.findById(id); // Effect<Option<Post>, SchemaError | FirestoreError>
-repo.query(...constraints); // Effect<ReadonlyArray<Post>>
-repo.queryStream(...constraints); // Stream<ReadonlyArray<Post>>
-repo.findOne(...constraints); // Effect<Option<Post>>
-repo.getOne(...constraints); // Effect<Post, NoSuchElementError | ...>
+repo.set(id, { data, variant?, merge? }); // Effect<void> — upsert at a known ID
+repo.update(id, partial); // Effect<void>
+repo.delete(id); // Effect<void>
+repo.deleteRecursive(id); // Effect<void> — Admin SDK only
+repo.getById(id); // Effect<Option<Post>>
+repo.getByIdStream(id); // Stream<Option<Post>>
+repo.query(constraints); // Effect<ReadonlyArray<Post>>
+repo.queryStream(constraints); // Stream<ReadonlyArray<Post>>
+repo.getByQuery(constraints); // Effect<Option<Post>>
+repo.getByQueryStream(constraints); // Stream<Option<Post>>
 ```
+
+All methods fail with `ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`.
 
 ## Queries
 
@@ -171,7 +176,6 @@ FirestoreSchema.Reference; // DocumentReference schema
 
 ```typescript
 repo.getById(id).pipe(
-  Effect.catchTag('NoSuchElementError', () => Effect.succeed(null)),
   Effect.catchTag('SchemaError', (e) =>
     Effect.fail(new AppError({ cause: e })),
   ),
@@ -180,6 +184,10 @@ repo.getById(id).pipe(
   ),
 );
 ```
+
+## Migration and agent guides
+
+This package ships [`MIGRATION.md`](./MIGRATION.md) (v0.x → v1.0) and [`AGENTS.md`](./AGENTS.md) (condensed usage reference for coding agents). Both are available in `node_modules/effect-firebase/` after installing.
 
 ## License
 

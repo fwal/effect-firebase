@@ -15,11 +15,12 @@ import * as FirestoreSchema from '../schema/schema.js';
  *
  * @example
  * ```ts
- * import { Model } from 'effect-firebase';
+ * import { Model } from 'effect/unstable/schema';
+ * import { Firestore } from 'effect-firebase';
  *
  * class PlaceModel extends Model.Class<PlaceModel>('PlaceModel')({
  *   id: Model.GeneratedByDb(PlaceId),
- *   location: Model.GeoPoint,
+ *   location: Firestore.GeoPoint,
  * }) {}
  * ```
  */

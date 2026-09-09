@@ -13,7 +13,7 @@ import { IncrementInstance } from '../fields/increment.js';
  * ```ts
  * class PostModel extends Class<PostModel>('PostModel')({
  *   id: Schema.String,
- *   likes: Model.WithIncrementField(Schema.Number),
+ *   likes: Firestore.WithIncrementField(Schema.Number),
  * }) {}
  *
  * // update variant accepts:
@@ -62,7 +62,7 @@ export const WithIncrementField: <
  * @example
  * ```ts
  * class PostModel extends Class<PostModel>('PostModel')({
- *   likes: Model.Number,
+ *   likes: Firestore.Number,
  * }) {}
  * ```
  */

@@ -51,10 +51,10 @@ const Output = Schema.Struct({ postId: Schema.String });
 
 export const createPost = onCallEffect(
   { runtime, inputSchema: Input, outputSchema: Output },
-  (request) =>
+  (input) =>
     Effect.gen(function* () {
       const repo = yield* PostRepository;
-      const postId = yield* repo.add({ ...request.data, status: 'draft' });
+      const postId = yield* repo.add({ ...input, status: 'draft' });
       return { postId };
     }).pipe(Effect.provide(PostRepository)),
 );
@@ -86,7 +86,7 @@ import { onMessagePublishedEffect } from '@effect-firebase/admin';
 const MessageSchema = Schema.Struct({ userId: Schema.String });
 
 export const onMessage = onMessagePublishedEffect(
-  { runtime, topic: 'my-topic', dataSchema: MessageSchema },
+  { runtime, topic: 'my-topic', messageSchema: MessageSchema },
   (message) => Effect.log(`Received for user: ${message.userId}`),
 );
 ```
@@ -99,7 +99,7 @@ import { onTaskDispatchedEffect } from '@effect-firebase/admin';
 const TaskSchema = Schema.Struct({ email: Schema.String });
 
 export const processEmail = onTaskDispatchedEffect(
-  { runtime, retryConfig: { maxAttempts: 5 }, dataSchema: TaskSchema },
+  { runtime, retryConfig: { maxAttempts: 5 }, schema: TaskSchema },
   (task) => Effect.log(`Sending to: ${task.email}`),
 );
 ```

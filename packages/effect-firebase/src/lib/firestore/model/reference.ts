@@ -16,7 +16,7 @@ type StringBasedSchema = Schema.Top & { readonly Type: string };
  * ```ts
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   // Untyped reference - just stores/returns the ID string
- *   authorId: Model.AnyIdReference,
+ *   authorId: Firestore.AnyIdReference,
  * }) {}
  * ```
  */
@@ -38,7 +38,7 @@ export const AnyIdReference = Model.Field({
  * ```ts
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   // Untyped reference - stores/returns the full path
- *   authorPath: Model.AnyPathReference,
+ *   authorPath: Firestore.AnyPathReference,
  * }) {}
  * ```
  */
@@ -62,14 +62,15 @@ export const AnyPathReference = Model.Field({
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect-firebase';
+ * import { Model } from 'effect/unstable/schema';
+ * import { Firestore } from 'effect-firebase';
  *
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   id: Model.GeneratedByDb(PostId),
  *   // App gets AuthorId, DB stores DocumentReference
- *   author: Model.Reference(AuthorId, 'authors'),
+ *   author: Firestore.Reference(AuthorId, 'authors'),
  * }) {}
  * ```
  */
@@ -102,14 +103,15 @@ export const Reference = <Id extends StringBasedSchema>(
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect-firebase';
+ * import { Model } from 'effect/unstable/schema';
+ * import { Firestore } from 'effect-firebase';
  *
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   id: Model.GeneratedByDb(PostId),
  *   // App gets DocumentReference, JSON is AuthorId
- *   author: Model.ReferenceAsInstance(AuthorId, 'authors'),
+ *   author: Firestore.ReferenceAsInstance(AuthorId, 'authors'),
  * }) {}
  *
  * // In your app:
@@ -159,12 +161,13 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect-firebase';
+ * import { Model } from 'effect/unstable/schema';
+ * import { Firestore } from 'effect-firebase';
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   id: Model.GeneratedByDb(PostId),
  *   // Reference - JSON will be the full path string
- *   authorPath: Model.ReferencePath('authors'),
+ *   authorPath: Firestore.ReferencePath('authors'),
  * }) {}
  * ```
  */
@@ -198,7 +201,7 @@ export const ReferencePath = (collectionPath: string) => {
  * ```ts
  * class PostModel extends Model.Class<PostModel>('PostModel')({
  *   // Optional author reference
- *   author: Model.ReferenceOptional(AuthorId, 'authors'),
+ *   author: Firestore.ReferenceOptional(AuthorId, 'authors'),
  * }) {}
  * ```
  */
