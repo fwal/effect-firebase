@@ -14,6 +14,41 @@ export type RepositoryQuery<S> = ReadonlyArray<QueryConstraint> & {
   readonly _schema?: S;
 };
 
+/**
+ * A write for {@link Repository.set}, carrying the payload plus the two
+ * decisions `set` cannot make on the caller's behalf: which schema variant
+ * encodes the payload, and whether to merge into an existing document.
+ */
+export type SetWrite<S extends Model.Any> =
+  | {
+      /**
+       * Encode through `Model.insert`. Insert-only fields (for example
+       * `Model.DateTimeInsert`) are stamped with the current time.
+       * @default 'insert'
+       */
+      readonly variant?: 'insert';
+      readonly data: S['insert']['Type'];
+      /**
+       * Merge into an existing document instead of replacing it.
+       * @default false
+       */
+      readonly merge?: boolean;
+    }
+  | {
+      /**
+       * Encode through `Model.update`. Insert-only fields are omitted from
+       * the payload entirely, so a merge leaves them untouched and a full
+       * overwrite drops them from the stored document.
+       */
+      readonly variant: 'update';
+      readonly data: S['update']['Type'];
+      /**
+       * Merge into an existing document instead of replacing it.
+       * @default false
+       */
+      readonly merge?: boolean;
+    };
+
 export type Repository<
   S extends Model.Any,
   Id extends keyof S['Type'] & keyof S['fields'],
@@ -34,6 +69,56 @@ export type Repository<
     | S['DecodingServices']
     | S['EncodingServices']
     | S['insert']['EncodingServices']
+  >;
+
+  /**
+   * Set (upsert) a document model at a known ID: inserts when the document
+   * is absent, overwrites every field when it exists.
+   *
+   * Two properties make this sharper than it looks.
+   *
+   * **It is nondeterministic.** One call is two operations, chosen by state
+   * the call site cannot see, and both succeed silently — so a `set` meant
+   * to create can replace an existing document instead. Where the intent is
+   * fixed, say so with an operation that can only do that: {@link add}
+   * always inserts (Firestore picks the ID), {@link update} always updates
+   * and fails `not-found` if the document is absent. To claim a known ID
+   * without clobbering, read and branch inside `Firestore.withTransaction`
+   * — a bare `getById`-then-`set` is a race.
+   *
+   * **It must choose a schema variant before it knows which operation it
+   * is.** That choice decides the fate of insert-only fields such as
+   * `Model.DateTimeInsert` (`createdAt`), which `Model.insert` stamps with
+   * the current time and `Model.update` omits altogether. Neither is right
+   * in both cases, so `write.variant` leaves it to the caller:
+   *
+   * - `'insert'` (default) re-stamps `createdAt` on every write, `merge`
+   *   included — overwriting the original creation time, which cannot be
+   *   recovered.
+   * - `'update'` never sends `createdAt`, so `{ merge: true }` preserves
+   *   it, while a full overwrite drops it from the stored document.
+   *
+   * Rule of thumb: `'insert'` for a document you expect to be new,
+   * `'update'` with `{ merge: true }` for one you expect to exist. Both are
+   * assertions, not checks — `set` still will not verify which case it is
+   * in.
+   *
+   * @param id - The ID to write the document model at.
+   * @param write - The payload, the schema {@link SetWrite.variant} that
+   *   encodes it, and whether to merge.
+   * @returns A unit value.
+   */
+  readonly set: (
+    id: IdSchema['Type'],
+    write: SetWrite<S>,
+  ) => Effect.Effect<
+    void,
+    ModelError,
+    | S['DecodingServices']
+    | S['EncodingServices']
+    | S['insert']['EncodingServices']
+    | S['update']['EncodingServices']
+    | S['fields'][Id]['EncodingServices']
   >;
 
   /**
@@ -238,6 +323,74 @@ export const makeRepository = <
         }),
       );
 
+    // Request schemas for set: required id + the variant's data fields.
+    // The id field is omitted from the data fields (when present at all —
+    // generated ids are not part of either variant) since the explicit id
+    // argument decides the document path.
+    const setFieldsSchema = (variantSchema: Schema.Top) =>
+      Schema.Struct({
+        [options.idField]: idSchema,
+      }).pipe(
+        Schema.fieldsAssign(
+          (variantSchema as Schema.Struct<Schema.Struct.Fields>).mapFields(
+            Struct.omit([options.idField as string]),
+          ).fields,
+        ),
+      );
+
+    const setInsertFieldsSchema = setFieldsSchema(Model.insert);
+    const setUpdateFieldsSchema = setFieldsSchema(Model.update);
+
+    const makeSetWriter = (
+      Request: ReturnType<typeof setFieldsSchema>,
+      writeOptions?: { readonly merge: true },
+    ) =>
+      Fetch.void({
+        Request,
+        execute: (input: unknown) => {
+          const record = input as Record<string, unknown>;
+          const { [options.idField as string]: id, ...data } = record;
+          return firestore.set(
+            `${options.collectionPath}/${id as string}`,
+            data,
+            writeOptions,
+          );
+        },
+      });
+
+    // All four combinations are built up front: Fetch.void compiles its
+    // request encoder on construction, so building per call would recompile
+    // a schema on every write.
+    const setWriters = {
+      insert: {
+        replace: makeSetWriter(setInsertFieldsSchema),
+        merge: makeSetWriter(setInsertFieldsSchema, { merge: true }),
+      },
+      update: {
+        replace: makeSetWriter(setUpdateFieldsSchema),
+        merge: makeSetWriter(setUpdateFieldsSchema, { merge: true }),
+      },
+    };
+
+    const set = (id: IdSchema['Type'], write: SetWrite<S>) => {
+      const variant = write.variant ?? 'insert';
+      const writer =
+        setWriters[variant][write.merge === true ? 'merge' : 'replace'];
+      return writer({
+        ...(write.data as Record<string, unknown>),
+        [options.idField]: id,
+      } as Parameters<typeof writer>[0]).pipe(
+        Effect.withSpan(`${options.spanPrefix}.set`, {
+          attributes: {
+            id,
+            data: write.data,
+            variant,
+            merge: write.merge ?? false,
+          },
+        }),
+      );
+    };
+
     // Create schema for update: required id + partial data fields (all optional)
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
@@ -413,6 +566,7 @@ export const makeRepository = <
 
     return {
       add,
+      set,
       update,
       getById,
       getByIdStream,

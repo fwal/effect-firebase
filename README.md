@@ -80,6 +80,55 @@ export const PostRepository = Model.makeRepository(PostModel, {
 );
 ```
 
+### Writes at a known ID
+
+`add` lets Firestore pick the ID; `set` writes at an ID the caller already
+knows — documents keyed by user UID, external event IDs, join keys.
+
+```typescript
+const program = Effect.gen(function* () {
+  const repo = yield* PostRepository;
+
+  // Insert-shaped write: stamps createdAt. Replaces the document if it exists.
+  yield* repo.set(postId, {
+    data: { title: 'Hello', content: '...', status: 'draft' },
+  });
+
+  // Update-shaped write, merged: leaves createdAt untouched.
+  yield* repo.set(postId, {
+    variant: 'update',
+    data: { title: 'Hello', content: '...', status: 'draft' },
+    merge: true,
+  });
+});
+```
+
+Two things about `set` are worth understanding, because both can lose data
+quietly.
+
+**It is nondeterministic.** One call is two operations, chosen by state the
+call site cannot see: it inserts when the document is absent and overwrites
+every field when it exists, succeeding either way. A `set` meant to create
+can replace an existing document instead. Where the intent is fixed, use an
+operation that can only do that one thing — `add` always inserts, `update`
+always updates and fails `not-found` if the document is absent. To claim a
+known ID without clobbering, read and branch inside
+`Firestore.withTransaction`; a bare `getById`-then-`set` is a race.
+
+**It has to pick a schema variant before it knows which operation it is.**
+That choice decides what happens to insert-only fields — `Model.DateTimeInsert`
+(`createdAt`) is stamped by `Model.insert` and omitted by `Model.update`:
+
+| `variant`            | payload                               | on an existing document                               |
+| -------------------- | ------------------------------------- | ----------------------------------------------------- |
+| `'insert'` (default) | includes `createdAt`, freshly stamped | creation time overwritten, `merge` included           |
+| `'update'`           | omits `createdAt`                     | `merge: true` preserves it; a full overwrite drops it |
+
+Neither is right in every case, so `set` leaves the call to you: `'insert'`
+for a document you expect to be new, `'update'` with `merge: true` for one
+you expect to exist. Both are assertions rather than checks — `set` will
+not verify which case it is actually in.
+
 ### Client app
 
 ```typescript

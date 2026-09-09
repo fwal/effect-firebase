@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Effect, Layer, Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
+import * as FirestoreModel from './datetime.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
@@ -11,6 +12,14 @@ const PostId = Schema.String.pipe(Schema.brand('PostId'));
 class PostModel extends Model.Class<PostModel>('PostModel')({
   id: Model.GeneratedByDb(PostId),
   title: Schema.String,
+}) {}
+
+/** Carries an insert-only field (createdAt) and an insert+update one. */
+class StampedModel extends Model.Class<StampedModel>('StampedModel')({
+  id: Model.GeneratedByDb(PostId),
+  title: Schema.String,
+  createdAt: FirestoreModel.DateTimeInsert,
+  updatedAt: FirestoreModel.DateTimeUpdate,
 }) {}
 
 const notMocked = (name: string) => (): never => {
@@ -38,6 +47,13 @@ const makeRepo = (overrides: Partial<FirestoreServiceShape>) =>
     spanPrefix: 'test',
   }).pipe(Effect.provide(makeLayer(overrides)));
 
+const makeStampedRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(StampedModel, {
+    collectionPath: 'posts',
+    idField: 'id',
+    spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
 const snap = (id: string, data: Record<string, unknown>): Snapshot =>
   [{ id, path: `posts/${id}` }, data] as const;
 
@@ -52,6 +68,148 @@ describe('Repository', () => {
 
       expect(addMock).toHaveBeenCalledWith('posts', { title: 'Hello' });
       expect(id).toBe('new-id');
+    });
+  });
+
+  describe('set', () => {
+    // Typed so the recorded call is indexable without casts, and so a
+    // change to the service signature shows up here.
+    const setSpy = () =>
+      vi.fn(
+        (
+          _path: string,
+          _data: Record<string, unknown>,
+          _options?: { readonly merge?: boolean },
+        ) => Effect.succeed(undefined),
+      );
+
+    it('calls firestore.set with the document path and encoded data', async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), { data: { title: 'Hello' } }),
+      );
+
+      expect(setMock).toHaveBeenCalledWith(
+        'posts/post-1',
+        { title: 'Hello' },
+        undefined,
+      );
+    });
+
+    it('forwards merge to firestore.set', async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          data: { title: 'Hello' },
+          merge: true,
+        }),
+      );
+
+      expect(setMock).toHaveBeenCalledWith(
+        'posts/post-1',
+        { title: 'Hello' },
+        { merge: true },
+      );
+    });
+
+    it('does not merge when the flag is omitted or false', async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          data: { title: 'Hello' },
+          merge: false,
+        }),
+      );
+
+      expect(setMock).toHaveBeenCalledWith(
+        'posts/post-1',
+        { title: 'Hello' },
+        undefined,
+      );
+    });
+
+    // The variant decides what happens to insert-only fields (createdAt).
+    // These pin both branches: changing what a variant sends is a
+    // data-loss-shaped change and should fail here first. The payloads are
+    // deliberately written as a consumer would write them, with no casts,
+    // so a regression in the SetWrite typing breaks compilation too.
+    const payloadOf = (mock: ReturnType<typeof setSpy>) =>
+      Object.keys(mock.mock.calls[0][1]).sort();
+
+    it("variant 'insert' (the default) sends insert-only fields", async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeStampedRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          data: {
+            title: 'Hello',
+            createdAt: undefined,
+            updatedAt: undefined,
+          },
+        }),
+      );
+
+      expect(payloadOf(setMock)).toEqual(['createdAt', 'title', 'updatedAt']);
+    });
+
+    it("variant 'insert' still sends createdAt under merge, re-stamping it", async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeStampedRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          data: {
+            title: 'Hello',
+            createdAt: undefined,
+            updatedAt: undefined,
+          },
+          merge: true,
+        }),
+      );
+
+      expect(payloadOf(setMock)).toContain('createdAt');
+    });
+
+    it("variant 'update' omits insert-only fields, so a merge preserves them", async () => {
+      const setMock = setSpy();
+      const repo = await Effect.runPromise(makeStampedRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          variant: 'update',
+          data: { title: 'Hello', updatedAt: undefined },
+          merge: true,
+        }),
+      );
+
+      expect(payloadOf(setMock)).toEqual(['title', 'updatedAt']);
+      expect(setMock.mock.calls[0][2]).toEqual({ merge: true });
+    });
+
+    // Type-level guards on the discriminated union. Each @ts-expect-error
+    // fails compilation if the error it suppresses ever disappears, so the
+    // two branches cannot silently collapse into one. The effects are built
+    // but never run: encoding happens on run, and one of these payloads is
+    // deliberately invalid.
+    it('types each variant to its own schema', async () => {
+      const repo = await Effect.runPromise(makeStampedRepo({}));
+
+      const updateWithInsertOnlyField = repo.set(PostId.make('post-1'), {
+        variant: 'update',
+        // @ts-expect-error createdAt is insert-only, absent from the update
+        // variant.
+        data: { title: 'Hello', createdAt: undefined, updatedAt: undefined },
+      });
+
+      const insertMissingInsertOnlyField = repo.set(
+        PostId.make('post-1'),
+        // @ts-expect-error the default insert variant requires createdAt.
+        { data: { title: 'Hello', updatedAt: undefined } },
+      );
+
+      expect(updateWithInsertOnlyField).toBeDefined();
+      expect(insertMissingInsertOnlyField).toBeDefined();
     });
   });
 
