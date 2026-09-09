@@ -1,9 +1,15 @@
 import { DateTime as EffectDateTime, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Model } from 'effect/unstable/schema';
-import { DateTime, DateTimeInsert, DateTimeUpdate } from './datetime.js';
+import {
+  DateTime,
+  DateTimeInsert,
+  DateTimeUpdate,
+  WithServerTimestamp,
+} from './datetime.js';
 import { Timestamp } from '../schema/timestamp.js';
 import * as FirestoreSchema from '../schema/schema.js';
+import { serverTimestamp } from '../fields/server-timestamp.js';
 
 describe('Model.DateTime', () => {
   const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -149,6 +155,94 @@ describe('Model.DateTimeInsert', () => {
       const result = decode({ id: 'post-1' });
 
       expect((result as Record<string, unknown>)['createdAt']).toBeUndefined();
+    });
+  });
+});
+
+describe('Model.WithServerTimestamp', () => {
+  const PostId = Schema.String.pipe(Schema.brand('PostId'));
+
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.GeneratedByDb(PostId),
+    lastSeenAt: WithServerTimestamp(DateTime),
+  }) {}
+
+  describe('get variant', () => {
+    it('should decode Timestamp to DateTime.Utc', () => {
+      const decode = Schema.decodeUnknownSync(TestModel);
+      const result = decode({
+        id: 'post-1',
+        lastSeenAt: Timestamp.fromMillis(1705315800123),
+      });
+
+      expect(EffectDateTime.isDateTime(result.lastSeenAt)).toBe(true);
+    });
+  });
+
+  describe('insert variant', () => {
+    it('should encode a DateTime.Utc value to Timestamp', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const result = encode({
+        lastSeenAt: EffectDateTime.makeUnsafe(1705315800000),
+      });
+
+      expect(result.lastSeenAt).toEqual({
+        seconds: 1705315800,
+        nanoseconds: 0,
+      });
+    });
+
+    it('should encode a ServerTimestamp sentinel as-is (for converter to handle)', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const result = encode({ lastSeenAt: serverTimestamp() });
+
+      expect(result.lastSeenAt).toBeInstanceOf(
+        FirestoreSchema.ServerTimestamp,
+      );
+    });
+  });
+
+  describe('update variant', () => {
+    it('should encode a DateTime.Utc value to Timestamp', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const result = encode({
+        lastSeenAt: EffectDateTime.makeUnsafe(1705315800000),
+      });
+
+      expect(result.lastSeenAt).toEqual({
+        seconds: 1705315800,
+        nanoseconds: 0,
+      });
+    });
+
+    it('should encode a ServerTimestamp sentinel as-is (for converter to handle)', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const result = encode({ lastSeenAt: serverTimestamp() });
+
+      expect(result.lastSeenAt).toBeInstanceOf(
+        FirestoreSchema.ServerTimestamp,
+      );
+    });
+  });
+
+  describe('json variant', () => {
+    it('should decode ISO string to DateTime.Utc', () => {
+      const decode = Schema.decodeUnknownSync(TestModel.json);
+      const result = decode({
+        id: 'post-1',
+        lastSeenAt: '2024-01-15T10:30:00.000Z',
+      });
+
+      expect(EffectDateTime.isDateTime(result.lastSeenAt)).toBe(true);
+    });
+
+    it('should reject sentinels (not part of json variant)', () => {
+      expect(() =>
+        Schema.decodeUnknownSync(TestModel.json)({
+          id: 'post-1',
+          lastSeenAt: serverTimestamp(),
+        }),
+      ).toThrow();
     });
   });
 });

@@ -117,6 +117,11 @@ describe('applySet', () => {
     expect('gone' in result).toBe(false);
     expect(result['kept']).toBe(1);
   });
+
+  it('materializes increments to their operand', () => {
+    const result = applySet({ likes: Firestore.increment(5) }, now);
+    expect(result['likes']).toBe(5);
+  });
 });
 
 describe('applyMerge', () => {
@@ -161,6 +166,36 @@ describe('applyUpdate', () => {
       now,
     );
     expect(result['tags']).toEqual(['a', 'c']);
+  });
+
+  it('applies increment to an existing number', () => {
+    const result = applyUpdate(
+      { likes: 2 },
+      { likes: Firestore.increment(3) },
+      now,
+    );
+    expect(result['likes']).toBe(5);
+  });
+
+  it('applies a negative increment', () => {
+    const result = applyUpdate(
+      { likes: 2 },
+      { likes: Firestore.increment(-3) },
+      now,
+    );
+    expect(result['likes']).toBe(-1);
+  });
+
+  it('sets increment operand when the field is missing or not a number', () => {
+    const missing = applyUpdate({}, { likes: Firestore.increment(3) }, now);
+    expect(missing['likes']).toBe(3);
+
+    const nonNumber = applyUpdate(
+      { likes: 'many' },
+      { likes: Firestore.increment(3) },
+      now,
+    );
+    expect(nonNumber['likes']).toBe(3);
   });
 
   it('materializes server timestamps in updates', () => {
