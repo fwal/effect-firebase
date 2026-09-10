@@ -14,6 +14,7 @@ export * from './model/number.js';
 
 // Repository factory
 export { makeRepository } from './model/repository.js';
+export { MAX_FIELD_PATH_DEPTH, type UpdateData } from './model/update-path.js';
 
 // Transaction and batch helpers
 export { withTransaction, withBatch } from './transaction.js';
