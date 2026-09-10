@@ -168,6 +168,9 @@ const program = Effect.gen(function* () {
     status: 'draft',
   });
   const posts = yield* repo.query(Query.where('status', '==', 'published'));
+  const articles = yield* repo.query(
+    Query.where('metaData.type', '==', 'article'),
+  );
   return { postId, posts };
 }).pipe(
   Effect.provide(PostRepository),

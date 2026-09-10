@@ -34,8 +34,23 @@ export const MAX_FIELD_PATH_DEPTH = 5;
  * interfaces have no implicit index signature; declare them as type aliases
  * to get typed paths into them.
  */
-export type UpdateData<T> = Partial<T> &
+export type UpdateData<T> = FieldPathRecord<T>;
+
+/**
+ * Every addressable field of `T` as a key: its own keys plus dotted paths
+ * into nested maps (see {@link UpdateData} for what is descended), each
+ * mapped to the type found at that path. Shared by `update` payloads and by
+ * typed `Query.where`/`Query.orderBy` field names.
+ */
+export type FieldPathRecord<T> = Partial<T> &
   NestedUpdateFields<T, typeof MAX_FIELD_PATH_DEPTH>;
+
+/** The field names and dotted field paths of `T`. */
+export type FieldPaths<T> = keyof FieldPathRecord<T> & string;
+
+/** The type stored at field name or dotted path `P` of `T`. */
+export type FieldPathType<T, P extends string> =
+  P extends FieldPaths<T> ? Exclude<FieldPathRecord<T>[P], undefined> : never;
 
 type UnionToIntersection<U> = (
   U extends unknown ? (k: U) => void : never

@@ -208,6 +208,7 @@ repo.query(
   Query.and(
     Query.where('status', '==', 'published'),
     Query.where('likes', '>=', 10),
+    Query.where('metaData.type', '==', 'post'), // dotted paths into nested maps
     Query.orderBy('createdAt', 'desc'),
     Query.limit(20),
   ),
@@ -227,7 +228,9 @@ repo.query(
 Constructors: `where`, `orderBy`, `orderByDocumentId`, `limit`,
 `limitToLast`, `startAt`, `startAfter`, `endAt`, `endBefore`, `and`, `or`,
 `empty`, plus `add*` pipeable variants of each. Field names and operators are
-checked against the model at compile time. Cursor values are encoded like
+checked against the model at compile time; field names include dotted paths
+into nested maps, following the same descent rules and depth cap as `update`
+(see "Updating nested fields"). Cursor values are encoded like
 document data, so `DateTime.Utc`, `FirestoreSchema.Timestamp`, strings and
 numbers all work. Firestore has no offset pagination; use cursors (see the
 React guide for a growing-limit live feed and a cursor-stack prev/next).
