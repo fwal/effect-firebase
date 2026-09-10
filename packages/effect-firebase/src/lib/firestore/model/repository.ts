@@ -7,12 +7,23 @@ import { FirestoreError } from '../errors.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
 import {
+  flattenForMerge,
   isFieldPath,
   resolveFieldPath,
+  type MergeUpdateData,
   type UpdateData,
 } from './update-path.js';
 
-export type { UpdateData } from './update-path.js';
+export type { MergeUpdateData, UpdateData } from './update-path.js';
+
+export type UpdateOptions = {
+  /**
+   * Flatten nested objects into dotted field paths before writing, so a
+   * nested partial merges into the stored map instead of replacing it.
+   * @default false
+   */
+  readonly merge?: boolean;
+};
 
 export type ModelError =
   FirestoreError | UnknownError | NoSuchElementError | Schema.SchemaError;
@@ -135,24 +146,45 @@ export type Repository<
    * `data` is any subset of the `update` variant's fields, plus Firestore
    * dot-separated paths into nested maps (`'metaData.deleted': true`)
    * which update just that nested field. A whole-field key replaces the
-   * whole value, so `metaData: { ... }` overwrites the entire map. Keys
-   * the model does not declare fail with a `SchemaError` naming the key;
-   * an empty payload fails with `FirestoreError` code `invalid-argument`.
+   * whole value, so `metaData: { ... }` overwrites the entire map. With
+   * `{ merge: true }`, `data` is instead a deep partial: nested objects are
+   * flattened into dotted paths, so `metaData: { deleted: true }` updates
+   * only `metaData.deleted`.
+   *
+   * Keys the model does not declare fail with a `SchemaError` naming the
+   * key; an empty payload fails with `FirestoreError` code
+   * `invalid-argument`.
    *
    * @param id - The ID of the document model to update.
-   * @param data - The fields and field paths to update. See {@link UpdateData}.
+   * @param data - The fields and field paths to update. See
+   *   {@link UpdateData} and {@link MergeUpdateData}.
+   * @param options - See {@link UpdateOptions}.
    * @returns A unit value.
    */
-  readonly update: (
-    id: IdSchema['Type'],
-    data: UpdateData<Omit<S['update']['Type'], Id>>,
-  ) => Effect.Effect<
-    void,
-    ModelError,
-    | S['DecodingServices']
-    | S['EncodingServices']
-    | S['update']['EncodingServices']
-  >;
+  readonly update: {
+    (
+      id: IdSchema['Type'],
+      data: UpdateData<Omit<S['update']['Type'], Id>>,
+      options?: { readonly merge?: false },
+    ): Effect.Effect<
+      void,
+      ModelError,
+      | S['DecodingServices']
+      | S['EncodingServices']
+      | S['update']['EncodingServices']
+    >;
+    (
+      id: IdSchema['Type'],
+      data: MergeUpdateData<Omit<S['update']['Type'], Id>>,
+      options: { readonly merge: true },
+    ): Effect.Effect<
+      void,
+      ModelError,
+      | S['DecodingServices']
+      | S['EncodingServices']
+      | S['update']['EncodingServices']
+    >;
+  };
 
   /**
    * Get a document model by ID.
@@ -456,14 +488,15 @@ export const makeRepository = <
 
     const update = (
       id: IdSchema['Type'],
-      data: UpdateData<Omit<S['update']['Type'], Id>>,
+      data: Record<string, unknown>,
+      updateOptions?: UpdateOptions,
     ) =>
       Effect.gen(function* () {
+        const entries =
+          updateOptions?.merge === true ? flattenForMerge(data) : data;
         const fields: Record<string, unknown> = { [options.idField]: id };
         const paths: Array<readonly [string, unknown, LeafEncoder]> = [];
-        for (const [key, value] of Object.entries(
-          data as Record<string, unknown>,
-        )) {
+        for (const [key, value] of Object.entries(entries)) {
           const encoder = isFieldPath(key) ? leafEncoder(key) : Option.none();
           if (Option.isSome(encoder)) {
             paths.push([key, value, encoder.value]);
@@ -494,15 +527,9 @@ export const makeRepository = <
         );
       }).pipe(
         Effect.withSpan(`${options.spanPrefix}.update`, {
-          attributes: { id, data },
+          attributes: { id, data, merge: updateOptions?.merge ?? false },
         }),
-      ) as Effect.Effect<
-        void,
-        ModelError,
-        | S['DecodingServices']
-        | S['EncodingServices']
-        | S['update']['EncodingServices']
-      >;
+      );
 
     const getByIdSchema = Fetch.findOneOption({
       Request: idSchema,
@@ -644,7 +671,7 @@ export const makeRepository = <
     return {
       add,
       set,
-      update,
+      update: update as Repository<S, Id, IdSchema>['update'],
       getById,
       getByIdStream,
       delete: deleteById,

@@ -3,6 +3,7 @@ import { Option, Schema } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import {
   MAX_FIELD_PATH_DEPTH,
+  flattenForMerge,
   isFieldPath,
   resolveFieldPath,
   type UpdateData,
@@ -127,6 +128,42 @@ describe('resolveFieldPath on recursive schemas', () => {
       'inode.label': 'x',
     };
     expect([ok, tooDeep, wrongLeaf, intoInterface]).toBeDefined();
+  });
+});
+
+describe('flattenForMerge', () => {
+  it('flattens plain objects and the contents of Option.some', () => {
+    expect(
+      flattenForMerge({
+        a: { b: { c: 1 }, d: 2 },
+        e: Option.some({ f: 3 }),
+        'g.h': 4,
+      }),
+    ).toEqual({ 'a.b.c': 1, 'a.d': 2, 'e.f': 3, 'g.h': 4 });
+  });
+
+  it('keeps arrays, class instances, Option.none and Option.some(leaf) whole', () => {
+    const date = new Date(0);
+    const some = Option.some(1);
+    expect(
+      flattenForMerge({
+        arr: [{ x: 1 }],
+        date,
+        none: Option.none(),
+        some,
+        nested: { some },
+      }),
+    ).toEqual({
+      arr: [{ x: 1 }],
+      date,
+      none: Option.none(),
+      some,
+      'nested.some': some,
+    });
+  });
+
+  it('contributes nothing for empty objects', () => {
+    expect(flattenForMerge({ a: {}, b: { c: {} } })).toEqual({});
   });
 });
 

@@ -269,7 +269,8 @@ typed against the model (`'metaData.deleted': true`) and encodes each leaf
 through its own field schema, so nested sentinels work. Replace hand-rolled
 `FirestoreService.update(path, { 'a.b': v })` calls with `repo.update(id,
 { 'a.b': v })`. Note that a whole-field key (`metaData: { ... }`) still
-replaces the entire map.
+replaces the entire map; pass `{ merge: true }` as a third argument to have a
+nested partial flattened into dotted paths instead.
 
 ### 8. `FirestoreService` shape changes (custom layers and test doubles)
 

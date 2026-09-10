@@ -170,7 +170,14 @@ whole-field key replaces the whole map (Firestore semantics).
 ```ts
 yield * repo.update(id, { 'metaData.deleted': true }); // only metaData.deleted
 yield * repo.update(id, { metaData: { deleted: true, tags: [] } }); // replaces metaData
+yield * repo.update(id, { metaData: { deleted: true } }, { merge: true }); // only metaData.deleted
 ```
+
+`{ merge: true }` takes a deep partial and flattens nested objects into dotted
+paths before the write, like Firestore's `set(..., { merge: true })`. Arrays,
+class instances (`DateTime`, sentinels…) and `Option.none()` are leaves and
+are written whole; `Option.some({ ... })` is merged into. An empty object
+contributes nothing (writing an empty map would clobber the existing one).
 
 Paths are typed (`UpdateData<T>`) and descend through `Schema.Struct`,
 `Model.Struct`, `Schema.Class`, `Schema.Record` (keys checked against the key
@@ -436,9 +443,10 @@ root: https://github.com/fwal/effect-firebase/blob/main/REACT.md.
    variants that helper allows.
 9. Style used throughout the library: explicit lambdas (`Effect.map((x) => f(x))`),
    no point-free `Effect.map(f)`.
-10. Nested updates use dotted keys (`'a.b': v`), not nested partial objects:
-    `{ a: { b: v } }` replaces the whole `a` map. Undeclared keys fail with
-    `SchemaError`; `update` never silently drops them.
+10. Nested updates use dotted keys (`'a.b': v`) or `{ merge: true }` with a
+    nested partial; a plain `{ a: { b: v } }` replaces the whole `a` map.
+    Undeclared keys fail with `SchemaError`; `update` never silently drops
+    them.
 
 ## Where to look
 

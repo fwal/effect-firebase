@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DateTime, Effect, Layer, Option, Schema } from 'effect';
+import { delete as deleteField } from '../fields/delete.js';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
 import * as FirestoreModel from './datetime.js';
@@ -422,6 +423,162 @@ describe('Repository', () => {
         expect(error._tag).toBe('SchemaError');
         expect(String(error)).toContain('metaData.deleted');
         expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('does not treat a scalar field as a map', () => {
+        const repo = Effect.runSync(makeNestedRepo({}));
+        const write = repo.update(PostId.make('post-1'), {
+          // @ts-expect-error title is a string, not a map
+          'title.length': 1,
+        });
+        expect(write).toBeDefined();
+      });
+    });
+
+    describe('merge', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      it('flattens a nested partial into dotted paths', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { title: 'Updated', metaData: { deleted: true } },
+            { merge: true },
+          ),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({
+          title: 'Updated',
+          'metaData.deleted': true,
+        });
+      });
+
+      it('replaces the whole map without merge', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            metaData: { deleted: true, tags: [] },
+          }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({
+          metaData: { deleted: true, tags: [] },
+        });
+      });
+
+      it('keeps arrays and sentinels whole and encodes nested leaves', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            {
+              metaData: { tags: ['a', 'b'] },
+              stats: { likes: increment(1) },
+              profile: Option.some({ lastSeenAt: DateTime.makeUnsafe(1_000) }),
+              counters: { visits: 3 },
+            },
+            { merge: true },
+          ),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(Object.keys(payload).sort()).toEqual([
+          'counters.visits',
+          'metaData.tags',
+          'profile.lastSeenAt',
+          'stats.likes',
+        ]);
+        expect(payload['metaData.tags']).toEqual(['a', 'b']);
+        expect(payload['stats.likes']).toEqual(increment(1));
+        expect(payload['profile.lastSeenAt']).toBeInstanceOf(Timestamp);
+        expect(payload['counters.visits']).toBe(3);
+      });
+
+      it('treats Option.none() and Firestore.delete() as leaves', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { profile: Option.none() },
+            { merge: true },
+          ),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { profile: Option.some(deleteField()) },
+            { merge: true },
+          ),
+        );
+
+        expect(updateMock.mock.calls).toHaveLength(2);
+        expect(payloadOf(updateMock)).toEqual({ profile: undefined });
+        expect(
+          (
+            updateMock.mock.calls[1] as unknown as [
+              string,
+              Record<string, unknown>,
+            ]
+          )[1],
+        ).toEqual({ profile: deleteField() });
+      });
+
+      it('drops empty objects, failing invalid-argument if nothing is left', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(PostId.make('post-1'), { metaData: {} }, { merge: true }),
+        );
+
+        expect(error).toMatchObject({
+          _tag: 'FirestoreError',
+          code: 'invalid-argument',
+        });
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('still rejects undeclared nested keys, naming the flattened path', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(
+            PostId.make('post-1'),
+            // @ts-expect-error nope is not a field of metaData
+            { metaData: { nope: true } },
+            { merge: true },
+          ),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('metaData.nope');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('requires complete nested values without merge', () => {
+        const repo = Effect.runSync(makeNestedRepo({}));
+        const write = repo.update(PostId.make('post-1'), {
+          // @ts-expect-error tags is required when replacing the map
+          metaData: { deleted: true },
+        });
+        expect(write).toBeDefined();
       });
 
       it('does not treat a scalar field as a map', () => {

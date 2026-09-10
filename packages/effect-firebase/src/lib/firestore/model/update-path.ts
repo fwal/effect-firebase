@@ -145,5 +145,56 @@ export const resolveFieldPath = (
   );
 };
 
+/**
+ * The payload accepted by {@link Repository.update} with `{ merge: true }`:
+ * a deep partial of the model's `update` fields. Nested plain objects are
+ * flattened into dotted field paths before the write, so every present leaf
+ * is written and every absent sibling is left untouched. Leaves are the same
+ * as for {@link UpdateData}: arrays, class instances and sentinels are
+ * written whole. `Option.some(x)` is merged into; `Option.none()` is a leaf.
+ */
+export type MergeUpdateData<T> = {
+  readonly [K in keyof T]?: MergeValue<T[K]>;
+};
+
+type MergeValue<V> =
+  V extends Option.Option<infer U>
+    ? Option.Option<MergeValue<U>>
+    : V extends Record<string, unknown>
+      ? MergeUpdateData<V>
+      : V;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+/**
+ * Flatten a merge payload into dotted field paths. Plain objects (and the
+ * contents of `Option.some`) are descended; everything else is a leaf and is
+ * kept as-is, `Option.some(leaf)` included, so the leaf encoder still sees the
+ * `Option`. An empty object contributes no paths: writing an empty map would
+ * clobber the existing one, which is the opposite of a merge.
+ */
+export const flattenForMerge = (
+  data: Record<string, unknown>,
+): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  const visit = (value: unknown, path: string): void => {
+    const inner =
+      Option.isOption(value) && Option.isSome(value) ? value.value : value;
+    if (isPlainObject(inner)) {
+      for (const [key, child] of Object.entries(inner)) {
+        visit(child, `${path}.${key}`);
+      }
+      return;
+    }
+    out[path] = value;
+  };
+  for (const [key, value] of Object.entries(data)) visit(value, key);
+  return out;
+};
+
 /** Whether a payload key is a Firestore dotted field path. */
 export const isFieldPath = (key: string): boolean => key.includes('.');

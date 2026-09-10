@@ -196,9 +196,7 @@ describe('Model.WithServerTimestamp', () => {
       const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({ lastSeenAt: serverTimestamp() });
 
-      expect(result.lastSeenAt).toBeInstanceOf(
-        FirestoreSchema.ServerTimestamp,
-      );
+      expect(result.lastSeenAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
     });
   });
 
@@ -219,9 +217,7 @@ describe('Model.WithServerTimestamp', () => {
       const encode = Schema.encodeSync(TestModel.update);
       const result = encode({ lastSeenAt: serverTimestamp() });
 
-      expect(result.lastSeenAt).toBeInstanceOf(
-        FirestoreSchema.ServerTimestamp,
-      );
+      expect(result.lastSeenAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
     });
   });
 
