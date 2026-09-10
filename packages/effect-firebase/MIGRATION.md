@@ -256,6 +256,22 @@ encoder, replace it with `repo.set` and choose the `variant` deliberately —
 `'insert'` re-stamps `DateTimeInsert` fields on every write, `'update'` with
 `merge: true` preserves them.
 
+**Undeclared keys are rejected.** `add`, `set` and `update` used to strip any
+key the model does not declare before writing; a `repo.update(id, { 'a.b': 1 })`
+degenerated into an empty write that Firestore rejected with "At least one
+field must be updated". They now fail with a `SchemaError` naming the key,
+and an empty `update` payload fails with `FirestoreError` code
+`invalid-argument`. If a call site relied on extra keys being dropped, remove
+them from the payload.
+
+**Nested updates use dotted paths.** `update` accepts Firestore field paths
+typed against the model (`'metaData.deleted': true`) and encodes each leaf
+through its own field schema, so nested sentinels work. Replace hand-rolled
+`FirestoreService.update(path, { 'a.b': v })` calls with `repo.update(id,
+{ 'a.b': v })`. Note that a whole-field key (`metaData: { ... }`) still
+replaces the entire map; pass `{ merge: true }` as a third argument to have a
+nested partial flattened into dotted paths instead.
+
 ### 8. `FirestoreService` shape changes (custom layers and test doubles)
 
 Only relevant if you implement `FirestoreService` yourself or pass overrides

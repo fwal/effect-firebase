@@ -1,4 +1,16 @@
 import { Array as Arr, Cause, Effect, Option, Schema, Stream } from 'effect';
+import type { SchemaAST } from 'effect';
+
+/**
+ * Request payloads are encoded strictly: a key the request schema does not
+ * declare fails with a `SchemaError` naming the key instead of being
+ * silently dropped. Without this, an undeclared key (a typo, or a dotted
+ * field path handed to a struct schema) vanishes before the write reaches
+ * Firestore, which then rejects the empty payload with an unrelated error.
+ */
+export const strictEncoding: SchemaAST.ParseOptions = {
+  onExcessProperty: 'error',
+};
 
 /**
  * Find all records in the collection.
@@ -15,7 +27,7 @@ export const findAll = <
     request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encodeEffect(options.Request);
+  const encodeRequest = Schema.encodeEffect(options.Request, strictEncoding);
   const decode = Schema.decodeUnknownEffect(
     Schema.mutable(Schema.Array(options.Result)),
   );
@@ -69,7 +81,7 @@ const _void = <Req extends Schema.Top, E, R>(options: {
   readonly Request: Req;
   readonly execute: (request: Req['Encoded']) => Effect.Effect<unknown, E, R>;
 }) => {
-  const encode = Schema.encodeEffect(options.Request);
+  const encode = Schema.encodeEffect(options.Request, strictEncoding);
   return (
     request: Req['Type'],
   ): Effect.Effect<void, E | Schema.SchemaError, R | Req['EncodingServices']> =>
@@ -93,7 +105,7 @@ export const findOneOption = <
     request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encodeEffect(options.Request);
+  const encodeRequest = Schema.encodeEffect(options.Request, strictEncoding);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
     request: Req['Type'],
@@ -132,7 +144,7 @@ export const findOne = <
     request: Req['Encoded'],
   ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encodeEffect(options.Request);
+  const encodeRequest = Schema.encodeEffect(options.Request, strictEncoding);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
     request: Req['Type'],
@@ -171,7 +183,7 @@ export const streamOne = <
     request: Req['Encoded'],
   ) => Stream.Stream<Option.Option<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encodeEffect(options.Request);
+  const encodeRequest = Schema.encodeEffect(options.Request, strictEncoding);
   const decode = Schema.decodeUnknownEffect(options.Result);
   return (
     request: Req['Type'],
@@ -207,7 +219,7 @@ export const streamAll = <
     request: Req['Encoded'],
   ) => Stream.Stream<ReadonlyArray<unknown>, E, R>;
 }) => {
-  const encodeRequest = Schema.encodeEffect(options.Request);
+  const encodeRequest = Schema.encodeEffect(options.Request, strictEncoding);
   const decode = Schema.decodeUnknownEffect(
     Schema.mutable(Schema.Array(options.Result)),
   );

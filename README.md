@@ -132,6 +132,27 @@ for a document you expect to be new, `'update'` with `merge: true` for one
 you expect to exist. Both are assertions rather than checks — `set` will
 not verify which case it is actually in.
 
+### Updating nested fields
+
+`update` accepts Firestore dotted field paths, typed against the model, so a
+nested field can change without rewriting its siblings. A whole-field key
+replaces the entire map, as in the Firestore SDKs.
+
+```typescript
+yield * repo.update(postId, { 'metaData.deleted': true }); // touches only metaData.deleted
+yield * repo.update(postId, { metaData: { deleted: true, tags: [] } }); // replaces metaData
+yield * repo.update(postId, { 'stats.likes': Firestore.increment(1) }); // nested sentinel
+yield * repo.update(postId, { metaData: { deleted: true } }, { merge: true }); // flattened to metaData.deleted
+```
+
+With `{ merge: true }` the payload is a deep partial: nested objects are
+flattened into dotted paths before the write, so absent siblings are left
+untouched. Arrays, `DateTime`, sentinels and other non-plain values are
+written whole.
+
+Keys the model does not declare fail with a `SchemaError` naming the key; an
+empty payload fails with `FirestoreError` code `invalid-argument`.
+
 ### Client app
 
 ```typescript
