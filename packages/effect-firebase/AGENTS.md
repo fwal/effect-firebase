@@ -188,9 +188,9 @@ leaves. Each leaf is encoded through its own field schema, so a nested
 
 Depth is capped at `Firestore.MAX_FIELD_PATH_DEPTH` (5 levels below a
 top-level field) at both the type and runtime level; deeper writes go through
-`FirestoreService.update`. Recursive schemas work: declare the recursive type
-as a type alias to get typed paths into it (an interface is a leaf at the type
-level; the runtime resolves either).
+`FirestoreService.update`. Recursive schemas (`Schema.suspend`) work up to the
+cap. What counts as a leaf is the `FieldPathLeaf` union; any other object
+type is treated as a map.
 
 Keys the model does not declare (typos, paths into scalars) fail with
 `SchemaError` naming the key; they are never dropped. An empty payload fails

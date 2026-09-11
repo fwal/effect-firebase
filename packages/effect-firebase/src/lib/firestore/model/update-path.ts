@@ -1,4 +1,10 @@
 import { Option, Schema, SchemaAST } from 'effect';
+import type { DateTime } from 'effect';
+import type { ArrayRemove, ArrayUnion } from '../fields/array.js';
+import type { Increment } from '../fields/increment.js';
+import type { GeoPoint } from '../schema/geopoint.js';
+import type { Reference } from '../schema/reference.js';
+import type { Timestamp } from '../schema/timestamp.js';
 
 /**
  * How many map levels a dotted field path may descend below a top-level
@@ -27,12 +33,9 @@ export const MAX_FIELD_PATH_DEPTH = 5;
  * Paths descend through plain object types (`Schema.Struct`, `Model.Struct`,
  * `Schema.Class`, `Schema.Record`, `Schema.suspend`) and through `Option`
  * (so an `OptionalDeletable` map is reachable even when currently absent),
- * up to {@link MAX_FIELD_PATH_DEPTH} levels. They stop at arrays,
- * `DateTime`, `Timestamp`, `GeoPoint`, `Reference` and sentinel classes,
- * which are written whole. Recursive types declared as interfaces (the usual
- * pattern for `Schema.suspend`) are leaves at the type level, since
- * interfaces have no implicit index signature; declare them as type aliases
- * to get typed paths into them.
+ * up to {@link MAX_FIELD_PATH_DEPTH} levels. They stop at
+ * {@link FieldPathLeaf} values (arrays, `DateTime`, `Timestamp`, `GeoPoint`,
+ * `Reference`, sentinel classes…), which are written whole.
  */
 export type UpdateData<T> = FieldPathRecord<T>;
 
@@ -69,18 +72,61 @@ type NestedUpdateFields<T, D extends number> = [D] extends [0]
       }[keyof T & string]
     >;
 
-// Interfaces and class instances (DateTime, Option, Timestamp, sentinels…)
-// lack an implicit index signature, so they fail `Record<string, unknown>`
-// and are treated as leaves; struct types and records pass and are descended.
+/**
+ * Value types a field path never descends into: they are stored as a single
+ * Firestore value (or are write sentinels), so `'createdAt.epochMillis'` is
+ * not a field. Everything else that is an object — `Schema.Struct`,
+ * `Model.Struct`, `Schema.Class` instances, records, recursive interfaces —
+ * is a map and is descended, matching {@link resolveFieldPath}.
+ */
+export type FieldPathLeaf =
+  | string
+  | number
+  | boolean
+  | bigint
+  | symbol
+  | null
+  | undefined
+  | ReadonlyArray<unknown>
+  | ((...args: never[]) => unknown)
+  | Date
+  | Uint8Array
+  | ReadonlyMap<unknown, unknown>
+  | ReadonlySet<unknown>
+  | DateTime.DateTime
+  | Timestamp
+  | GeoPoint
+  | Reference
+  | Increment
+  | ArrayUnion
+  | ArrayRemove;
+// `Delete` and `ServerTimestamp` have no fields, so their instance type is
+// `{}` and listing them would make every object a leaf. Descending into an
+// empty type yields no paths, which is the same outcome.
+
+/** Whether `V` (a single member, not a union) is descended into. */
+type IsMap<V> = V extends FieldPathLeaf
+  ? false
+  : V extends object
+    ? true
+    : false;
+
 type ChildUpdateFields<K extends string, V, D extends number> =
   V extends Option.Option<infer U>
     ? ChildUpdateFields<K, U, D>
-    : V extends Record<string, unknown>
+    : IsMap<V> extends true
       ? AddPrefixToKeys<K, Partial<V> & NestedUpdateFields<V, D>>
       : never;
 
+// Methods on `Schema.Class` instances are not fields.
 type AddPrefixToKeys<Prefix extends string, T> = {
-  [K in keyof T & string as `${Prefix}.${K}`]?: T[K];
+  [
+    K in keyof T & string as [Exclude<T[K], undefined>] extends [
+      (...args: never[]) => unknown,
+    ]
+      ? never
+      : `${Prefix}.${K}`
+  ]?: T[K];
 };
 
 /**
@@ -175,7 +221,7 @@ export type MergeUpdateData<T> = {
 type MergeValue<V> =
   V extends Option.Option<infer U>
     ? Option.Option<MergeValue<U>>
-    : V extends Record<string, unknown>
+    : IsMap<V> extends true
       ? MergeUpdateData<V>
       : V;
 

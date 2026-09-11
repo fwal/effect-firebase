@@ -7,6 +7,8 @@ import { TimestampDateTimeUtc } from '../schema/timestamp.js';
 import { Limit, OrderBy, StartAfter } from './constraints.js';
 import * as Query from './query.js';
 
+class Inner extends Schema.Class<Inner>('Inner')({ x: Schema.Number }) {}
+
 class PostModel extends Model.Class<PostModel>('PostModel')({
   id: Schema.String,
   status: Schema.Literals(['draft', 'published']),
@@ -20,6 +22,7 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
     Schema.Struct({ lastSeenAt: TimestampDateTimeUtc }),
   ),
   counters: Schema.Record(Schema.String, Schema.Number),
+  klass: Inner,
 }) {}
 
 describe('Query', () => {
@@ -61,10 +64,11 @@ describe('Query', () => {
     it('still accepts top-level fields with their own value types', () => {
       const queries = [
         post(Query.where('status', '==', 'published')),
+        post(Query.where('klass.x', '==', 1)),
         post(Query.where('profile', '==', Option.none())),
         post(Query.orderBy('createdAt', 'desc')),
       ];
-      expect(queries).toHaveLength(3);
+      expect(queries).toHaveLength(4);
     });
 
     // One statement per case: inside a single array literal TypeScript lets

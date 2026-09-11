@@ -10,10 +10,11 @@ import {
 } from './update-path.js';
 import { OptionalDeletable } from './optional.js';
 import * as FirestoreNumber from './number.js';
+import { TimestampDateTimeUtc } from '../schema/timestamp.js';
 
 class Inner extends Schema.Class<Inner>('Inner')({ x: Schema.Number }) {}
 
-// Recursive map declared the usual way (interface + suspend)…
+// Recursive map declared as an interface…
 interface INode {
   readonly label: string;
   readonly next?: INode;
@@ -22,7 +23,7 @@ const INode: Schema.Codec<INode> = Schema.Struct({
   label: Schema.String,
   next: Schema.optionalKey(Schema.suspend((): Schema.Codec<INode> => INode)),
 });
-// …and as a type alias, which gets typed paths.
+// …and as a type alias; both get typed paths.
 type ANode = { readonly label: string; readonly next?: ANode };
 const ANode: Schema.Codec<ANode> = Schema.Struct({
   label: Schema.String,
@@ -44,6 +45,8 @@ class Doc extends Model.Class<Doc>('Doc')({
   scalar: Schema.String,
   inode: INode,
   anode: ANode,
+  stamp: TimestampDateTimeUtc,
+  arr: Schema.Array(Schema.String),
 }) {}
 
 const root = Doc.update;
@@ -108,12 +111,13 @@ describe('resolveFieldPath on recursive schemas', () => {
     );
   });
 
-  it('types paths into recursive type aliases up to the cap, and none into interfaces', () => {
+  it('types paths into recursive aliases and interfaces up to the cap', () => {
     type U = UpdateData<Omit<typeof Doc.update.Type, 'id'>>;
     const ok: U = {
       'anode.next.label': 'x',
       'anode.next.next.next.next.label': 'x', // depth 5
-      inode: { label: 'whole value only' },
+      'inode.next.label': 'x',
+      inode: { label: 'whole value' },
     };
     const tooDeep: U = {
       // @ts-expect-error depth 6 exceeds MAX_FIELD_PATH_DEPTH
@@ -123,11 +127,25 @@ describe('resolveFieldPath on recursive schemas', () => {
       // @ts-expect-error label is a string
       'anode.next.label': 1,
     };
-    const intoInterface: U = {
-      // @ts-expect-error interfaces are leaves at the type level
-      'inode.label': 'x',
+    expect([ok, tooDeep, wrongLeaf]).toBeDefined();
+  });
+
+  it('descends into Schema.Class instances but not into leaf classes', () => {
+    type U = UpdateData<Omit<typeof Doc.update.Type, 'id'>>;
+    const ok: U = { 'klass.x': 1 };
+    const intoDateTime: U = {
+      // @ts-expect-error Timestamp-backed values are leaves
+      'stamp.epochMillis': 1,
     };
-    expect([ok, tooDeep, wrongLeaf, intoInterface]).toBeDefined();
+    const intoIncrement: U = {
+      // @ts-expect-error sentinels are leaves
+      'variant.likes.operand': 1,
+    };
+    const intoArray: U = {
+      // @ts-expect-error arrays are leaves
+      'arr.0': 'x',
+    };
+    expect([ok, intoDateTime, intoIncrement, intoArray]).toBeDefined();
   });
 });
 
