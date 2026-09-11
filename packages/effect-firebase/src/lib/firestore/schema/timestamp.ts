@@ -3,10 +3,15 @@ import { DateTime, Effect, Schema, SchemaGetter, SchemaIssue } from 'effect';
 /**
  * Class representing a Timestamp in Firestore.
  */
+/** Type-level brand so `Timestamp` is matched nominally, not by field shape. */
+export const TimestampTypeId: unique symbol = Symbol.for(
+  'effect-firebase/Timestamp',
+);
 export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
   seconds: Schema.Number,
   nanoseconds: Schema.Number,
 }) {
+  declare readonly [TimestampTypeId]: typeof TimestampTypeId;
   static fromDate(date: Date): Timestamp {
     return Timestamp.fromMillis(date.getTime());
   }

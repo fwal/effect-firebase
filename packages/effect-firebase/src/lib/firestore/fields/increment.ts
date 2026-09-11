@@ -6,7 +6,12 @@ import { Schema } from 'effect';
  * Only valid in the `update` variant — use `WithIncrementField` to add
  * support to a field.
  */
+/** Type-level brand so `Increment` is matched nominally, not by field shape. */
+export const IncrementTypeId: unique symbol = Symbol.for(
+  'effect-firebase/Increment',
+);
 export class Increment {
+  declare readonly [IncrementTypeId]: typeof IncrementTypeId;
   constructor(public readonly operand: number) {}
 }
 

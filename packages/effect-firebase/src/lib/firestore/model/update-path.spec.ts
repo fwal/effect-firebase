@@ -47,6 +47,15 @@ class Doc extends Model.Class<Doc>('Doc')({
   anode: ANode,
   stamp: TimestampDateTimeUtc,
   arr: Schema.Array(Schema.String),
+  // Same field shapes as GeoPoint / Reference / Increment / ArrayUnion.
+  geo: Schema.Struct({ latitude: Schema.Number, longitude: Schema.Number }),
+  file: Schema.Struct({
+    id: Schema.String,
+    path: Schema.String,
+    size: Schema.Number,
+  }),
+  op: Schema.Struct({ operand: Schema.Number }),
+  vals: Schema.Struct({ values: Schema.Array(Schema.Unknown) }),
 }) {}
 
 const root = Doc.update;
@@ -146,6 +155,19 @@ describe('resolveFieldPath on recursive schemas', () => {
       'arr.0': 'x',
     };
     expect([ok, intoDateTime, intoIncrement, intoArray]).toBeDefined();
+  });
+
+  it('matches leaf classes nominally, so structs with the same shape are maps', () => {
+    type U = UpdateData<Omit<typeof Doc.update.Type, 'id'>>;
+    const ok: U = {
+      'geo.latitude': 1,
+      'file.path': 'a/b',
+      'op.operand': 2,
+      'vals.values': [],
+    };
+    expect(ok).toBeDefined();
+    expect(resolves('geo.latitude')).toBe(true);
+    expect(resolves('file.path')).toBe(true);
   });
 });
 
