@@ -113,7 +113,7 @@ describe('ReferenceInstance', () => {
 
   it('should reject non-Reference objects', () => {
     expect(() =>
-      Schema.decodeSync(ReferenceInstance)({
+      Schema.decodeUnknownSync(ReferenceInstance)({
         id: 'doc123',
         path: 'users/doc123',
       }),

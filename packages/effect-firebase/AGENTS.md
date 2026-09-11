@@ -188,9 +188,9 @@ leaves. Each leaf is encoded through its own field schema, so a nested
 
 Depth is capped at `Firestore.MAX_FIELD_PATH_DEPTH` (5 levels below a
 top-level field) at both the type and runtime level; deeper writes go through
-`FirestoreService.update`. Recursive schemas work: declare the recursive type
-as a type alias to get typed paths into it (an interface is a leaf at the type
-level; the runtime resolves either).
+`FirestoreService.update`. Recursive schemas (`Schema.suspend`) work up to the
+cap. What counts as a leaf is the `FieldPathLeaf` union; any other object
+type is treated as a map.
 
 Keys the model does not declare (typos, paths into scalars) fail with
 `SchemaError` naming the key; they are never dropped. An empty payload fails
@@ -208,6 +208,7 @@ repo.query(
   Query.and(
     Query.where('status', '==', 'published'),
     Query.where('likes', '>=', 10),
+    Query.where('metaData.type', '==', 'post'), // dotted paths into nested maps
     Query.orderBy('createdAt', 'desc'),
     Query.limit(20),
   ),
@@ -227,7 +228,9 @@ repo.query(
 Constructors: `where`, `orderBy`, `orderByDocumentId`, `limit`,
 `limitToLast`, `startAt`, `startAfter`, `endAt`, `endBefore`, `and`, `or`,
 `empty`, plus `add*` pipeable variants of each. Field names and operators are
-checked against the model at compile time. Cursor values are encoded like
+checked against the model at compile time; field names include dotted paths
+into nested maps, following the same descent rules and depth cap as `update`
+(see "Updating nested fields"). Cursor values are encoded like
 document data, so `DateTime.Utc`, `FirestoreSchema.Timestamp`, strings and
 numbers all work. Firestore has no offset pagination; use cursors (see the
 React guide for a growing-limit live feed and a cursor-stack prev/next).

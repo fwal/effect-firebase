@@ -16,6 +16,10 @@ export * from './model/number.js';
 export { makeRepository } from './model/repository.js';
 export {
   MAX_FIELD_PATH_DEPTH,
+  type FieldPathLeaf,
+  type FieldPathRecord,
+  type FieldPaths,
+  type FieldPathType,
   type MergeUpdateData,
   type UpdateData,
 } from './model/update-path.js';

@@ -13,27 +13,28 @@ import {
   Where,
   type WhereFilterOp,
 } from './constraints.js';
+import type { FieldPaths, FieldPathType } from '../model/update-path.js';
 
 // ============================================================================
 // Type-Safe Field Extraction
 // ============================================================================
 
 /**
- * Extract field keys from a Schema struct (Model).
+ * The queryable field names of a Schema (Model): its top-level keys plus
+ * dotted paths into nested maps (`'metaData.type'`), following the same
+ * rules and depth cap as `FieldPathRecord` / `UpdateData`.
  */
-export type FieldKeys<S> = S extends { readonly fields: infer F }
-  ? keyof F & string
+export type FieldKeys<S> = S extends { readonly Type: infer T }
+  ? FieldPaths<T>
   : never;
 
 /**
- * Extract the type of a specific field from a Schema.
+ * The type stored at a field name or dotted path of a Schema.
  */
 export type FieldType<S, K extends string> = S extends {
   readonly Type: infer T;
 }
-  ? K extends keyof T
-    ? T[K]
-    : never
+  ? FieldPathType<T, K>
   : never;
 
 // ============================================================================
@@ -64,6 +65,9 @@ export const empty = <S>(): Query<S> => [] as Query<S>;
  * ```ts
  * // Type-safe: field must exist on the model, value must match field type
  * Query.where<PostModel, 'status'>('status', '==', 'active')
+ *
+ * // Nested maps are addressed with dotted paths
+ * Query.where('metaData.type', '==', 'post')
  *
  * // Or let TypeScript infer from usage context
  * Query.where('status', '==', 'active')

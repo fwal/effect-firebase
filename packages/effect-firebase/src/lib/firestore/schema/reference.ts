@@ -17,6 +17,10 @@ interface ReferenceShape {
   readonly parent?: ReferenceShape;
 }
 
+/** Type-level brand so `Reference` is matched nominally, not by field shape. */
+export const ReferenceTypeId: unique symbol = Symbol.for(
+  'effect-firebase/Reference',
+);
 /**
  * Class representing a DocumentReference in Firestore.
  */
@@ -40,6 +44,8 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     ),
   ),
 ) {
+  declare readonly [ReferenceTypeId]: typeof ReferenceTypeId;
+
   static makeFromPath(path: string): Reference {
     const parts = path.split('/').filter(Boolean);
 
