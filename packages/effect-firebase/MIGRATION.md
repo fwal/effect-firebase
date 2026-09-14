@@ -211,6 +211,13 @@ spelled these fields out as `Schema.OptionFromNullishOr<...>` must use
 `Schema.OptionFromOptionalNullOr<...>` instead. `OptionalNull` and
 `ReferenceOptional` are unchanged and still require the key to be present.
 
+**Plain optional fields.** For a field that should be `T | absent` in the
+app (no `Option`), declare it with `Schema.optionalKey(s)` rather than
+`Schema.optional(s)`. `Schema.optional` also admits `undefined` as a value,
+which passes the schema but is rejected by the Firebase SDKs on write;
+`optionalKey` rejects it with a `SchemaError` up front. Firestore documents
+never contain `undefined`, so nothing is lost on read.
+
 **`OptionalDeletable` update variant.** `Option.none()` in an `update`
 payload is now encoded as a missing key instead of `undefined` (which the
 Firebase SDKs reject as a value), and a document without the key decodes
