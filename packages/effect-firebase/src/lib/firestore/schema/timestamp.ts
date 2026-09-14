@@ -89,7 +89,7 @@ export const AnyTimestampDateTimeUtc = Schema.Union([
   ServerTimestampInstance,
 ]).pipe(
   Schema.decodeTo(Schema.DateTimeUtc, {
-    decode: SchemaGetter.transformOrFail(
+    decode: SchemaGetter.transformEffect(
       (input: Timestamp | ServerTimestamp) => {
         if (input instanceof Timestamp) {
           return Effect.succeed(DateTime.makeUnsafe(input.toMillis()));
