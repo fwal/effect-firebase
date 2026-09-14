@@ -5,6 +5,7 @@ import {
   DateTime,
   DateTimeInsert,
   DateTimeUpdate,
+  ServerDateTime,
   WithServerTimestamp,
 } from './datetime.js';
 import { Timestamp } from '../schema/timestamp.js';
@@ -130,11 +131,31 @@ describe('Model.DateTimeInsert', () => {
   });
 
   describe('insert variant', () => {
+    it('should encode a missing key to ServerTimestamp', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const result = encode({});
+
+      expect(result.createdAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
     it('should encode undefined to ServerTimestamp', () => {
       const encode = Schema.encodeSync(TestModel.insert);
       const result = encode({ createdAt: undefined });
 
       expect(result.createdAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should decode Timestamp to DateTime.Utc', () => {
+      const decode = Schema.decodeUnknownSync(TestModel.insert);
+      const result = decode({ createdAt: Timestamp.fromMillis(1705315800000) });
+
+      expect(EffectDateTime.isDateTime(result.createdAt)).toBe(true);
+    });
+
+    it('should reject decoding a ServerTimestamp', () => {
+      const decode = Schema.decodeUnknownSync(TestModel.insert);
+
+      expect(() => decode({ createdAt: serverTimestamp() })).toThrow();
     });
 
     it('should encode a DateTime.Utc value to Timestamp', () => {
@@ -292,6 +313,78 @@ describe('Model.DateTimeUpdate', () => {
       });
 
       expect(result.updatedAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should encode a missing key to ServerTimestamp', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const result = encode({});
+
+      expect(result.updatedAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should encode a DateTime.Utc value to Timestamp', () => {
+      const encode = Schema.encodeSync(TestModel.update);
+      const result = encode({
+        updatedAt: EffectDateTime.makeUnsafe(1705315800000),
+      });
+
+      expect(result.updatedAt).toEqual({ seconds: 1705315800, nanoseconds: 0 });
+    });
+  });
+
+  describe('insert variant', () => {
+    it('should encode a missing key to ServerTimestamp', () => {
+      const encode = Schema.encodeSync(TestModel.insert);
+      const result = encode({});
+
+      expect(result.updatedAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+  });
+});
+
+describe('Model.ServerDateTime', () => {
+  class TestModel extends Model.Class<TestModel>('TestModel')({
+    id: Model.GeneratedByDb(Schema.String),
+    seenAt: ServerDateTime,
+  }) {}
+
+  describe('get variant', () => {
+    it('should decode Timestamp to DateTime.Utc', () => {
+      const decode = Schema.decodeUnknownSync(TestModel);
+      const result = decode({
+        id: 'post-1',
+        seenAt: Timestamp.fromMillis(1705315800000),
+      });
+
+      expect(EffectDateTime.isDateTime(result.seenAt)).toBe(true);
+    });
+  });
+
+  describe.each([
+    ['insert', () => TestModel.insert],
+    ['update', () => TestModel.update],
+  ] as const)('%s variant', (_, variant) => {
+    it('should encode a missing key to ServerTimestamp', () => {
+      const encode = Schema.encodeUnknownSync(variant());
+      const result = encode({});
+
+      expect(result.seenAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should encode undefined to ServerTimestamp', () => {
+      const encode = Schema.encodeUnknownSync(variant());
+      const result = encode({ seenAt: undefined });
+
+      expect(result.seenAt).toBeInstanceOf(FirestoreSchema.ServerTimestamp);
+    });
+
+    it('should encode a DateTime.Utc value to Timestamp', () => {
+      const encode = Schema.encodeUnknownSync(variant());
+      const result = encode({
+        seenAt: EffectDateTime.makeUnsafe(1705315800000),
+      });
+
+      expect(result.seenAt).toEqual({ seconds: 1705315800, nanoseconds: 0 });
     });
   });
 });

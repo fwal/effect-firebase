@@ -232,14 +232,13 @@ describe('Repository', () => {
         data: { title: 'Hello', createdAt: undefined, updatedAt: undefined },
       });
 
-      const insertMissingInsertOnlyField = repo.set(
-        PostId.make('post-1'),
-        // @ts-expect-error the default insert variant requires createdAt.
-        { data: { title: 'Hello', updatedAt: undefined } },
-      );
+      // Server-stamped fields may be omitted from the insert variant.
+      const insertWithoutStampedFields = repo.set(PostId.make('post-1'), {
+        data: { title: 'Hello' },
+      });
 
       expect(updateWithInsertOnlyField).toBeDefined();
-      expect(insertMissingInsertOnlyField).toBeDefined();
+      expect(insertWithoutStampedFields).toBeDefined();
     });
   });
 
@@ -259,6 +258,44 @@ describe('Repository', () => {
         id: 'post-1',
         title: 'Hello',
       });
+    });
+
+    it('applies decoding defaults from spread struct fields', async () => {
+      // Regression for fields spread from a struct that carries a decoding
+      // default: the model must accept them and fill the default on read.
+      const WithDefault = Schema.Struct({
+        status: Schema.optionalKey(Schema.String).pipe(
+          Schema.withDecodingDefault(Effect.succeed('draft')),
+        ),
+      });
+      class DefaultedModel extends Model.Class<DefaultedModel>(
+        'DefaultedModel',
+      )({
+        id: Model.GeneratedByDb(PostId),
+        ...WithDefault.fields,
+      }) {}
+      const getMock = vi.fn(() =>
+        Effect.succeed(Option.some(snap('post-1', {}))),
+      );
+      const repo = await Effect.runPromise(
+        makeRepository(DefaultedModel, {
+          collectionPath: 'posts',
+          idField: 'id',
+          spanPrefix: 'test',
+        }).pipe(Effect.provide(makeLayer({ get: getMock }))),
+      );
+      const result = await Effect.runPromise(
+        repo.getById(PostId.make('post-1')),
+      );
+
+      expect(Option.getOrThrow(result)).toMatchObject({
+        id: 'post-1',
+        status: 'draft',
+      });
+      expect(Schema.encodeSync(DefaultedModel.insert)({})).toEqual({});
+      expect(Schema.decodeUnknownSync(DefaultedModel.insert)({}).status).toBe(
+        'draft',
+      );
     });
 
     it('returns None when the document does not exist', async () => {
@@ -513,7 +550,7 @@ describe('Repository', () => {
         await Effect.runPromise(
           repo.update(
             PostId.make('post-1'),
-            { profile: Option.none() },
+            { title: 'Hello', profile: Option.none() },
             { merge: true },
           ),
         );
@@ -526,7 +563,10 @@ describe('Repository', () => {
         );
 
         expect(updateMock.mock.calls).toHaveLength(2);
-        expect(payloadOf(updateMock)).toEqual({ profile: undefined });
+        // Option.none() leaves the field untouched: the key is omitted rather
+        // than written as undefined.
+        expect(payloadOf(updateMock)).toEqual({ title: 'Hello' });
+        expect(payloadOf(updateMock)).not.toHaveProperty('profile');
         expect(
           (
             updateMock.mock.calls[1] as unknown as [
@@ -535,6 +575,49 @@ describe('Repository', () => {
             ]
           )[1],
         ).toEqual({ profile: deleteField() });
+      });
+
+      it('omits a nested OptionalDeletable given Option.none()', async () => {
+        class ProfileModel extends Model.Class<ProfileModel>('ProfileModel')({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          profile: Model.Struct({ bio: OptionalDeletable(Schema.String) }),
+        }) {}
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(ProfileModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'Hello',
+            'profile.bio': Option.none(),
+          }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { title: 'Hello', profile: { bio: Option.none() } },
+            { merge: true },
+          ),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            'profile.bio': Option.some(deleteField()),
+          }),
+        );
+
+        const payloads = updateMock.mock.calls.map(
+          (call) => (call as unknown as [string, Record<string, unknown>])[1],
+        );
+        expect(payloads[0]).toEqual({ title: 'Hello' });
+        expect(payloads[0]).not.toHaveProperty('profile.bio');
+        expect(payloads[1]).toEqual({ title: 'Hello' });
+        expect(payloads[1]).not.toHaveProperty('profile.bio');
+        expect(payloads[2]).toEqual({ 'profile.bio': deleteField() });
       });
 
       it('drops empty objects, failing invalid-argument if nothing is left', async () => {

@@ -464,9 +464,12 @@ export const makeRepository = <
     // that does not resolve stays in the struct payload, where the strict
     // encoder rejects it by name. Encoders are cached per path because
     // Schema.encodeUnknownEffect compiles on construction.
+    // A leaf whose schema omits the key on encode (for example an
+    // `OptionalDeletable` given `Option.none()`) resolves to `None`, so the
+    // caller can leave it out of the payload rather than write `undefined`.
     type LeafEncoder = (
       value: unknown,
-    ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
+    ) => Effect.Effect<Option.Option<unknown>, Schema.SchemaError, unknown>;
     const leafEncoders = new Map<string, LeafEncoder>();
     const leafEncoder = (path: string): Option.Option<LeafEncoder> => {
       const cached = leafEncoders.get(path);
@@ -477,10 +480,12 @@ export const makeRepository = <
           Fetch.strictEncoding,
         );
         const encoder: LeafEncoder = (value) =>
-          Effect.map(
-            encodeLeaf({ [path]: value }),
-            (encoded) => (encoded as Record<string, unknown>)[path],
-          );
+          Effect.map(encodeLeaf({ [path]: value }), (encoded) => {
+            const record = encoded as Record<string, unknown>;
+            return Object.hasOwn(record, path)
+              ? Option.some(record[path])
+              : Option.none();
+          });
         leafEncoders.set(path, encoder);
         return encoder;
       });
@@ -508,7 +513,10 @@ export const makeRepository = <
         const { [options.idField as string]: encodedId, ...payload } =
           (yield* encodeUpdateFields(fields)) as Record<string, unknown>;
         for (const [key, value, encode] of paths) {
-          payload[key] = yield* encode(value);
+          const encoded = yield* encode(value);
+          if (Option.isSome(encoded)) {
+            payload[key] = encoded.value;
+          }
         }
 
         // Firestore rejects an empty update with a message about argument

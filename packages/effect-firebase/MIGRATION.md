@@ -191,10 +191,39 @@ const Custom = Model.Field({ select: A, insert: B, update: C, json: D });
 `Model.ServerDateTime` was wrapped in `VariantSchema.Overrideable` and
 required `Model.Override(value)` to write an explicit timestamp. In v1.0
 `Firestore.ServerDateTime` is a plain field: pass a `DateTime.Utc` to write
-that instant, or `undefined` to write the server timestamp. For fields where
-you want to opt into the server timestamp explicitly, wrap any timestamp
-field in `Firestore.WithServerTimestamp(...)` and pass
-`Firestore.serverTimestamp()`.
+that instant, or omit the key (or pass `undefined`) to write the server
+timestamp. The same applies to the `insert`/`update` variants of
+`DateTimeInsert` and `DateTimeUpdate`, so `repo.add({ title })` no longer
+needs `createdAt: undefined`. For fields where you want to opt into the
+server timestamp explicitly, wrap any timestamp field in
+`Firestore.WithServerTimestamp(...)` and pass `Firestore.serverTimestamp()`.
+
+**`Optional` encoded type.** The database variants (`select`/`insert`/
+`update`) of `Firestore.Optional(s)` decode a missing key, `null` and
+`undefined` to `Option.none()`, as they did in v0.x (Effect v4 no longer
+tolerates a missing key on a required property, so v1.0 betas before beta.7
+failed reads of documents without the field with `SchemaError: Missing key`).
+`Option.none()` is still encoded as `null`, so write payloads are unchanged.
+The encoded field type moved from `Schema.NullishOr<S>` to
+`Schema.optional(Schema.NullOr<S>)`, which makes the key optional in
+`Model.Encoded` / `Model.insert.Encoded` / `Model.update.Encoded`. Code that
+spelled these fields out as `Schema.OptionFromNullishOr<...>` must use
+`Schema.OptionFromOptionalNullOr<...>` instead. `OptionalNull` and
+`ReferenceOptional` are unchanged and still require the key to be present.
+
+**Plain optional fields.** For a field that should be `T | absent` in the
+app (no `Option`), declare it with `Schema.optionalKey(s)` rather than
+`Schema.optional(s)`. `Schema.optional` also admits `undefined` as a value,
+which passes the schema but is rejected by the Firebase SDKs on write;
+`optionalKey` rejects it with a `SchemaError` up front. Firestore documents
+never contain `undefined`, so nothing is lost on read.
+
+**`OptionalDeletable` update variant.** `Option.none()` in an `update`
+payload is now encoded as a missing key instead of `undefined` (which the
+Firebase SDKs reject as a value), and a document without the key decodes
+through `Model.update`. A merge update whose only field is `Option.none()`
+therefore fails with `FirestoreError` code `invalid-argument` (empty
+payload); use `Option.some(Firestore.delete())` to remove the field.
 
 ### 5. Update `FirestoreField` import (converter usage)
 
@@ -379,16 +408,21 @@ the mock's simulated states live.
 
 Additional Effect v4 breaking changes you may encounter in your own code:
 
-| v3                                                | v4                                                             |
-| ------------------------------------------------- | -------------------------------------------------------------- |
-| `Effect.catchAll(f)`                              | `Effect.catch(f)`                                              |
-| `Effect.catchAllDefect(f)`                        | `Effect.catchDefect(f)`                                        |
-| `Effect.catchAllCause(f)`                         | `Effect.catchCause(f)`                                         |
-| `Schema.Union(a, b, ...)`                         | `Schema.Union([a, b, ...])`                                    |
-| `struct.pick('field')`                            | `struct.mapFields(Struct.pick(['field']))`                     |
-| `ParseResult.ArrayFormatter.formatErrorSync(e)`   | `e.message` (use `Schema.isSchemaError(e)` to narrow)          |
-| `import { ParseError } from 'effect/ParseResult'` | `import { Schema } from 'effect'` → use `Schema.isSchemaError` |
-| `Context.Tag('id')<Self, Shape>()`                | `Context.Service<Self, Shape>()('id')`                         |
+| v3                                                | v4                                                                          |
+| ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `Effect.catchAll(f)`                              | `Effect.catch(f)`                                                           |
+| `Effect.catchAllDefect(f)`                        | `Effect.catchDefect(f)`                                                     |
+| `Effect.catchAllCause(f)`                         | `Effect.catchCause(f)`                                                      |
+| `Schema.Union(a, b, ...)`                         | `Schema.Union([a, b, ...])`                                                 |
+| `Schema.optionalWith(s, { default: () => v })`    | `Schema.optionalKey(s).pipe(Schema.withDecodingDefault(Effect.succeed(v)))` |
+| `struct.pick('field')`                            | `struct.mapFields(Struct.pick(['field']))`                                  |
+| `ParseResult.ArrayFormatter.formatErrorSync(e)`   | `e.message` (use `Schema.isSchemaError(e)` to narrow)                       |
+| `import { ParseError } from 'effect/ParseResult'` | `import { Schema } from 'effect'` → use `Schema.isSchemaError`              |
+| `Context.Tag('id')<Self, Shape>()`                | `Context.Service<Self, Shape>()('id')`                                      |
+
+Fields spread from a struct with a decoding default (the
+`Schema.optionalWith(..., { default })` pattern) work in `Model.Class` again;
+v0.x rejected them with `Unsupported schema`.
 
 For a complete list of Effect v4 breaking changes beyond what's covered here,
 see the [Effect migration guide](https://effect.website/docs/migration-guide).
