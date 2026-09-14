@@ -260,6 +260,44 @@ describe('Repository', () => {
       });
     });
 
+    it('applies decoding defaults from spread struct fields', async () => {
+      // Regression for fields spread from a struct that carries a decoding
+      // default: the model must accept them and fill the default on read.
+      const WithDefault = Schema.Struct({
+        status: Schema.optionalKey(Schema.String).pipe(
+          Schema.withDecodingDefault(Effect.succeed('draft')),
+        ),
+      });
+      class DefaultedModel extends Model.Class<DefaultedModel>(
+        'DefaultedModel',
+      )({
+        id: Model.GeneratedByDb(PostId),
+        ...WithDefault.fields,
+      }) {}
+      const getMock = vi.fn(() =>
+        Effect.succeed(Option.some(snap('post-1', {}))),
+      );
+      const repo = await Effect.runPromise(
+        makeRepository(DefaultedModel, {
+          collectionPath: 'posts',
+          idField: 'id',
+          spanPrefix: 'test',
+        }).pipe(Effect.provide(makeLayer({ get: getMock }))),
+      );
+      const result = await Effect.runPromise(
+        repo.getById(PostId.make('post-1')),
+      );
+
+      expect(Option.getOrThrow(result)).toMatchObject({
+        id: 'post-1',
+        status: 'draft',
+      });
+      expect(Schema.encodeSync(DefaultedModel.insert)({})).toEqual({});
+      expect(Schema.decodeUnknownSync(DefaultedModel.insert)({}).status).toBe(
+        'draft',
+      );
+    });
+
     it('returns None when the document does not exist', async () => {
       const getMock = vi.fn(() => Effect.succeed(Option.none()));
       const repo = await Effect.runPromise(makeRepo({ get: getMock }));

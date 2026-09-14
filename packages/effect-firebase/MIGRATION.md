@@ -401,16 +401,21 @@ the mock's simulated states live.
 
 Additional Effect v4 breaking changes you may encounter in your own code:
 
-| v3                                                | v4                                                             |
-| ------------------------------------------------- | -------------------------------------------------------------- |
-| `Effect.catchAll(f)`                              | `Effect.catch(f)`                                              |
-| `Effect.catchAllDefect(f)`                        | `Effect.catchDefect(f)`                                        |
-| `Effect.catchAllCause(f)`                         | `Effect.catchCause(f)`                                         |
-| `Schema.Union(a, b, ...)`                         | `Schema.Union([a, b, ...])`                                    |
-| `struct.pick('field')`                            | `struct.mapFields(Struct.pick(['field']))`                     |
-| `ParseResult.ArrayFormatter.formatErrorSync(e)`   | `e.message` (use `Schema.isSchemaError(e)` to narrow)          |
-| `import { ParseError } from 'effect/ParseResult'` | `import { Schema } from 'effect'` → use `Schema.isSchemaError` |
-| `Context.Tag('id')<Self, Shape>()`                | `Context.Service<Self, Shape>()('id')`                         |
+| v3                                                | v4                                                                          |
+| ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `Effect.catchAll(f)`                              | `Effect.catch(f)`                                                           |
+| `Effect.catchAllDefect(f)`                        | `Effect.catchDefect(f)`                                                     |
+| `Effect.catchAllCause(f)`                         | `Effect.catchCause(f)`                                                      |
+| `Schema.Union(a, b, ...)`                         | `Schema.Union([a, b, ...])`                                                 |
+| `Schema.optionalWith(s, { default: () => v })`    | `Schema.optionalKey(s).pipe(Schema.withDecodingDefault(Effect.succeed(v)))` |
+| `struct.pick('field')`                            | `struct.mapFields(Struct.pick(['field']))`                                  |
+| `ParseResult.ArrayFormatter.formatErrorSync(e)`   | `e.message` (use `Schema.isSchemaError(e)` to narrow)                       |
+| `import { ParseError } from 'effect/ParseResult'` | `import { Schema } from 'effect'` → use `Schema.isSchemaError`              |
+| `Context.Tag('id')<Self, Shape>()`                | `Context.Service<Self, Shape>()('id')`                                      |
+
+Fields spread from a struct with a decoding default (the
+`Schema.optionalWith(..., { default })` pattern) work in `Model.Class` again;
+v0.x rejected them with `Unsupported schema`.
 
 For a complete list of Effect v4 breaking changes beyond what's covered here,
 see the [Effect migration guide](https://effect.website/docs/migration-guide).
