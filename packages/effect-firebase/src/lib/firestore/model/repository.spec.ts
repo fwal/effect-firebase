@@ -566,6 +566,7 @@ describe('Repository', () => {
         // Option.none() leaves the field untouched: the key is omitted rather
         // than written as undefined.
         expect(payloadOf(updateMock)).toEqual({ title: 'Hello' });
+        expect(payloadOf(updateMock)).not.toHaveProperty('profile');
         expect(
           (
             updateMock.mock.calls[1] as unknown as [
@@ -574,6 +575,49 @@ describe('Repository', () => {
             ]
           )[1],
         ).toEqual({ profile: deleteField() });
+      });
+
+      it('omits a nested OptionalDeletable given Option.none()', async () => {
+        class ProfileModel extends Model.Class<ProfileModel>('ProfileModel')({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          profile: Model.Struct({ bio: OptionalDeletable(Schema.String) }),
+        }) {}
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(ProfileModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'Hello',
+            'profile.bio': Option.none(),
+          }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { title: 'Hello', profile: { bio: Option.none() } },
+            { merge: true },
+          ),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            'profile.bio': Option.some(deleteField()),
+          }),
+        );
+
+        const payloads = updateMock.mock.calls.map(
+          (call) => (call as unknown as [string, Record<string, unknown>])[1],
+        );
+        expect(payloads[0]).toEqual({ title: 'Hello' });
+        expect(payloads[0]).not.toHaveProperty('profile.bio');
+        expect(payloads[1]).toEqual({ title: 'Hello' });
+        expect(payloads[1]).not.toHaveProperty('profile.bio');
+        expect(payloads[2]).toEqual({ 'profile.bio': deleteField() });
       });
 
       it('drops empty objects, failing invalid-argument if nothing is left', async () => {
