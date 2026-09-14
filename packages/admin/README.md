@@ -115,6 +115,61 @@ export const cleanup = onScheduleEffect(
 );
 ```
 
+## Setup errors (`onSetupError`)
+
+Every wrapper decodes incoming data and encodes outgoing data with the schemas you
+declare. When that fails — the caller sent data that does not match `inputSchema`, a
+document does not match `schema` — the wrapper raises a `FunctionSetupError` carrying
+the `phase` that failed (`decode-input`, `encode-output`, `decode-body`,
+`encode-response`, `decode-document`, `decode-message`, `decode-task`) and the
+underlying `SchemaError` as `cause`.
+
+Pass `onSetupError` to recover instead of taking the default:
+
+```typescript
+import { onCallEffect } from '@effect-firebase/admin';
+import { HttpsError } from 'firebase-functions/https';
+
+export const createPost = onCallEffect(
+  {
+    runtime,
+    inputSchema: Input,
+    outputSchema: Output,
+    onSetupError: (error, request) =>
+      Effect.fail(new HttpsError('invalid-argument', error.cause.message)),
+  },
+  (input, context) => handle(input, context),
+);
+```
+
+The hook receives the wrapper's native arguments, so an HTTP handler can write its own
+response and a trigger can inspect the event:
+
+```typescript
+export const onPostCreated = onDocumentCreatedEffect(
+  {
+    runtime,
+    document: 'posts/{postId}',
+    schema: PostModel,
+    onSetupError: (error, event) =>
+      Effect.logWarning(`Skipping malformed post ${event.params.postId}`),
+  },
+  (post) => handle(post),
+);
+```
+
+Defaults when `onSetupError` is omitted:
+
+| Wrapper                        | Invalid incoming data                       | Encode failure       |
+| ------------------------------ | ------------------------------------------- | -------------------- |
+| `onCallEffect`                 | `HttpsError('invalid-argument', ...)`        | `HttpsError('internal')` |
+| `onRequestEffect`              | `400 { error: 'Invalid request body' }`      | `500`                |
+| Firestore / Pub/Sub / Tasks    | logged defect                               | —                    |
+
+`onCallEffect` also propagates any `HttpsError` failed by the handler itself to the
+client with its code and message intact, so `Effect.catchTag(...)` chains that end in
+`Effect.fail(new HttpsError(...))` work as written.
+
 ## Cloud Logging
 
 `Admin.layer` automatically replaces the default Effect logger with one that writes structured logs to Cloud Logging:
