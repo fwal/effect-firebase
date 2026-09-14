@@ -232,14 +232,13 @@ describe('Repository', () => {
         data: { title: 'Hello', createdAt: undefined, updatedAt: undefined },
       });
 
-      const insertMissingInsertOnlyField = repo.set(
-        PostId.make('post-1'),
-        // @ts-expect-error the default insert variant requires createdAt.
-        { data: { title: 'Hello', updatedAt: undefined } },
-      );
+      // Server-stamped fields may be omitted from the insert variant.
+      const insertWithoutStampedFields = repo.set(PostId.make('post-1'), {
+        data: { title: 'Hello' },
+      });
 
       expect(updateWithInsertOnlyField).toBeDefined();
-      expect(insertMissingInsertOnlyField).toBeDefined();
+      expect(insertWithoutStampedFields).toBeDefined();
     });
   });
 
@@ -513,7 +512,7 @@ describe('Repository', () => {
         await Effect.runPromise(
           repo.update(
             PostId.make('post-1'),
-            { profile: Option.none() },
+            { title: 'Hello', profile: Option.none() },
             { merge: true },
           ),
         );
@@ -526,7 +525,9 @@ describe('Repository', () => {
         );
 
         expect(updateMock.mock.calls).toHaveLength(2);
-        expect(payloadOf(updateMock)).toEqual({ profile: undefined });
+        // Option.none() leaves the field untouched: the key is omitted rather
+        // than written as undefined.
+        expect(payloadOf(updateMock)).toEqual({ title: 'Hello' });
         expect(
           (
             updateMock.mock.calls[1] as unknown as [

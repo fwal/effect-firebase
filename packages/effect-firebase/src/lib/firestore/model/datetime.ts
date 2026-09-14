@@ -1,6 +1,7 @@
 import {
   DateTime as EffectDateTime,
   Effect,
+  Option,
   Schema,
   SchemaGetter,
   SchemaIssue,
@@ -23,15 +24,18 @@ export const DateTime: DateTime = Model.Field({
 });
 
 /**
- * Schema for add/update variants that:
+ * Schema for the insert/update variants that:
  * - Decodes: Timestamp → DateTime.Utc (ServerTimestamp decode fails)
- * - Encodes: DateTime.Utc → Timestamp, undefined → ServerTimestamp
+ * - Encodes: DateTime.Utc → Timestamp, missing key or undefined → ServerTimestamp
+ *
+ * The key is optional on the decoded side, so callers can omit the field to
+ * request the server timestamp.
  */
 const ServerDateTimeSchema = Schema.Union([
   FirestoreSchema.TimestampInstance,
   FirestoreSchema.ServerTimestampInstance,
 ]).pipe(
-  Schema.decodeTo(Schema.UndefinedOr(Schema.DateTimeUtc), {
+  Schema.decodeTo(Schema.optional(Schema.DateTimeUtc), {
     decode: SchemaGetter.transformOrFail(
       (input: FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp) => {
         if (input instanceof FirestoreSchema.Timestamp) {
@@ -47,13 +51,17 @@ const ServerDateTimeSchema = Schema.Union([
         );
       },
     ),
-    encode: SchemaGetter.transform(
+    encode: SchemaGetter.transformOptional(
       (
-        dt: EffectDateTime.Utc | undefined,
-      ): FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp =>
-        dt !== undefined
-          ? FirestoreSchema.Timestamp.fromDateTime(dt)
-          : new FirestoreSchema.ServerTimestamp(),
+        dt: Option.Option<EffectDateTime.Utc | undefined>,
+      ): Option.Option<
+        FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp
+      > =>
+        Option.some(
+          Option.isSome(dt) && dt.value !== undefined
+            ? FirestoreSchema.Timestamp.fromDateTime(dt.value)
+            : new FirestoreSchema.ServerTimestamp(),
+        ),
     ),
   }),
 );

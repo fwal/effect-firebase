@@ -49,13 +49,15 @@ export const OptionalNull: <
 /**
  * Convert a field to one that is optional for all variants.
  *
- * For the database variants, it will accept `null` or `undefined` values.
- * For the JSON variants, it will also accept missing keys.
+ * For the database variants, a missing key, `null` and `undefined` all decode
+ * to `Option.none()`, and the key is optional in the `Encoded` type.
+ * `Option.none()` is encoded as `null`, so write payloads always carry the key.
+ * For the JSON variants, `Option.none()` is encoded as a missing key.
  */
 export type Optional<S extends Schema.Top> = VariantSchema.Field<{
-  readonly select: Schema.OptionFromNullishOr<S>;
-  readonly insert: Schema.OptionFromNullishOr<S>;
-  readonly update: Schema.OptionFromNullishOr<S>;
+  readonly select: Schema.OptionFromOptionalNullOr<S>;
+  readonly insert: Schema.OptionFromOptionalNullOr<S>;
+  readonly update: Schema.OptionFromOptionalNullOr<S>;
   readonly json: Schema.OptionFromOptional<S>;
   readonly jsonCreate: Schema.OptionFromOptionalNullOr<S>;
   readonly jsonUpdate: Schema.OptionFromOptionalNullOr<S>;
@@ -64,8 +66,10 @@ export type Optional<S extends Schema.Top> = VariantSchema.Field<{
 /**
  * Convert a field to one that is optional for all variants.
  *
- * For the database variants, it will accept `null` or `undefined` values.
- * For the JSON variants, it will also accept missing keys.
+ * For the database variants, a missing key, `null` and `undefined` all decode
+ * to `Option.none()`, and the key is optional in the `Encoded` type.
+ * `Option.none()` is encoded as `null`, so write payloads always carry the key.
+ * For the JSON variants, `Option.none()` is encoded as a missing key.
  */
 export const Optional: <Field extends VariantSchema.Field<any> | Schema.Top>(
   self: Field,
@@ -74,18 +78,16 @@ export const Optional: <Field extends VariantSchema.Field<any> | Schema.Top>(
   : Field extends VariantSchema.Field<infer S>
     ? VariantSchema.Field<{
         readonly [K in keyof S]: S[K] extends Schema.Top
-          ? K extends Model.VariantsDatabase
-            ? Schema.OptionFromNullishOr<S[K]>
-            : Schema.OptionFromOptionalNullOr<S[K]>
+          ? Schema.OptionFromOptionalNullOr<S[K]>
           : never;
       }>
     : never = Model.fieldEvolve({
   select: (s: Schema.Top) =>
-    Schema.OptionFromNullishOr(s, { onNoneEncoding: null }),
+    Schema.OptionFromOptionalNullOr(s, { onNoneEncoding: null }),
   insert: (s: Schema.Top) =>
-    Schema.OptionFromNullishOr(s, { onNoneEncoding: null }),
+    Schema.OptionFromOptionalNullOr(s, { onNoneEncoding: null }),
   update: (s: Schema.Top) =>
-    Schema.OptionFromNullishOr(s, { onNoneEncoding: null }),
+    Schema.OptionFromOptionalNullOr(s, { onNoneEncoding: null }),
   json: Schema.OptionFromOptional,
   jsonCreate: Schema.OptionFromOptionalNullOr,
   jsonUpdate: Schema.OptionFromOptionalNullOr,
@@ -94,13 +96,15 @@ export const Optional: <Field extends VariantSchema.Field<any> | Schema.Top>(
 /**
  * Convert a field to one that is optional for all variants and can be deleted.
  *
- * For the database variants, it will accept `undefined` or `Delete` values.
- * For the JSON variants, it will also accept missing keys.
+ * For the database variants, a missing key or `undefined` decodes to
+ * `Option.none()`, which is encoded as a missing key. The `update` variant
+ * additionally accepts a `Delete` sentinel.
+ * The `jsonCreate` and `jsonUpdate` variants additionally accept `null`.
  */
 export type OptionalDeletable<S extends Schema.Top> = VariantSchema.Field<{
   readonly select: Schema.OptionFromOptional<S>;
   readonly insert: Schema.OptionFromOptional<S>;
-  readonly update: Schema.OptionFromUndefinedOr<
+  readonly update: Schema.OptionFromOptional<
     Schema.Union<readonly [S, typeof DeleteInstance]>
   >;
   readonly json: Schema.OptionFromOptional<S>;
@@ -117,18 +121,20 @@ export const OptionalDeletable: <
   : Field extends VariantSchema.Field<infer S>
     ? VariantSchema.Field<{
         readonly [K in keyof S]: S[K] extends Schema.Top
-          ? K extends Model.VariantsDatabase
-            ? Schema.OptionFromUndefinedOr<S[K]>
-            : Schema.OptionFromUndefinedOr<
+          ? K extends 'update'
+            ? Schema.OptionFromOptional<
                 Schema.Union<readonly [S[K], typeof DeleteInstance]>
               >
+            : K extends 'jsonCreate' | 'jsonUpdate'
+              ? Schema.OptionFromOptionalNullOr<S[K]>
+              : Schema.OptionFromOptional<S[K]>
           : never;
       }>
     : never = Model.fieldEvolve({
   select: Schema.OptionFromOptional,
   insert: Schema.OptionFromOptional,
   update: (s: Schema.Top) =>
-    Schema.OptionFromUndefinedOr(Schema.Union([s, DeleteInstance])),
+    Schema.OptionFromOptional(Schema.Union([s, DeleteInstance])),
   json: Schema.OptionFromOptional,
   jsonCreate: Schema.OptionFromOptionalNullOr,
   jsonUpdate: Schema.OptionFromOptionalNullOr,

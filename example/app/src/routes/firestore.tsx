@@ -87,8 +87,6 @@ function PostForm({
             title: value.title,
             content: value.content,
             author: AuthorId.make('1'),
-            createdAt: undefined,
-            updatedAt: undefined,
             checked: false,
             optional: Option.none(),
             list: [],

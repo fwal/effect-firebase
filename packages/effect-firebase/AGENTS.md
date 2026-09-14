@@ -91,20 +91,20 @@ Variants: `PostModel` (alias `.select`, what reads decode to), `.insert`,
 
 Field helpers (all under `Firestore.` unless noted):
 
-| Helper                                                   | Notes                                                                                                                                      |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/unstable/schema`. DB-generated ids vs app-generated ids.                                                                      |
-| `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                        |
-| `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when given `undefined`.                                                               |
-| `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                        |
-| `Reference(id, path)`, `ReferenceOptional(id, path)`     | Typed reference exposed as branded id.                                                                                                     |
-| `ReferenceAsInstance(id, path)`, `ReferencePath(path)`   | Expose `FirestoreSchema.Reference` instance / full path string.                                                                            |
-| `AnyIdReference`, `AnyPathReference`                     | Untyped references.                                                                                                                        |
-| `Optional(s)`, `OptionalNull(s)`, `OptionalDeletable(s)` | `Option` in app. `Optional` accepts null/undefined, `OptionalNull` only null, `OptionalDeletable` supports `Firestore.delete()` in update. |
-| `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                            |
-| `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                        |
-| `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                             |
-| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/unstable/schema`).                                                                          |
+| Helper                                                   | Notes                                                                                                                                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/unstable/schema`. DB-generated ids vs app-generated ids.                                                                                                                      |
+| `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                        |
+| `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                               |
+| `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                        |
+| `Reference(id, path)`, `ReferenceOptional(id, path)`     | Typed reference exposed as branded id.                                                                                                                                                     |
+| `ReferenceAsInstance(id, path)`, `ReferencePath(path)`   | Expose `FirestoreSchema.Reference` instance / full path string.                                                                                                                            |
+| `AnyIdReference`, `AnyPathReference`                     | Untyped references.                                                                                                                                                                        |
+| `Optional(s)`, `OptionalNull(s)`, `OptionalDeletable(s)` | `Option` in app. `Optional` reads a missing key/null/undefined and writes `null`; `OptionalNull` only null; `OptionalDeletable` omits the key and supports `Firestore.delete()` in update. |
+| `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                            |
+| `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                        |
+| `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                             |
+| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/unstable/schema`).                                                                                                                          |
 
 ## Create a repository
 
