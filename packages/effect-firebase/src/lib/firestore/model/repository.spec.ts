@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DateTime, Effect, Layer, Option, Schema } from 'effect';
+import {
+  Cause,
+  DateTime,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  Schema,
+  Stream,
+} from 'effect';
 import { delete as deleteField } from '../fields/delete.js';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
@@ -55,8 +64,10 @@ const makeLayer = (overrides: Partial<FirestoreServiceShape>) =>
     delete: notMocked('delete'),
     deleteRecursive: notMocked('deleteRecursive'),
     query: notMocked('query'),
+    queryGroup: notMocked('queryGroup'),
     streamDoc: notMocked('streamDoc'),
     streamQuery: notMocked('streamQuery'),
+    streamQueryGroup: notMocked('streamQueryGroup'),
     ...overrides,
   } as FirestoreServiceShape);
 
@@ -747,6 +758,109 @@ describe('Repository', () => {
       const result = await Effect.runPromise(repo.getByQuery([]));
 
       expect(Option.isNone(result)).toBe(true);
+    });
+  });
+
+  describe('group', () => {
+    class CommentModel extends Model.Class<CommentModel>('CommentModel')({
+      id: Model.GeneratedByDb(PostId),
+      path: Model.GeneratedByDb(Schema.String),
+      body: Schema.String,
+      likes: Schema.Number,
+    }) {}
+
+    const groupSnap = (
+      path: string,
+      data: Record<string, unknown>,
+    ): Snapshot => [{ id: path.split('/').pop() as string, path }, data];
+
+    const makeCommentRepo = (overrides: Partial<FirestoreServiceShape>) =>
+      makeRepository(CommentModel, {
+        collectionPath: 'posts/p1/comments',
+        idField: 'id',
+        pathField: 'path',
+        spanPrefix: 'test',
+      }).pipe(Effect.provide(makeLayer(overrides)));
+
+    it('queries the collection group with the last path segment', async () => {
+      const queryGroupMock = vi.fn(() =>
+        Effect.succeed([
+          groupSnap('posts/p1/comments/c1', { body: 'First', likes: 1 }),
+          groupSnap('users/u1/comments/c2', { body: 'Second', likes: 2 }),
+        ]),
+      );
+      const repo = await Effect.runPromise(
+        makeCommentRepo({ queryGroup: queryGroupMock }),
+      );
+      const results = await Effect.runPromise(repo.group.query([]));
+
+      expect(queryGroupMock).toHaveBeenCalledWith('comments', []);
+      expect(results).toEqual([
+        { id: 'c1', path: 'posts/p1/comments/c1', body: 'First', likes: 1 },
+        { id: 'c2', path: 'users/u1/comments/c2', body: 'Second', likes: 2 },
+      ]);
+    });
+
+    it('fills pathField on collection-scoped reads too', async () => {
+      const queryMock = vi.fn(() =>
+        Effect.succeed([
+          groupSnap('posts/p1/comments/c1', { body: 'First', likes: 1 }),
+        ]),
+      );
+      const repo = await Effect.runPromise(
+        makeCommentRepo({ query: queryMock }),
+      );
+      const results = await Effect.runPromise(repo.query([]));
+
+      expect(queryMock).toHaveBeenCalledWith('posts/p1/comments', []);
+      expect(results[0]).toMatchObject({
+        id: 'c1',
+        path: 'posts/p1/comments/c1',
+      });
+    });
+
+    it('streams through streamQueryGroup', async () => {
+      const streamMock = vi.fn(() =>
+        Stream.make([
+          groupSnap('posts/p1/comments/c1', { body: 'First', likes: 1 }),
+        ]),
+      );
+      const repo = await Effect.runPromise(
+        makeCommentRepo({ streamQueryGroup: streamMock }),
+      );
+      const first = await Effect.runPromise(
+        Stream.runHead(repo.group.getByQueryStream([])),
+      );
+
+      expect(streamMock).toHaveBeenCalledWith('comments', []);
+      expect(Option.getOrThrow(Option.flatten(first))).toMatchObject({
+        id: 'c1',
+        path: 'posts/p1/comments/c1',
+      });
+    });
+
+    it('rejects a non-string pathField at compile time', () => {
+      makeRepository(CommentModel, {
+        collectionPath: 'comments',
+        idField: 'id',
+        // @ts-expect-error likes is a number field
+        pathField: 'likes',
+        spanPrefix: 'test',
+      });
+    });
+
+    it('dies on a collection path with an empty last segment', async () => {
+      const exit = await Effect.runPromiseExit(
+        makeRepository(CommentModel, {
+          collectionPath: 'posts/p1/comments/',
+          idField: 'id',
+          spanPrefix: 'test',
+        }).pipe(Effect.provide(makeLayer({}))),
+      );
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+      }
     });
   });
 });

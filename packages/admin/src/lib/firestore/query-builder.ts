@@ -108,20 +108,18 @@ const isCompositeFilter = (
   constraint._tag === 'And' || constraint._tag === 'Or';
 
 /**
- * Build a Firebase Admin SDK query from a collection path and constraints.
+ * Apply constraints to a base query (a collection or collection group).
  */
-export const buildQuery = (
+const applyConstraints = (
   db: Firestore,
-  collectionPath: string,
+  base: Query,
   constraints: ReadonlyArray<QueryConstraint>,
 ): Query => {
-  const collectionRef: CollectionReference = db.collection(collectionPath);
-
   // Separate composite filters from other constraints
   const compositeFilters = constraints.filter(isCompositeFilter);
   const otherConstraints = constraints.filter((c) => !isCompositeFilter(c));
 
-  let query: Query = collectionRef;
+  let query: Query = base;
 
   // Apply composite filters first (there should be at most one top-level composite)
   for (const filter of compositeFilters) {
@@ -135,3 +133,25 @@ export const buildQuery = (
 
   return query;
 };
+
+/**
+ * Build a Firebase Admin SDK query from a collection path and constraints.
+ */
+export const buildQuery = (
+  db: Firestore,
+  collectionPath: string,
+  constraints: ReadonlyArray<QueryConstraint>,
+): Query => {
+  const collectionRef: CollectionReference = db.collection(collectionPath);
+  return applyConstraints(db, collectionRef, constraints);
+};
+
+/**
+ * Build a Firebase Admin SDK collection group query from a collection ID and
+ * constraints.
+ */
+export const buildCollectionGroupQuery = (
+  db: Firestore,
+  collectionId: string,
+  constraints: ReadonlyArray<QueryConstraint>,
+): Query => applyConstraints(db, db.collectionGroup(collectionId), constraints);

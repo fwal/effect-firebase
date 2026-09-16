@@ -10,13 +10,18 @@ import {
   Result,
   Stream,
 } from 'effect';
-import { FirestoreError, FirestoreService } from 'effect-firebase';
+import {
+  FirestoreError,
+  FirestoreService,
+  validateCollectionId,
+} from 'effect-firebase';
 import type { FirestoreDataOptions, Snapshot } from 'effect-firebase';
 import type { FirebaseApp } from 'firebase/app';
 import {
   doc,
   getFirestore,
   type Firestore,
+  type Query,
   type Transaction,
   type WriteBatch,
   getDoc,
@@ -32,7 +37,7 @@ import {
 } from 'firebase/firestore';
 import { App, layer as appLayer } from '../app.js';
 import { firestoreDecode, makeConverter } from './converter.js';
-import { buildQuery } from './query-builder.js';
+import { buildCollectionGroupQuery, buildQuery } from './query-builder.js';
 
 const dataOptions = (options?: FirestoreDataOptions) => ({
   serverTimestamps: options?.serverTimestamps ?? 'estimate',
@@ -149,15 +154,14 @@ const make = (db: Firestore) => {
       ),
     );
 
-  const streamQuery = (
-    collectionPath: string,
-    constraints: Parameters<typeof buildQuery>[2],
+  const streamQueryOf = (
+    makeQuery: () => Query,
     options?: FirestoreDataOptions,
   ) =>
     Stream.callback<ReadonlyArray<Snapshot>, FirestoreError>((queue) =>
       Effect.acquireRelease(
         Effect.sync(() => {
-          const q = buildQuery(db, collectionPath, constraints);
+          const q = makeQuery();
           return onSnapshot(
             q,
             (snapshot) => {
@@ -180,6 +184,45 @@ const make = (db: Firestore) => {
           );
         }),
         (unsubscribe) => Effect.sync(() => unsubscribe()),
+      ),
+    );
+
+  // The SDK throws synchronously on a malformed collection ID; validating
+  // up front turns that into a typed failure for both the effect and the
+  // stream, matching the mock.
+  const checkCollectionId = (
+    collectionId: string,
+  ): Effect.Effect<void, FirestoreError> => {
+    const invalid = validateCollectionId(collectionId);
+    return invalid === undefined
+      ? Effect.void
+      : Effect.fail(
+          new FirestoreError({
+            code: 'invalid-argument',
+            name: 'FirestoreError',
+            message: invalid,
+          }),
+        );
+  };
+
+  // The client SDK only supports document reads inside transactions.
+  const runQuery = (operation: string, makeQuery: () => Query) =>
+    assertNoTransaction(operation).pipe(
+      Effect.flatMap(() =>
+        Effect.tryPromise({
+          try: async () => {
+            const snapshot = await getDocs(makeQuery());
+            return Arr.filterMap(snapshot.docs, (queryDoc) => {
+              const data = queryDoc.data();
+              if (!data) return Result.failVoid;
+              return Result.succeed([
+                { id: queryDoc.id, path: queryDoc.ref.path },
+                firestoreDecode(data),
+              ] as const);
+            });
+          },
+          catch: (error) => FirestoreError.fromError(error),
+        }),
       ),
     );
 
@@ -272,24 +315,13 @@ const make = (db: Firestore) => {
         ),
       ),
     query: (collectionPath, constraints) =>
-      // The client SDK only supports document reads inside transactions.
-      assertNoTransaction('query').pipe(
+      runQuery('query', () => buildQuery(db, collectionPath, constraints)),
+    queryGroup: (collectionId, constraints) =>
+      checkCollectionId(collectionId).pipe(
         Effect.flatMap(() =>
-          Effect.tryPromise({
-            try: async () => {
-              const q = buildQuery(db, collectionPath, constraints);
-              const snapshot = await getDocs(q);
-              return Arr.filterMap(snapshot.docs, (queryDoc) => {
-                const data = queryDoc.data();
-                if (!data) return Result.failVoid;
-                return Result.succeed([
-                  { id: queryDoc.id, path: queryDoc.ref.path },
-                  firestoreDecode(data),
-                ] as const);
-              });
-            },
-            catch: (error) => FirestoreError.fromError(error),
-          }),
+          runQuery('queryGroup', () =>
+            buildCollectionGroupQuery(db, collectionId, constraints),
+          ),
         ),
       ),
     streamDoc: (path, options) =>
@@ -301,7 +333,24 @@ const make = (db: Firestore) => {
     streamQuery: (collectionPath, constraints, options) =>
       Stream.unwrap(
         assertNoTransaction('streamQuery').pipe(
-          Effect.map(() => streamQuery(collectionPath, constraints, options)),
+          Effect.map(() =>
+            streamQueryOf(
+              () => buildQuery(db, collectionPath, constraints),
+              options,
+            ),
+          ),
+        ),
+      ),
+    streamQueryGroup: (collectionId, constraints, options) =>
+      Stream.unwrap(
+        assertNoTransaction('streamQueryGroup').pipe(
+          Effect.andThen(checkCollectionId(collectionId)),
+          Effect.map(() =>
+            streamQueryOf(
+              () => buildCollectionGroupQuery(db, collectionId, constraints),
+              options,
+            ),
+          ),
         ),
       ),
     withTransaction: <A, E, R>(self: Effect.Effect<A, E, R>) =>

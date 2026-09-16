@@ -1,6 +1,7 @@
 import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
+import { collectionIdOf, validateCollectionId } from '../path.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
@@ -66,6 +67,64 @@ export type SetWrite<S extends Model.Any> =
        */
       readonly merge?: boolean;
     };
+
+/**
+ * The query surface of a {@link Repository}, available both on the
+ * repository itself and on its collection group view `repo.group`.
+ */
+export type RepositoryQueries<S extends Model.Any> = {
+  /**
+   * Query the database.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A list of the results of the query.
+   */
+  readonly query: (
+    constraints: RepositoryQuery<S>,
+  ) => Effect.Effect<
+    ReadonlyArray<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
+   * Stream the results of a query.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the results of the query.
+   */
+  readonly queryStream: (
+    constraints: RepositoryQuery<S>,
+  ) => Stream.Stream<
+    ReadonlyArray<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
+   * Query the database and return the first result.
+   * @param constraints - The constraints to apply to the query.
+   * @returns The first result of the query, or `None` if no results.
+   */
+  readonly getByQuery: (
+    constraints: RepositoryQuery<S>,
+  ) => Effect.Effect<
+    Option.Option<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+
+  /**
+   * Stream the first result of a query.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the first result and any updates to it.
+   */
+  readonly getByQueryStream: (
+    constraints: RepositoryQuery<S>,
+  ) => Stream.Stream<
+    Option.Option<S['Type']>,
+    ModelError,
+    S['DecodingServices'] | S['EncodingServices']
+  >;
+};
 
 export type Repository<
   S extends Model.Any,
@@ -245,59 +304,30 @@ export type Repository<
     ModelError,
     S['DecodingServices'] | S['EncodingServices']
   >;
+} & RepositoryQueries<S> & {
+    /**
+     * The same four query methods, run over the **collection group** with this
+     * repository's collection ID (the last segment of `collectionPath`): every
+     * collection with that ID, at any depth. A repository over
+     * `posts/{postId}/comments` therefore reads comments across all posts via
+     * `repo.group.query(...)`.
+     *
+     * Firestore requires a collection-group index for the fields a group query
+     * filters or orders on. Set `pathField` on the repository to learn which
+     * collection each result came from.
+     */
+    readonly group: RepositoryQueries<S>;
+  };
 
-  /**
-   * Query the database.
-   * @param constraints - The constraints to apply to the query.
-   * @returns A list of the results of the query.
-   */
-  readonly query: (
-    constraints: RepositoryQuery<S>,
-  ) => Effect.Effect<
-    ReadonlyArray<S['Type']>,
-    ModelError,
-    S['DecodingServices'] | S['EncodingServices']
-  >;
-
-  /**
-   * Stream the results of a query.
-   * @param constraints - The constraints to apply to the query.
-   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the results of the query.
-   */
-  readonly queryStream: (
-    constraints: RepositoryQuery<S>,
-  ) => Stream.Stream<
-    ReadonlyArray<S['Type']>,
-    ModelError,
-    S['DecodingServices'] | S['EncodingServices']
-  >;
-
-  /**
-   * Query the database and return the first result.
-   * @param constraints - The constraints to apply to the query.
-   * @returns The first result of the query, or `None` if no results.
-   */
-  readonly getByQuery: (
-    constraints: RepositoryQuery<S>,
-  ) => Effect.Effect<
-    Option.Option<S['Type']>,
-    ModelError,
-    S['DecodingServices'] | S['EncodingServices']
-  >;
-
-  /**
-   * Stream the first result of a query.
-   * @param constraints - The constraints to apply to the query.
-   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of the first result and any updates to it.
-   */
-  readonly getByQueryStream: (
-    constraints: RepositoryQuery<S>,
-  ) => Stream.Stream<
-    Option.Option<S['Type']>,
-    ModelError,
-    S['DecodingServices'] | S['EncodingServices']
-  >;
-};
+/**
+ * The keys of `S` whose field schema is a string, so a path field can be
+ * filled with a document path.
+ */
+export type StringFieldKey<S extends Model.Any> = {
+  [
+    K in keyof S['fields'] & keyof S['Type']
+  ]: S['fields'][K] extends Schema.String ? K : never;
+}[keyof S['fields'] & keyof S['Type']];
 
 /**
  * Create a repository for a document model.
@@ -331,6 +361,23 @@ export type Repository<
  *
  * const posts = yield* PostRepository.query(Query.orderBy('createdAt', 'desc'));
  * ```
+ *
+ * @example
+ * ```ts
+ * // A repository over a subcollection can read across every parent through
+ * // its collection group view.
+ * const CommentRepository = (postId: string) =>
+ *   Firestore.makeRepository(CommentModel, {
+ *     collectionPath: `posts/${postId}/comments`,
+ *     idField: 'id',
+ *     pathField: 'path',
+ *     spanPrefix: 'example.CommentRepository',
+ *   });
+ *
+ * const repo = yield* CommentRepository('p1');
+ * const mine = yield* repo.query(Query.orderBy('createdAt', 'desc'));
+ * const everywhere = yield* repo.group.query(Query.orderBy('createdAt', 'desc'));
+ * ```
  */
 export const makeRepository = <
   S extends Model.Any,
@@ -343,17 +390,39 @@ export const makeRepository = <
   options: {
     readonly collectionPath: string;
     readonly idField: Id;
+    /**
+     * A string field to fill with each document's full path on read (for
+     * example `posts/p1/comments/c1`). Declare it as
+     * `Model.GeneratedByDb(Schema.String)` so it is never part of a write
+     * payload. Mostly useful together with {@link Repository.group}, whose
+     * results span many parent documents.
+     */
+    readonly pathField?: StringFieldKey<S>;
     readonly spanPrefix: string;
   },
 ): Effect.Effect<Repository<S, Id, IdSchema>, never, FirestoreService> =>
   Effect.gen(function* () {
     const firestore = yield* FirestoreService;
 
+    const collectionId = collectionIdOf(options.collectionPath);
+    const invalidId = validateCollectionId(collectionId);
+    if (invalidId !== undefined) {
+      return yield* Effect.die(
+        new Error(`${options.spanPrefix}: ${invalidId}`),
+      );
+    }
+
     const idSchema = Model.fields[options.idField] as unknown as IdSchema;
 
     const structFromSnapshot = (snapshot: Snapshot) => {
       const [ref, data] = snapshot;
-      return { ...data, [options.idField]: ref.id };
+      return {
+        ...data,
+        [options.idField]: ref.id,
+        ...(options.pathField === undefined
+          ? {}
+          : { [options.pathField]: ref.path }),
+      };
     };
 
     const addSchema = Fetch.findOne({
@@ -586,23 +655,6 @@ export const makeRepository = <
         }),
       );
 
-    const querySchema = Fetch.findAll({
-      Request: Schema.Array(Schema.Any),
-      Result: Model,
-      execute: (constraints: ReadonlyArray<unknown>) =>
-        firestore
-          .query(
-            options.collectionPath,
-            constraints as ReadonlyArray<QueryConstraint>,
-          )
-          .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot))),
-    });
-
-    const query = (constraints: RepositoryQuery<S>) =>
-      querySchema(constraints as ReadonlyArray<unknown>).pipe(
-        Effect.withSpan(`${options.spanPrefix}.query`, {}),
-      );
-
     const getByIdStreamSchema = Fetch.streamOne({
       Request: idSchema,
       Result: Model,
@@ -619,62 +671,24 @@ export const makeRepository = <
         ),
       );
 
-    const queryStreamSchema = Fetch.streamAll({
-      Request: Schema.Array(Schema.Any),
-      Result: Model,
-      execute: (constraints: ReadonlyArray<unknown>) =>
-        firestore
-          .streamQuery(
-            options.collectionPath,
-            constraints as ReadonlyArray<QueryConstraint>,
-          )
-          .pipe(Stream.map((snapshots) => snapshots.map(structFromSnapshot))),
+    const queries = makeQueries({
+      Model,
+      spanPrefix: options.spanPrefix,
+      structFromSnapshot,
+      query: (constraints) =>
+        firestore.query(options.collectionPath, constraints),
+      streamQuery: (constraints) =>
+        firestore.streamQuery(options.collectionPath, constraints),
     });
 
-    const queryStream = (constraints: RepositoryQuery<S>) =>
-      queryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
-        Stream.tap(() => Effect.logTrace(`${options.spanPrefix}.streamQuery`)),
-      );
-
-    const getByQuerySchema = Fetch.findOneOption({
-      Request: Schema.Array(Schema.Any),
-      Result: Model,
-      execute: (constraints: ReadonlyArray<unknown>) =>
-        firestore
-          .query(
-            options.collectionPath,
-            constraints as ReadonlyArray<QueryConstraint>,
-          )
-          .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot))),
+    const group = makeQueries({
+      Model,
+      spanPrefix: `${options.spanPrefix}.group`,
+      structFromSnapshot,
+      query: (constraints) => firestore.queryGroup(collectionId, constraints),
+      streamQuery: (constraints) =>
+        firestore.streamQueryGroup(collectionId, constraints),
     });
-
-    const getByQuery = (constraints: RepositoryQuery<S>) =>
-      getByQuerySchema(constraints as ReadonlyArray<unknown>).pipe(
-        Effect.withSpan(`${options.spanPrefix}.getByQuery`, {}),
-      );
-
-    const getByQueryStreamSchema = Fetch.streamOne({
-      Request: Schema.Array(Schema.Any),
-      Result: Model,
-      execute: (constraints: ReadonlyArray<unknown>) =>
-        firestore
-          .streamQuery(
-            options.collectionPath,
-            constraints as ReadonlyArray<QueryConstraint>,
-          )
-          .pipe(
-            Stream.map((snapshots) =>
-              Arr.head(snapshots.map(structFromSnapshot)),
-            ),
-          ),
-    });
-
-    const getByQueryStream = (constraints: RepositoryQuery<S>) =>
-      getByQueryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
-        Stream.tap(() =>
-          Effect.logTrace(`${options.spanPrefix}.getByQueryStream`),
-        ),
-      );
 
     return {
       add,
@@ -684,9 +698,85 @@ export const makeRepository = <
       getByIdStream,
       delete: deleteById,
       deleteRecursive: deleteRecursiveById,
-      query,
-      queryStream,
-      getByQuery,
-      getByQueryStream,
+      ...queries,
+      group,
     };
   });
+
+/**
+ * Build the four query methods over a pair of raw query/stream functions.
+ * Used for both the collection-scoped methods of a {@link Repository} and
+ * its {@link Repository.group} view.
+ */
+const makeQueries = <S extends Model.Any>(options: {
+  readonly Model: S;
+  readonly spanPrefix: string;
+  readonly structFromSnapshot: (snapshot: Snapshot) => Record<string, unknown>;
+  readonly query: (
+    constraints: ReadonlyArray<QueryConstraint>,
+  ) => Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError | UnknownError>;
+  readonly streamQuery: (
+    constraints: ReadonlyArray<QueryConstraint>,
+  ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
+}): RepositoryQueries<S> => {
+  const { Model, spanPrefix, structFromSnapshot } = options;
+
+  const runQuery = (constraints: ReadonlyArray<unknown>) =>
+    options
+      .query(constraints as ReadonlyArray<QueryConstraint>)
+      .pipe(Effect.map((snapshots) => snapshots.map(structFromSnapshot)));
+
+  const runStreamQuery = (constraints: ReadonlyArray<unknown>) =>
+    options
+      .streamQuery(constraints as ReadonlyArray<QueryConstraint>)
+      .pipe(Stream.map((snapshots) => snapshots.map(structFromSnapshot)));
+
+  const querySchema = Fetch.findAll({
+    Request: Schema.Array(Schema.Any),
+    Result: Model,
+    execute: runQuery,
+  });
+
+  const query = (constraints: RepositoryQuery<S>) =>
+    querySchema(constraints as ReadonlyArray<unknown>).pipe(
+      Effect.withSpan(`${spanPrefix}.query`, {}),
+    );
+
+  const queryStreamSchema = Fetch.streamAll({
+    Request: Schema.Array(Schema.Any),
+    Result: Model,
+    execute: runStreamQuery,
+  });
+
+  const queryStream = (constraints: RepositoryQuery<S>) =>
+    queryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
+      Stream.tap(() => Effect.logTrace(`${spanPrefix}.streamQuery`)),
+    );
+
+  const getByQuerySchema = Fetch.findOneOption({
+    Request: Schema.Array(Schema.Any),
+    Result: Model,
+    execute: runQuery,
+  });
+
+  const getByQuery = (constraints: RepositoryQuery<S>) =>
+    getByQuerySchema(constraints as ReadonlyArray<unknown>).pipe(
+      Effect.withSpan(`${spanPrefix}.getByQuery`, {}),
+    );
+
+  const getByQueryStreamSchema = Fetch.streamOne({
+    Request: Schema.Array(Schema.Any),
+    Result: Model,
+    execute: (constraints: ReadonlyArray<unknown>) =>
+      runStreamQuery(constraints).pipe(
+        Stream.map((structs) => Arr.head(structs)),
+      ),
+  });
+
+  const getByQueryStream = (constraints: RepositoryQuery<S>) =>
+    getByQueryStreamSchema(constraints as ReadonlyArray<unknown>).pipe(
+      Stream.tap(() => Effect.logTrace(`${spanPrefix}.getByQueryStream`)),
+    );
+
+  return { query, queryStream, getByQuery, getByQueryStream };
+};

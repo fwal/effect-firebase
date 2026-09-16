@@ -4,5 +4,6 @@ export * from './lib/firestore/firestore-service.js';
 export * from './lib/firestore/errors.js';
 export * from './lib/firestore/snapshot.js';
 export * from './lib/firestore/noop-layer.js';
+export * from './lib/firestore/path.js';
 export * as Query from './lib/firestore/query/index.js';
 export type { QueryConstraint } from './lib/firestore/query/constraints.js';

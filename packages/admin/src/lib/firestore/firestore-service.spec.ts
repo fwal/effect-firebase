@@ -68,8 +68,12 @@ const makeFakeDb = () => {
 
   const tx = {
     get: async (refOrQuery: { path: string; doc?: unknown }) => {
-      // Collection refs (queries) have a doc factory, document refs do not.
-      if (typeof refOrQuery.doc === 'function') {
+      // Collection refs (queries) have a doc factory, document refs do not;
+      // collection group refs are marked by their fake path prefix.
+      if (
+        typeof refOrQuery.doc === 'function' ||
+        refOrQuery.path.startsWith('group:')
+      ) {
         state.txOps.push(['query', refOrQuery.path]);
         return {
           docs: [fakeSnapshot(`${refOrQuery.path}/1`, { title: 'tx' })],
@@ -113,9 +117,23 @@ const makeFakeDb = () => {
     };
   };
 
+  const fakeCollectionGroup = (id: string): Record<string, unknown> => ({
+    path: `group:${id}`,
+    get: async () => {
+      state.directOps.push(['queryGroup', id]);
+      return {
+        docs: [
+          fakeSnapshot(`posts/p1/${id}/1`, { title: 'nested' }),
+          fakeSnapshot(`users/u1/${id}/2`, { title: 'nested' }),
+        ],
+      };
+    },
+  });
+
   const db = {
     doc: fakeDocRef,
     collection: fakeCollection,
+    collectionGroup: fakeCollectionGroup,
     recursiveDelete: async (ref: { path: string }) => {
       state.directOps.push(['recursiveDelete', ref.path]);
     },
@@ -199,6 +217,17 @@ describe('FirestoreService (admin)', () => {
       expect(state.txOps).toEqual([['query', 'posts']]);
       expect(results).toHaveLength(1);
       expect(results[0][1]).toEqual({ title: 'tx' });
+    });
+
+    it('routes collection group queries through transaction.get', async () => {
+      const { db, state } = makeFakeDb();
+      const results = await run(
+        db,
+        withService((fs) => fs.withTransaction(fs.queryGroup('comments', []))),
+      );
+
+      expect(state.txOps).toEqual([['query', 'group:comments']]);
+      expect(results).toHaveLength(1);
     });
 
     it('returns the result of the effect', async () => {
@@ -414,6 +443,36 @@ describe('FirestoreService (admin)', () => {
       ]);
       expect(state.txOps).toEqual([]);
       expect(state.batchOps).toEqual([]);
+    });
+
+    it('fails typed on a malformed collection group ID, effect and stream', async () => {
+      const { db } = makeFakeDb();
+      const fromEffect = await run(
+        db,
+        withService((fs) => Effect.flip(fs.queryGroup('a/b', []))),
+      );
+      const fromStream = await run(
+        db,
+        withService((fs) =>
+          Effect.flip(Stream.runCollect(fs.streamQueryGroup('a/b', []))),
+        ),
+      );
+      expect(fromEffect.code).toBe('invalid-argument');
+      expect(fromStream.code).toBe('invalid-argument');
+    });
+
+    it('queries a collection group across parents', async () => {
+      const { db, state } = makeFakeDb();
+      const results = await run(
+        db,
+        withService((fs) => fs.queryGroup('comments', [])),
+      );
+
+      expect(state.directOps).toEqual([['queryGroup', 'comments']]);
+      expect(results.map(([ref]) => ref.path)).toEqual([
+        'posts/p1/comments/1',
+        'users/u1/comments/2',
+      ]);
     });
   });
 });

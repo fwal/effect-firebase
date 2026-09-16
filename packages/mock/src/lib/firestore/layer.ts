@@ -17,6 +17,7 @@ import {
   FirestoreService,
   Snapshot,
   type FirestoreServiceShape,
+  type QueryConstraint,
 } from 'effect-firebase';
 import { MockController, type MockControllerShape } from './controller.js';
 import { applyConstraints } from './query-filter.js';
@@ -24,8 +25,10 @@ import type { Fixture } from './fixture.js';
 import * as MockState from './state.js';
 import {
   docsInCollection,
+  docsInCollectionGroup,
   makeSnapshot,
   parentPath,
+  validateCollectionId,
   validateCollectionPath,
   validateDocPath,
   type StoreSnapshot,
@@ -178,6 +181,58 @@ const makeFirestore = (
       );
     });
 
+  const runQuery = (
+    stateKey: string,
+    constraints: ReadonlyArray<QueryConstraint>,
+    select: (
+      docs: Readonly<Record<string, DocData>>,
+    ) => ReadonlyArray<Snapshot>,
+  ): Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError> =>
+    Effect.gen(function* () {
+      yield* sleep;
+      const state = yield* guard(stateKey);
+      if (state._tag === 'Empty') {
+        return [];
+      }
+      const snapshot = yield* SubscriptionRef.get(ref);
+      return applyConstraints(select(snapshot.docs), constraints);
+    });
+
+  const streamQueryOf = (
+    stateKey: string,
+    constraints: ReadonlyArray<QueryConstraint>,
+    select: (
+      docs: Readonly<Record<string, DocData>>,
+    ) => ReadonlyArray<Snapshot>,
+  ): Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError> =>
+    Stream.unwrap(
+      Effect.as(
+        sleep,
+        SubscriptionRef.changes(ref).pipe(
+          Stream.switchMap(
+            (
+              snapshot,
+            ): Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError> => {
+              const state = MockState.resolve(snapshot.states, stateKey);
+              switch (state._tag) {
+                case 'Loading':
+                  return Stream.never;
+                case 'Error':
+                  return Stream.fail(state.error);
+                case 'Empty':
+                  return Stream.succeed([]);
+                case 'Data':
+                  return Stream.succeed(
+                    applyConstraints(select(snapshot.docs), constraints),
+                  );
+              }
+            },
+          ),
+          Stream.changesWith(snapshotsEqual),
+        ),
+      ),
+    );
+
   return {
     get: (path) => readDoc(path),
 
@@ -250,15 +305,19 @@ const makeFirestore = (
     query: (collectionPath, constraints) =>
       Effect.gen(function* () {
         yield* validate(validateCollectionPath(collectionPath));
-        yield* sleep;
-        const state = yield* guard(collectionPath);
-        if (state._tag === 'Empty') {
-          return [];
-        }
-        const snapshot = yield* SubscriptionRef.get(ref);
-        return applyConstraints(
-          docsInCollection(snapshot.docs, collectionPath),
-          constraints,
+        return yield* runQuery(collectionPath, constraints, (docs) =>
+          docsInCollection(docs, collectionPath),
+        );
+      }),
+
+    // A collection group query resolves its simulated state by collection ID,
+    // so `states: { comments: 'loading' }` covers both the top-level
+    // `comments` collection and the `comments` group.
+    queryGroup: (collectionId, constraints) =>
+      Effect.gen(function* () {
+        yield* validate(validateCollectionId(collectionId));
+        return yield* runQuery(collectionId, constraints, (docs) =>
+          docsInCollectionGroup(docs, collectionId),
         );
       }),
 
@@ -309,38 +368,18 @@ const makeFirestore = (
       if (invalid !== undefined) {
         return Stream.fail(invalidArgument(invalid));
       }
-      return Stream.unwrap(
-        Effect.as(
-          sleep,
-          SubscriptionRef.changes(ref).pipe(
-            Stream.switchMap(
-              (
-                snapshot,
-              ): Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError> => {
-                const state = MockState.resolve(
-                  snapshot.states,
-                  collectionPath,
-                );
-                switch (state._tag) {
-                  case 'Loading':
-                    return Stream.never;
-                  case 'Error':
-                    return Stream.fail(state.error);
-                  case 'Empty':
-                    return Stream.succeed([]);
-                  case 'Data':
-                    return Stream.succeed(
-                      applyConstraints(
-                        docsInCollection(snapshot.docs, collectionPath),
-                        constraints,
-                      ),
-                    );
-                }
-              },
-            ),
-            Stream.changesWith(snapshotsEqual),
-          ),
-        ),
+      return streamQueryOf(collectionPath, constraints, (docs) =>
+        docsInCollection(docs, collectionPath),
+      );
+    },
+
+    streamQueryGroup: (collectionId, constraints) => {
+      const invalid = validateCollectionId(collectionId);
+      if (invalid !== undefined) {
+        return Stream.fail(invalidArgument(invalid));
+      }
+      return streamQueryOf(collectionId, constraints, (docs) =>
+        docsInCollectionGroup(docs, collectionId),
       );
     },
 

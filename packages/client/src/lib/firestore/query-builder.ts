@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   query,
   where,
   orderBy,
@@ -104,20 +105,36 @@ const toFilterConstraint = (
 };
 
 /**
+ * Apply constraints to a base query (a collection or collection group).
+ */
+const applyConstraints = (
+  db: Firestore,
+  base: Query,
+  constraints: ReadonlyArray<QueryConstraint>,
+): Query => {
+  const firebaseConstraints = constraints.map((constraint) =>
+    toFirebaseConstraint(db, constraint),
+  );
+  // Cast is safe - QueryCompositeFilterConstraint can be used in query()
+  return query(base, ...(firebaseConstraints as FirebaseQueryConstraint[]));
+};
+
+/**
  * Build a Firebase Client SDK query from a collection path and constraints.
  */
 export const buildQuery = (
   db: Firestore,
   collectionPath: string,
   constraints: ReadonlyArray<QueryConstraint>,
-): Query => {
-  const collectionRef = collection(db, collectionPath);
-  const firebaseConstraints = constraints.map((constraint) =>
-    toFirebaseConstraint(db, constraint),
-  );
-  // Cast is safe - QueryCompositeFilterConstraint can be used in query()
-  return query(
-    collectionRef,
-    ...(firebaseConstraints as FirebaseQueryConstraint[]),
-  );
-};
+): Query => applyConstraints(db, collection(db, collectionPath), constraints);
+
+/**
+ * Build a Firebase Client SDK collection group query from a collection ID and
+ * constraints.
+ */
+export const buildCollectionGroupQuery = (
+  db: Firestore,
+  collectionId: string,
+  constraints: ReadonlyArray<QueryConstraint>,
+): Query =>
+  applyConstraints(db, collectionGroup(db, collectionId), constraints);

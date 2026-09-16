@@ -86,6 +86,27 @@ type FirestoreQuery = {
     collectionPath: string,
     constraints: ReadonlyArray<QueryConstraint>,
   ) => Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError | UnknownError>;
+
+  /**
+   * Query a collection group: every collection in the database whose ID is
+   * `collectionId`, at any depth (`posts/{postId}/comments` and
+   * `users/{userId}/comments` both match the group `comments`).
+   *
+   * Field-based constraints work as in {@link query}; a collection group
+   * query on the real SDKs additionally needs a collection-group index for
+   * the fields it orders by or filters on. Cursor constraints must use field
+   * values, not document snapshots.
+   *
+   * @param collectionId - The ID (last path segment) of the collections to
+   *   query. Must be a single segment: no `/`.
+   * @param constraints - The constraints to apply to the query.
+   * @returns A list of {@link Snapshot}s of the matching documents. Each
+   *   snapshot's `Ref.path` tells which collection it came from.
+   */
+  readonly queryGroup: (
+    collectionId: string,
+    constraints: ReadonlyArray<QueryConstraint>,
+  ) => Effect.Effect<ReadonlyArray<Snapshot>, FirestoreError | UnknownError>;
 };
 
 type FirestoreStreaming = {
@@ -113,6 +134,20 @@ type FirestoreStreaming = {
     constraints: ReadonlyArray<QueryConstraint>,
     options?: FirestoreDataOptions,
   ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
+
+  /**
+   * Stream a collection group query from the Firestore database. See
+   * {@link FirestoreQuery.queryGroup} for what a collection group is.
+   * @param collectionId - The ID (last path segment) of the collections to query.
+   * @param constraints - The constraints to apply to the query.
+   * @param options - The options for the query.
+   * @returns A {@link https://effect.website/docs/stream/introduction/ | Stream} of a list of {@link Snapshot}s of the matching documents.
+   */
+  readonly streamQueryGroup: (
+    collectionId: string,
+    constraints: ReadonlyArray<QueryConstraint>,
+    options?: FirestoreDataOptions,
+  ) => Stream.Stream<ReadonlyArray<Snapshot>, FirestoreError>;
 };
 
 type FirestoreTransactions = {
@@ -133,10 +168,11 @@ type FirestoreTransactions = {
    *   write. Violations surface as a {@link FirestoreError} at runtime.
    * - Nested `withTransaction` calls join the ambient transaction instead of
    *   starting a new one.
-   * - `streamDoc`, `streamQuery`, and `deleteRecursive` cannot participate in
-   *   a transaction and cause a defect (`Effect.die`) when used inside one.
-   * - With the client SDK, `query` is not supported inside a transaction
-   *   (only document reads are) and causes a defect.
+   * - `streamDoc`, `streamQuery`, `streamQueryGroup`, and `deleteRecursive`
+   *   cannot participate in a transaction and cause a defect (`Effect.die`)
+   *   when used inside one.
+   * - With the client SDK, `query` and `queryGroup` are not supported inside
+   *   a transaction (only document reads are) and cause a defect.
    * - Forked fibers must not outlive the transaction; all transactional work
    *   has to complete before the effect finishes.
    *

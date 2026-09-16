@@ -144,6 +144,48 @@ Repository methods (all fail with `ModelError = FirestoreError | UnknownError | 
 | `queryStream(constraints)`            | `Stream<ReadonlyArray<Model>>` | Live.                                                                   |
 | `getByQuery(constraints)`             | `Effect<Option<Model>>`        | First match.                                                            |
 | `getByQueryStream(constraints)`       | `Stream<Option<Model>>`        | Live first match.                                                       |
+| `group.query(...)` etc.               | as above                       | Same four query methods over the collection group. See below.           |
+
+### Collection group queries
+
+Every repository has a `group` view with the same four query methods, run
+over the **collection group** with the repository's collection ID (the last
+segment of `collectionPath`): every collection with that ID at any depth.
+`posts/{p}/comments` and `users/{u}/comments` are both in the `comments`
+group. Set `pathField` (a `Model.GeneratedByDb(Schema.String)` field) to have
+every read fill in the document's full path, so a group result can be
+written back to.
+
+```ts
+class CommentModel extends Model.Class<CommentModel>('CommentModel')({
+  id: Model.GeneratedByDb(CommentId),
+  path: Model.GeneratedByDb(Schema.String), // filled from the document path
+  body: Schema.String,
+  createdAt: Firestore.DateTimeInsert,
+}) {}
+
+export const CommentRepository = (postId: string) =>
+  Firestore.makeRepository(CommentModel, {
+    collectionPath: `posts/${postId}/comments`,
+    idField: 'id',
+    pathField: 'path',
+    spanPrefix: 'app.CommentRepository',
+  });
+
+const program = Effect.gen(function* () {
+  const repo = yield* CommentRepository('p1');
+  const onPost = yield* repo.query(Query.orderBy('createdAt', 'desc'));
+  const everywhere = yield* repo.group.query(
+    Query.and(Query.orderBy('createdAt', 'desc'), Query.limit(20)),
+  );
+});
+```
+
+Firestore requires a collection-group index for fields a group query filters
+or orders on; the emulator prints the `firebase` command to create one.
+Cursors must be field values, not document snapshots. The raw service
+methods are `FirestoreService.queryGroup(collectionId, constraints)` and
+`streamQueryGroup(collectionId, constraints)`.
 
 ### Choosing `set` variant
 
@@ -279,7 +321,7 @@ Rules: every repository/`FirestoreService` call inside the effect is routed
 through the ambient transaction/batch; nested calls join it. Transactions may
 be retried (effect must be idempotent); reads must precede writes; streams and
 `deleteRecursive` die inside a transaction; the **client SDK cannot `query`
-inside a transaction** (document reads only). Batches are write-only (reads
+or `queryGroup` inside a transaction** (document reads only). Batches are write-only (reads
 run immediately, do not see staged writes), max 500 writes. The mock runs
 both as plain pass-through.
 
@@ -435,8 +477,8 @@ root: https://github.com/fwal/effect-firebase/blob/main/REACT.md.
 2. Variants are `select`/`insert`/`update`/`json`/`jsonCreate`/`jsonUpdate`
    (not `get`/`add`).
 3. `getById` returns `Option`; it does not fail on a missing document.
-4. `deleteRecursive` is Admin-only. `query` inside a transaction is
-   Admin-only.
+4. `deleteRecursive` is Admin-only. `query`/`queryGroup` inside a
+   transaction is Admin-only.
 5. Pick `set`'s `variant` deliberately; the default re-stamps `createdAt`.
 6. Cursor pagination: add `Query.addOrderByDocumentId()` and pass the doc id
    as the second cursor value when the order field can have duplicates.
