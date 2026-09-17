@@ -1,47 +1,20 @@
 import { Effect, ManagedRuntime, Layer, Schema, Stream } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type {
-  CallableRequest,
-  CallableResponse,
-} from 'firebase-functions/https';
 import { onCallStreamEffect } from './on-call-stream.js';
 import { onCallEffect } from './on-call.js';
+import {
+  makeCallableRequest,
+  runCallable,
+  streamCallable,
+} from './callable-testing.js';
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
-const makeRequest = <T>(data: T, acceptsStreaming = true): CallableRequest<T> =>
-  ({
-    data,
-    acceptsStreaming,
-    rawRequest: {} as CallableRequest['rawRequest'],
-  }) as CallableRequest<T>;
-
-const makeResponse = () => {
-  const chunks: unknown[] = [];
-  const controller = new AbortController();
-  const response: CallableResponse = {
-    sendChunk: async (chunk) => {
-      chunks.push(chunk);
-      return true;
-    },
-    signal: controller.signal,
-  };
-  return { chunks, controller, response };
+const collect = async <A>(iterable: AsyncIterable<A>): Promise<A[]> => {
+  const out: A[] = [];
+  for await (const item of iterable) out.push(item);
+  return out;
 };
-
-// `run` only forwards the request in its type, but the underlying handler
-// receives whatever arguments are passed. Use this to feed a response.
-const invoke = <T, Return>(
-  fn: { run: (request: CallableRequest<T>) => Return },
-  request: CallableRequest<T>,
-  response?: CallableResponse,
-): Return =>
-  (
-    fn.run as unknown as (
-      request: CallableRequest<T>,
-      response?: CallableResponse,
-    ) => Return
-  )(request, response);
 
 describe('onCallStreamEffect', () => {
   it('sends encoded chunks and returns them as the final result', async () => {
@@ -57,19 +30,19 @@ describe('onCallStreamEffect', () => {
         ),
     );
 
-    const { chunks, response } = makeResponse();
-    const result = await invoke(fn, makeRequest({ count: 3 }), response);
+    const { stream, data } = streamCallable(fn, { count: 3 });
+    const chunks = await collect(stream);
 
     expect(chunks).toEqual([{ index: 0 }, { index: 1 }, { index: 2 }]);
-    expect(result).toEqual([{ index: 0 }, { index: 1 }, { index: 2 }]);
+    expect(await data).toEqual(chunks);
   });
 
-  it('collects the full result when no response object is present', async () => {
+  it('collects the full result when the client does not stream', async () => {
     const fn = onCallStreamEffect({ runtime }, () =>
       Stream.make('a', 'b', 'c'),
     );
 
-    const result = await invoke(fn, makeRequest(null, false));
+    const result = await runCallable(fn, null);
 
     expect(result).toEqual(['a', 'b', 'c']);
   });
@@ -87,29 +60,41 @@ describe('onCallStreamEffect', () => {
       },
     );
 
-    const { response } = makeResponse();
-    await invoke(fn, makeRequest({}), response);
+    await streamCallable(fn, {}).data;
 
     expect(seen).toEqual({ acceptsStreaming: true, hasResponse: true });
   });
 
-  it('halts the stream when the client disconnects', async () => {
-    const { chunks, controller, response } = makeResponse();
-    const fn = onCallStreamEffect({ runtime }, () =>
-      Stream.range(0, 99).pipe(
-        Stream.tap((index) =>
-          index === 2 ? Effect.sync(() => controller.abort()) : Effect.void,
-        ),
-        // Yield so the abort listener fires before the next pull
-        Stream.tap(() => Effect.sleep('1 millis')),
-      ),
+  it('passes auth through a full CallableRequest', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      (_input, context) => Stream.make(context.auth?.uid),
     );
 
-    const result = await invoke(fn, makeRequest(null), response);
+    const request = makeCallableRequest(
+      {},
+      { auth: { uid: 'user-1', token: {} as never } },
+    );
+    const result = await streamCallable(fn, request).data;
 
-    expect(chunks.length).toBeGreaterThanOrEqual(1);
-    expect(chunks.length).toBeLessThan(100);
-    expect(result).toEqual(chunks);
+    expect(result).toEqual(['user-1']);
+  });
+
+  it('halts the stream when the client disconnects', async () => {
+    const fn = onCallStreamEffect({ runtime }, () =>
+      Stream.range(0, 99).pipe(Stream.tap(() => Effect.sleep('1 millis'))),
+    );
+
+    const { stream, data, abort } = streamCallable(fn, null);
+    const received: number[] = [];
+    for await (const chunk of stream) {
+      received.push(chunk);
+      if (chunk === 2) abort();
+    }
+
+    expect(received.length).toBeGreaterThanOrEqual(3);
+    expect(received.length).toBeLessThan(100);
+    expect(await data).toEqual(received);
   });
 
   it('fails when the input does not match the schema', async () => {
@@ -119,7 +104,7 @@ describe('onCallStreamEffect', () => {
     );
 
     await expect(
-      invoke(fn, makeRequest({ count: 'nope' } as never)),
+      streamCallable(fn, { count: 'nope' } as never).data,
     ).rejects.toThrow();
   });
 });
@@ -140,10 +125,24 @@ describe('onCallEffect context', () => {
         }),
     );
 
-    const { chunks, response } = makeResponse();
-    const result = await invoke(fn, makeRequest({ message: 'hi' }), response);
+    const { stream, data } = streamCallable(fn, { message: 'hi' });
 
-    expect(chunks).toEqual([{ echo: 'hi' }]);
-    expect(result).toEqual({ done: true });
+    expect(await collect(stream)).toEqual([{ echo: 'hi' }]);
+    expect(await data).toEqual({ done: true });
+  });
+
+  it('does not stream when the client does not accept streaming', async () => {
+    let streamed = false;
+    const fn = onCallEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      (_input, context) =>
+        Effect.sync(() => {
+          streamed = context.acceptsStreaming;
+          return 'ok';
+        }),
+    );
+
+    expect(await runCallable(fn, {})).toBe('ok');
+    expect(streamed).toBe(false);
   });
 });

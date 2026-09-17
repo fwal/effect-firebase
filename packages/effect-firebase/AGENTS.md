@@ -370,7 +370,8 @@ request), `onCallStreamEffect` (optional `inputSchema`/`chunkSchema`; handler
 returns a `Stream`, each element is sent with `response.sendChunk`, the
 collected chunks are the final `data`; halts on client disconnect; use for
 Effect AI `LanguageModel.streamText` with `httpsCallable(...).stream()` on the
-client), `onDocumentCreated/Updated/Deleted/WrittenEffect`,
+client; unit-test with `streamCallable(fn, input)` / `runCallable(fn, input)` /
+`makeCallableRequest` from `@effect-firebase/admin`), `onDocumentCreated/Updated/Deleted/WrittenEffect`,
 `onMessagePublishedEffect` (Pub/Sub, `messageSchema`), `onTaskDispatchedEffect`
 (`schema`), `onScheduleEffect`. All accept the native firebase-functions
 options plus `runtime`, trace with `Effect.withSpan`, and log defects.

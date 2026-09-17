@@ -107,6 +107,32 @@ const allChunks = await data; // ReadonlyArray<{ delta: string }>
 Streaming callables require 2nd gen Cloud Functions; set `timeoutSeconds` high enough for
 long-running generations.
 
+#### Testing callables
+
+`CallableFunction.stream()` in firebase-functions is still a stub, so `@effect-firebase/admin`
+ships test helpers that invoke a callable with a fake `CallableResponse`:
+
+```typescript
+import {
+  runCallable,
+  streamCallable,
+  makeCallableRequest,
+} from '@effect-firebase/admin';
+
+const { stream, data, abort } = streamCallable(chat, { prompt: 'hi' });
+for await (const chunk of stream) chunks.push(chunk); // what the client would see
+expect(await data).toEqual(chunks); // final `data`
+abort(); // simulate a client disconnect
+
+await runCallable(chat, { prompt: 'hi' }); // non-streaming client, final `data` only
+
+// full control over auth/app/rawRequest
+streamCallable(
+  chat,
+  makeCallableRequest({ prompt: 'hi' }, { auth: { uid: 'u1', token } }),
+);
+```
+
 ### Firestore triggers
 
 ```typescript
