@@ -116,10 +116,69 @@ const orderValues = (
 };
 
 /**
- * Resolve a cursor value at a document-name position. Firestore accepts a
- * bare ID for a single-collection query (expanded against that collection)
- * and requires a full document path for a collection group query; the mock
- * accepts both by expanding a bare ID against the snapshot's own parent.
+ * Collect the orderBys and cursor arrays out of a constraint list.
+ */
+const cursorsOf = (
+  constraints: ReadonlyArray<QueryConstraint>,
+): {
+  readonly orderBys: ReadonlyArray<Query.OrderBy>;
+  readonly cursors: ReadonlyArray<ReadonlyArray<unknown>>;
+} => {
+  const orderBys: Array<Query.OrderBy> = [];
+  const cursors: Array<ReadonlyArray<unknown>> = [];
+  for (const constraint of constraints) {
+    switch (constraint._tag) {
+      case 'OrderBy':
+        orderBys.push(constraint);
+        break;
+      case 'StartAt':
+      case 'StartAfter':
+      case 'EndAt':
+      case 'EndBefore':
+        cursors.push(constraint.values);
+        break;
+    }
+  }
+  return { orderBys, cursors };
+};
+
+/**
+ * Validate the document-name cursor values of a **collection group** query,
+ * returning an error message when one is not a full document path. Both
+ * SDKs reject a bare ID there, since it does not name a document without
+ * knowing which parent it belongs to.
+ */
+export const validateGroupCursors = (
+  constraints: ReadonlyArray<QueryConstraint>,
+): string | undefined => {
+  const { orderBys, cursors } = cursorsOf(constraints);
+  for (const cursor of cursors) {
+    for (let i = 0; i < cursor.length; i++) {
+      if (!isNamePosition(orderBys, i)) {
+        continue;
+      }
+      const value = cursor[i];
+      const segments = typeof value === 'string' ? value.split('/') : [];
+      const isDocumentPath =
+        segments.length >= 2 &&
+        segments.length % 2 === 0 &&
+        segments.every((segment) => segment.length > 0);
+      if (!isDocumentPath) {
+        return `When querying a collection group and ordering by document ID, the cursor value must be a full document path, but '${String(
+          value,
+        )}' is not`;
+      }
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Resolve a cursor value at a document-name position. A single-collection
+ * query takes a bare ID, which Firestore expands against that collection;
+ * the mock expands it against the snapshot's own parent. A collection group
+ * query only ever reaches here with full paths (see
+ * {@link validateGroupCursors}).
  */
 const nameCursor = (snapshot: Snapshot, value: unknown): unknown => {
   if (typeof value !== 'string' || value.includes('/')) {

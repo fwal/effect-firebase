@@ -20,7 +20,7 @@ import {
   type QueryConstraint,
 } from 'effect-firebase';
 import { MockController, type MockControllerShape } from './controller.js';
-import { applyConstraints } from './query-filter.js';
+import { applyConstraints, validateGroupCursors } from './query-filter.js';
 import type { Fixture } from './fixture.js';
 import * as MockState from './state.js';
 import {
@@ -316,6 +316,7 @@ const makeFirestore = (
     queryGroup: (collectionId, constraints) =>
       Effect.gen(function* () {
         yield* validate(validateCollectionId(collectionId));
+        yield* validate(validateGroupCursors(constraints));
         return yield* runQuery(collectionId, constraints, (docs) =>
           docsInCollectionGroup(docs, collectionId),
         );
@@ -374,7 +375,8 @@ const makeFirestore = (
     },
 
     streamQueryGroup: (collectionId, constraints) => {
-      const invalid = validateCollectionId(collectionId);
+      const invalid =
+        validateCollectionId(collectionId) ?? validateGroupCursors(constraints);
       if (invalid !== undefined) {
         return Stream.fail(invalidArgument(invalid));
       }

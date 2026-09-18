@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Query, Snapshot } from 'effect-firebase';
-import { applyConstraints } from './query-filter.js';
+import { applyConstraints, validateGroupCursors } from './query-filter.js';
 
 const snap = (id: string, data: Record<string, unknown>): Snapshot => [
   { id, path: `posts/${id}` },
@@ -264,6 +264,43 @@ describe('applyConstraints', () => {
         ]),
       ),
     ).toEqual(['users/u1/comments/c1']);
+  });
+
+  it('rejects bare-ID name cursors for collection group queries', () => {
+    const named = Query.orderByDocumentId('asc');
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.StartAfter({ values: ['c1'] }),
+      ]),
+    ).toMatch(/full document path/);
+    // The implicit tiebreaker position is checked too.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({ values: [1, 'c1'] }),
+      ]),
+    ).toMatch(/full document path/);
+    // Odd segment counts name a collection, not a document.
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.EndAt({ values: ['posts/p1/comments'] }),
+      ]),
+    ).toMatch(/full document path/);
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.StartAfter({ values: ['posts/p1/comments/c1'] }),
+      ]),
+    ).toBeUndefined();
+    // Field-only cursors are unaffected.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({ values: [1] }),
+      ]),
+    ).toBeUndefined();
   });
 
   it('applies cursors relative to orderBy values', () => {

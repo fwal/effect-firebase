@@ -130,6 +130,39 @@ describe('layer', () => {
       expect((error as FirestoreError).code).toBe('invalid-argument');
     });
 
+    it('rejects a bare-ID cursor on a group query, effect and stream', async () => {
+      const [fromEffect, fromStream] = await run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const constraints = [
+            ...Query.orderByDocumentId('asc'),
+            new Query.StartAfter({ values: ['a'] }),
+          ];
+          const effectError = yield* Effect.flip(
+            firestore.queryGroup('comments', constraints),
+          );
+          const streamError = yield* Effect.flip(
+            Stream.runCollect(
+              firestore.streamQueryGroup('comments', constraints),
+            ),
+          );
+          // A full path pages as expected.
+          const paged = yield* firestore.queryGroup('comments', [
+            ...Query.orderByDocumentId('asc'),
+            new Query.StartAfter({ values: ['posts/1/comments/a'] }),
+          ]);
+          expect(paged.map(([ref]) => ref.path)).toEqual([
+            'posts/1/comments/b',
+            'users/u1/comments/c',
+          ]);
+          return [effectError, streamError] as const;
+        }),
+        { fixtures: [nestedComments, userComments] },
+      );
+      expect((fromEffect as FirestoreError).code).toBe('invalid-argument');
+      expect((fromStream as FirestoreError).code).toBe('invalid-argument');
+    });
+
     it('resolves the simulated state by collection ID', () =>
       run(
         Effect.gen(function* () {
