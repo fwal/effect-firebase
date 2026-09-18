@@ -396,6 +396,9 @@ Without `onSetupError`: `onCallEffect` rejects invalid input with
 `HttpsError('internal')`; `onRequestEffect` responds `400` then `500`;
 the Firestore/Pub/Sub/Tasks triggers log a defect. `onCallEffect` also
 propagates an `HttpsError` failed by the handler with its code intact.
+Recovery wraps the boundary only, never the handler. An escaping error is
+logged as a defect unless it is an `HttpsError` or carries Effect's
+`ErrorReporter.ignore` annotation.
 
 ## Testing with the mock
 

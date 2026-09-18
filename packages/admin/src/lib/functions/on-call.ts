@@ -15,14 +15,16 @@ import {
   encodeOutput,
   extractContext,
 } from './on-call-helpers.js';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
+import { isExpectedRejection } from './report.js';
 
-interface CallEffectOptions<R> extends CallableOptions {
+interface CallEffectOptions<R, A = unknown> extends CallableOptions {
   runtime: Runtime<R>;
   /**
    * Recover from errors raised during function setup (input decoding or
    * output encoding). The returned effect either succeeds with a fallback
-   * response for the client or fails with an `HttpsError` to reject the call.
+   * response for the client — typed as whatever this function returns — or
+   * fails with an `HttpsError` to reject the call.
    *
    * When omitted, an input decode failure is rejected with an
    * `invalid-argument` HttpsError and an output encode failure with an
@@ -31,38 +33,31 @@ interface CallEffectOptions<R> extends CallableOptions {
   onSetupError?: (
     error: FunctionSetupError,
     request: CallableRequest,
-  ) => Effect.Effect<unknown, HttpsError, R>;
+  ) => Effect.Effect<A, HttpsError, R>;
 }
 
 interface CallEffectOptionsWithInput<
   R,
   I extends Schema.Top,
-> extends CallEffectOptions<R> {
+  T,
+> extends CallEffectOptions<R, T> {
   inputSchema: I;
 }
 
 interface CallEffectOptionsWithOutput<
   R,
   O extends Schema.Top,
-> extends CallEffectOptions<R> {
+> extends CallEffectOptions<R, Schema.Codec.Encoded<O>> {
   outputSchema: O;
-  onSetupError?: (
-    error: FunctionSetupError,
-    request: CallableRequest,
-  ) => Effect.Effect<Schema.Codec.Encoded<O>, HttpsError, R>;
 }
 
 interface CallEffectOptionsWithBoth<
   R,
   I extends Schema.Top,
   O extends Schema.Top,
-> extends CallEffectOptions<R> {
+> extends CallEffectOptions<R, Schema.Codec.Encoded<O>> {
   inputSchema: I;
   outputSchema: O;
-  onSetupError?: (
-    error: FunctionSetupError,
-    request: CallableRequest,
-  ) => Effect.Effect<Schema.Codec.Encoded<O>, HttpsError, R>;
 }
 
 /**
@@ -95,7 +90,7 @@ export function onCallEffect<R, I extends Schema.Top, O extends Schema.Top, E>(
 
 // Overload: only input schema
 export function onCallEffect<R, T, I extends Schema.Top, E>(
-  options: CallEffectOptionsWithInput<R, I>,
+  options: CallEffectOptionsWithInput<R, I, T>,
   handler: (
     input: Schema.Schema.Type<I>,
     context: CallableContext,
@@ -113,7 +108,7 @@ export function onCallEffect<R, O extends Schema.Top, E>(
 
 // Overload: no schemas
 export function onCallEffect<R, T, E>(
-  options: CallEffectOptions<R>,
+  options: CallEffectOptions<R, T>,
   handler: (
     request: CallableRequest,
     response?: CallableResponse,
@@ -132,47 +127,49 @@ export function onCallEffect<R>(
   const { inputSchema, outputSchema, onSetupError } = options;
 
   return onCall(options, async (request, response) => {
-    const effect = pipe(
-      // Step 1: Decode input if schema provided (uses helper)
-      inputSchema
-        ? decodeInput(inputSchema)(request).pipe(
+    const recover = (error: FunctionSetupError) =>
+      onSetupError
+        ? onSetupError(error, request)
+        : defaultSetupErrorResponse(error);
+
+    // Boundary step 1: decode the input. Its only failure is a setup error.
+    const decoded = inputSchema
+      ? decodeInput(inputSchema)(request).pipe(
+          Effect.mapError(
+            (cause) => new FunctionSetupError({ phase: 'decode-input', cause }),
+          ),
+        )
+      : Effect.succeed(request);
+
+    // Boundary step 2: encode the handler's output, likewise.
+    const encode = (output: unknown) =>
+      outputSchema
+        ? encodeOutput(outputSchema)(output).pipe(
             Effect.mapError(
               (cause) =>
-                new FunctionSetupError({ phase: 'decode-input', cause }),
+                new FunctionSetupError({ phase: 'encode-output', cause }),
             ),
+            Effect.catch(recover),
           )
-        : Effect.succeed(request),
+        : Effect.succeed(output);
 
-      // Step 2: Run handler with decoded input or raw request
-      Effect.andThen((inputOrRequest) => {
-        if (inputSchema) {
-          // Handler expects decoded input and context (uses helper)
-          return handler(inputOrRequest, extractContext(request));
-        } else {
-          // Handler expects raw request and response
-          return handler(request, response);
-        }
+    const effect = decoded.pipe(
+      Effect.matchEffect({
+        // Decoding failed, so the handler never runs.
+        onFailure: (error) => recover(error),
+        // Recovery is deliberately NOT wrapped around the handler: a handler
+        // failure is the handler's own error, even when it happens to be a
+        // FunctionSetupError, and must reach the caller unchanged.
+        onSuccess: (inputOrRequest) =>
+          pipe(
+            inputSchema
+              ? handler(inputOrRequest, extractContext(request))
+              : handler(request, response),
+            Effect.andThen((output) => encode(output)),
+          ),
       }),
-
-      // Step 3: Encode output if schema provided (uses helper)
-      Effect.andThen((output) =>
-        outputSchema
-          ? encodeOutput(outputSchema)(output).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new FunctionSetupError({ phase: 'encode-output', cause }),
-              ),
-            )
-          : Effect.succeed(output),
-      ),
-
-      // Step 4: Recover from setup errors (schema decode/encode failures)
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        onSetupError
-          ? onSetupError(error, request)
-          : defaultSetupErrorResponse(error),
-      ),
-    ).pipe(Effect.withSpan('onCallEffect'));
+      Effect.withSpan('onCallEffect'),
+    );
 
     const exit = await runExit(
       options.runtime,
@@ -184,15 +181,15 @@ export function onCallEffect<R>(
     }
 
     const error = Cause.squash(exit.cause);
-    if (error instanceof HttpsError) {
-      // Expected rejection: let Firebase serialize the HttpsError so the
-      // client receives its code and message instead of a generic internal.
-      throw error;
+    // Expected rejections (an HttpsError, or any error annotated with
+    // ErrorReporter.ignore) are rethrown for Firebase to serialize, so the
+    // client receives their code and message, but are not logged as defects.
+    if (!isExpectedRejection(error)) {
+      logger.error('Defect in onCall', {
+        inner: error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
-    logger.error('Defect in onCall', {
-      inner: error,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
     throw error;
   });
 }

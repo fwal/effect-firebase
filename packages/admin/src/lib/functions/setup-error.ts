@@ -23,7 +23,12 @@ export type FunctionSetupPhase =
  */
 export class FunctionSetupError extends Data.TaggedError('FunctionSetupError')<{
   readonly phase: FunctionSetupPhase;
-  readonly cause: Schema.SchemaError;
+  /**
+   * The underlying failure. Usually a `SchemaError`, but a plain `Error` when
+   * the payload could not be read at all — a Pub/Sub message whose body is not
+   * valid JSON, for example, which fails before any schema is applied.
+   */
+  readonly cause: Schema.SchemaError | Error;
 }> {
   override get message(): string {
     return `Function setup failed during ${this.phase}: ${this.cause.message}`;

@@ -7,7 +7,7 @@ import {
 import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
@@ -42,10 +42,22 @@ function decodeMessageData<S extends Schema.Top>(
   FunctionSetupError,
   S['DecodingServices']
 > {
-  const messageData = event.data.message.json;
-  return Schema.decodeUnknownEffect(schema)(messageData).pipe(
-    Effect.mapError(
-      (cause) => new FunctionSetupError({ phase: 'decode-message', cause }),
+  return Effect.try({
+    // `message.json` parses the base64 payload on access and throws when it
+    // is not valid JSON, before any schema is involved.
+    try: () => event.data.message.json,
+    catch: (error) =>
+      new FunctionSetupError({
+        phase: 'decode-message',
+        cause: error instanceof Error ? error : new Error(String(error)),
+      }),
+  }).pipe(
+    Effect.flatMap((messageData) =>
+      Schema.decodeUnknownEffect(schema)(messageData).pipe(
+        Effect.mapError(
+          (cause) => new FunctionSetupError({ phase: 'decode-message', cause }),
+        ),
+      ),
     ),
   ) as Effect.Effect<
     Schema.Schema.Type<S>,
@@ -89,23 +101,22 @@ export function onMessagePublishedEffect<R>(
   const { messageSchema } = options;
 
   return onMessagePublished(options, async (event) => {
-    const effect = Effect.gen(function* () {
-      if (messageSchema) {
-        // Decode message data and pass to handler
-        const messageData = yield* decodeMessageData(messageSchema, event);
-        return yield* handler(messageData, event);
-      } else {
-        // Pass raw event to handler
-        return yield* handler(event);
-      }
-    }).pipe(
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, event)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onMessagePublishedEffect'),
-    );
+    const recover = (error: FunctionSetupError) =>
+      options.onSetupError
+        ? options.onSetupError(error, event)
+        : Effect.die(error);
+
+    // Recovery covers decoding only; a handler failure stays its own error.
+    const effect = (
+      messageSchema
+        ? decodeMessageData(messageSchema, event).pipe(
+            Effect.matchEffect({
+              onFailure: (error) => recover(error),
+              onSuccess: (messageData) => handler(messageData, event),
+            }),
+          )
+        : handler(event)
+    ).pipe(Effect.withSpan('onMessagePublishedEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

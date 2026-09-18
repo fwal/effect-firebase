@@ -7,7 +7,7 @@ import {
 } from 'firebase-functions/v2/tasks';
 import { logger } from 'firebase-functions';
 import { run, Runtime } from './run.js';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
 
 interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;
@@ -86,23 +86,22 @@ export function onTaskDispatchedEffect<R>(
   const { schema } = options;
 
   return onTaskDispatched(options, async (request) => {
-    const effect = Effect.gen(function* () {
-      if (schema) {
-        // Decode task payload and pass both parsed payload and request to handler
-        const taskData = yield* decodeTaskData(schema, request);
-        return yield* handler(taskData, request);
-      } else {
-        // Pass raw request to handler
-        return yield* handler(request);
-      }
-    }).pipe(
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, request)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onTaskDispatchedEffect'),
-    );
+    const recover = (error: FunctionSetupError) =>
+      options.onSetupError
+        ? options.onSetupError(error, request)
+        : Effect.die(error);
+
+    // Recovery covers decoding only; a handler failure stays its own error.
+    const effect = (
+      schema
+        ? decodeTaskData(schema, request).pipe(
+            Effect.matchEffect({
+              onFailure: (error) => recover(error),
+              onSuccess: (taskData) => handler(taskData, request),
+            }),
+          )
+        : handler(request)
+    ).pipe(Effect.withSpan('onTaskDispatchedEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {

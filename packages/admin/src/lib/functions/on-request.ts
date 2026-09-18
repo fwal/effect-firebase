@@ -9,7 +9,8 @@ import { type Response } from 'express';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { parseBody, sendJson } from './on-request-helpers.js';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
+import { isExpectedRejection } from './report.js';
 
 interface RequestEffectOptions<R> extends HttpsOptions {
   runtime: Runtime<R>;
@@ -136,54 +137,60 @@ export function onRequestEffect<R>(
     options;
 
   return onRequest(options, async (request, response) => {
-    const effect = pipe(
-      // Step 1: Parse body if schema provided
-      bodySchema
-        ? parseBody(bodySchema)(request).pipe(
+    const recover = (error: FunctionSetupError) =>
+      onSetupError
+        ? onSetupError(error, request, response)
+        : defaultSetupErrorResponse(error, response);
+
+    // Boundary step 1: parse the body. Its only failure is a setup error.
+    const parsed = bodySchema
+      ? parseBody(bodySchema)(request).pipe(
+          Effect.mapError(
+            (cause) => new FunctionSetupError({ phase: 'decode-body', cause }),
+          ),
+        )
+      : Effect.succeed(request);
+
+    // Boundary step 2: encode and send the response, likewise.
+    const send = (output: unknown) =>
+      responseSchema
+        ? sendJson(response, responseSchema, successStatus)(output).pipe(
             Effect.mapError(
               (cause) =>
-                new FunctionSetupError({ phase: 'decode-body', cause }),
+                new FunctionSetupError({ phase: 'encode-response', cause }),
             ),
+            Effect.catch(recover),
           )
-        : Effect.succeed(request),
+        : Effect.void;
 
-      // Step 2: Run handler with parsed body or raw request
-      Effect.andThen((bodyOrRequest) => {
-        if (bodySchema) {
-          // Handler expects parsed body, request, response
-          return handler(bodyOrRequest, request, response);
-        } else {
-          // Handler expects request, response
-          return handler(request, response);
-        }
+    const effect = parsed.pipe(
+      Effect.matchEffect({
+        // Parsing failed, so the handler never runs.
+        onFailure: (error) => recover(error),
+        // Recovery is deliberately NOT wrapped around the handler: a handler
+        // failure stays the handler's own error.
+        onSuccess: (bodyOrRequest) =>
+          pipe(
+            bodySchema
+              ? handler(bodyOrRequest, request, response)
+              : handler(request, response),
+            Effect.andThen((output) => send(output)),
+          ),
       }),
-
-      // Step 3: Send JSON response if schema provided
-      Effect.andThen((output) =>
-        responseSchema
-          ? sendJson(response, responseSchema, successStatus)(output).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new FunctionSetupError({ phase: 'encode-response', cause }),
-              ),
-            )
-          : Effect.void,
-      ),
-
-      // Step 4: Recover from setup errors (schema decode/encode failures)
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        onSetupError
-          ? onSetupError(error, request, response)
-          : defaultSetupErrorResponse(error, response),
-      ),
-    ).pipe(Effect.withSpan('onRequestEffect'));
+      Effect.withSpan('onRequestEffect'),
+    );
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
-        logger.error('Defect in onRequest', {
-          inner: error,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        // An error annotated with ErrorReporter.ignore is an expected
+        // rejection the handler chose not to answer itself: still a 500, but
+        // not logged as a defect.
+        if (!isExpectedRejection(error)) {
+          logger.error('Defect in onRequest', {
+            inner: error,
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        }
         response.status(500).send();
       },
     );

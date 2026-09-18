@@ -141,6 +141,36 @@ describe('onCallEffect', () => {
   });
 
   describe('handler errors', () => {
+    it('does not route a FunctionSetupError raised by the handler through onSetupError', async () => {
+      let setupErrorCalled = false;
+      const fn = onCallEffect(
+        {
+          runtime,
+          inputSchema: Input,
+          outputSchema: Output,
+          onSetupError: () => {
+            setupErrorCalled = true;
+            return Effect.succeed({ greeting: 'recovered' });
+          },
+        },
+        () =>
+          Effect.fail(
+            new FunctionSetupError({
+              phase: 'decode-input',
+              cause: new Error('raised by the handler, not the boundary'),
+            }),
+          ),
+      );
+
+      const error = await fn
+        .run(makeRequest({ name: 'Ada', age: 36 }))
+        .then(() => undefined)
+        .catch((error: unknown) => error);
+
+      expect(setupErrorCalled).toBe(false);
+      expect(error).toBeInstanceOf(FunctionSetupError);
+    });
+
     it('propagates an HttpsError failed by the handler', async () => {
       const fn = onCallEffect(
         { runtime, inputSchema: Input, outputSchema: Output },

@@ -1,4 +1,4 @@
-import { Effect, pipe, Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   onDocumentCreated,
   onDocumentCreatedWithAuthContext,
@@ -12,7 +12,8 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
+import { recoverSetupError } from './recover-setup-error.js';
 
 interface DocumentCreatedEffectOptions<
   R,
@@ -62,26 +63,23 @@ export function onDocumentCreatedEffect<
   const schema = options.schema ?? Schema.Unknown;
 
   return onDocumentCreated(options, async (event) => {
-    const effect = pipe(
-      decodeDocumentData(
+    const effect = Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        document: event.data?.ref.path ?? 'unknown',
+      });
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
-      ),
-      Effect.tap(() =>
-        Effect.annotateCurrentSpan({
-          document: event.data?.ref.path ?? 'unknown',
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(data as Schema.Schema.Type<S>, event),
         }),
-      ),
-      Effect.flatMap((data) => handler(data as Schema.Schema.Type<S>, event)),
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, event)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onDocumentCreatedEffect'),
-    );
+      );
+    }).pipe(Effect.withSpan('onDocumentCreatedEffect'));
 
     await run(
       options.runtime,
@@ -126,21 +124,19 @@ export function onDocumentCreatedWithAuthContextEffect<
       yield* Effect.annotateCurrentSpan({
         document: event.data?.ref.path ?? 'unknown',
       });
-      const data = yield* decodeDocumentData(
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(event, data as Schema.Schema.Type<S>),
+        }),
       );
-      return yield* handler(event, data as Schema.Schema.Type<S>);
-    }).pipe(
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, event)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onDocumentCreatedWithAuthContextEffect'),
-    );
+    }).pipe(Effect.withSpan('onDocumentCreatedWithAuthContextEffect'));
 
     await run(
       options.runtime,

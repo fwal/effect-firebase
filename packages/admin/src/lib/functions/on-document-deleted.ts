@@ -12,7 +12,8 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
-import { FunctionSetupError, isFunctionSetupError } from './setup-error.js';
+import { FunctionSetupError } from './setup-error.js';
+import { recoverSetupError } from './recover-setup-error.js';
 
 interface DocumentDeletedEffectOptions<
   R,
@@ -66,21 +67,19 @@ export function onDocumentDeletedEffect<
       yield* Effect.annotateCurrentSpan({
         document: event.data?.ref.path ?? 'unknown',
       });
-      const data = yield* decodeDocumentData(
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(data as Schema.Schema.Type<S>, event),
+        }),
       );
-      return yield* handler(data as Schema.Schema.Type<S>, event);
-    }).pipe(
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, event)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onDocumentDeletedEffect'),
-    );
+    }).pipe(Effect.withSpan('onDocumentDeletedEffect'));
 
     await run(
       options.runtime,
@@ -125,21 +124,19 @@ export function onDocumentDeletedWithAuthContextEffect<
       yield* Effect.annotateCurrentSpan({
         document: event.data?.ref.path ?? 'unknown',
       });
-      const data = yield* decodeDocumentData(
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(event, data as Schema.Schema.Type<S>),
+        }),
       );
-      return yield* handler(event, data as Schema.Schema.Type<S>);
-    }).pipe(
-      Effect.catchIf(isFunctionSetupError, (error) =>
-        options.onSetupError
-          ? options.onSetupError(error, event)
-          : Effect.die(error),
-      ),
-      Effect.withSpan('onDocumentDeletedWithAuthContextEffect'),
-    );
+    }).pipe(Effect.withSpan('onDocumentDeletedWithAuthContextEffect'));
 
     await run(
       options.runtime,

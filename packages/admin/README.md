@@ -170,6 +170,27 @@ Defaults when `onSetupError` is omitted:
 client with its code and message intact, so `Effect.catchTag(...)` chains that end in
 `Effect.fail(new HttpsError(...))` work as written.
 
+Recovery wraps the boundary only. An error your handler raises is never routed through
+`onSetupError` — including a `FunctionSetupError` you raise yourself — so the two stay
+distinguishable.
+
+### Expected rejections and defect logging
+
+An error that escapes a function is logged as a defect unless it is an expected
+rejection: an `HttpsError`, or any error annotated with Effect's `ErrorReporter.ignore`
+(the convention `HttpApiError.BadRequest` and friends use). Annotate your own errors to
+keep them out of the defect logs while still failing the call:
+
+```typescript
+import { Data, ErrorReporter } from 'effect';
+
+class RejectedError extends Data.TaggedError('RejectedError')<{
+  readonly reason: string;
+}> {
+  readonly [ErrorReporter.ignore] = true;
+}
+```
+
 ## Cloud Logging
 
 `Admin.layer` automatically replaces the default Effect logger with one that writes structured logs to Cloud Logging:
