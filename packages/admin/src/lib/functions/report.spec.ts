@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from '@effect/vitest';
 import { Data, Effect, ErrorReporter, Layer, ManagedRuntime } from 'effect';
 import { logger } from 'firebase-functions';
 import { CallableRequest, HttpsError } from 'firebase-functions/https';

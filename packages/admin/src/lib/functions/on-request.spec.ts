@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { Request } from 'firebase-functions/https';
 import { type Response } from 'express';
