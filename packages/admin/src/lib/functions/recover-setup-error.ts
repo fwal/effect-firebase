@@ -2,6 +2,8 @@ import { Effect } from 'effect';
 import { FunctionSetupError } from './setup-error.js';
 
 /**
+ * @internal Not part of the package's public API.
+ *
  * Apply a trigger's `onSetupError` option, or treat the setup error as a
  * defect when no recovery was supplied.
  *

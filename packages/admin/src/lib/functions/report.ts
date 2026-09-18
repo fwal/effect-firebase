@@ -2,6 +2,8 @@ import { ErrorReporter } from 'effect';
 import { HttpsError } from 'firebase-functions/https';
 
 /**
+ * @internal Not part of the package's public API.
+ *
  * Whether an error that escaped a function is an expected rejection rather
  * than a defect, and so should not be logged as one.
  *
