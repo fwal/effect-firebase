@@ -71,7 +71,7 @@ client called `httpsCallable(...).stream()`, the `response` object for manual `s
 `chunkSchema` and sent to the client with `response.sendChunk` as it is produced. When the
 stream completes, the collected chunks are returned as the callable's final `data`, so a
 client that calls the function without `.stream()` still gets the full result. The stream is
-halted when the client disconnects.
+interrupted when the client disconnects, including an in-flight pull.
 
 ```typescript
 import { onCallStreamEffect } from '@effect-firebase/admin';

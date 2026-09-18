@@ -52,7 +52,8 @@ interface CallStreamEffectOptionsWithBoth<
  * streaming (`httpsCallable(...)(input)` instead of
  * `httpsCallable(...).stream(input)`) still receive the full result.
  *
- * The stream is halted when the client disconnects (`response.signal`).
+ * The stream is interrupted when the client disconnects (`response.signal`),
+ * including any in-flight pull such as a pending language-model request.
  *
  * @example
  * ```ts
@@ -175,8 +176,9 @@ export function onCallStreamEffect<R>(
             pipe(sendChunk(response, encoded), Effect.as(encoded)),
           ),
 
-          // Step 5: Stop pulling when the client disconnects
-          Stream.haltWhen(clientDisconnected(response)),
+          // Step 5: Interrupt the stream (including an in-flight pull) when
+          // the client disconnects; chunks collected so far are kept
+          Stream.interruptWhen(clientDisconnected(response)),
 
           // Step 6: Collect all chunks as the final result
           Stream.runCollect,

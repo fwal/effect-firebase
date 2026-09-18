@@ -1,5 +1,5 @@
 import { Effect, ManagedRuntime, Layer, Schema, Stream } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
 import { onCallStreamEffect } from './on-call-stream.js';
 import { onCallEffect } from './on-call.js';
 import {
@@ -95,6 +95,40 @@ describe('onCallStreamEffect', () => {
     expect(received.length).toBeGreaterThanOrEqual(3);
     expect(received.length).toBeLessThan(100);
     expect(await data).toEqual(received);
+  });
+
+  it('interrupts an in-flight pull when the client disconnects', async () => {
+    let interrupted = false;
+    let markStarted: () => void = () => undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const fn = onCallStreamEffect({ runtime }, () =>
+      Stream.make(1, 2).pipe(
+        Stream.concat(
+          Stream.fromEffect(
+            Effect.sync(() => markStarted()).pipe(
+              Effect.andThen(Effect.never),
+              Effect.onInterrupt(() =>
+                Effect.sync(() => {
+                  interrupted = true;
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const { stream, data, abort } = streamCallable(fn, null);
+    const received = collect(stream);
+    // Wait until the stalled pull is in flight, then disconnect
+    await started;
+    abort();
+
+    expect(await data).toEqual([1, 2]);
+    expect(await received).toEqual([1, 2]);
+    expect(interrupted).toBe(true);
   });
 
   it('fails when the input does not match the schema', async () => {
