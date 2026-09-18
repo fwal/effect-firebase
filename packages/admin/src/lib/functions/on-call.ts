@@ -163,7 +163,7 @@ export function onCallEffect<R>(
         onSuccess: (inputOrRequest) =>
           pipe(
             inputSchema
-              ? handler(inputOrRequest, extractContext(request))
+              ? handler(inputOrRequest, extractContext(request, response))
               : handler(request, response),
             Effect.andThen((output) => encode(output)),
           ),

@@ -364,8 +364,14 @@ export const nightly = onScheduleEffect(
 
 Wrappers: `onRequestEffect` (HTTP; optional `bodySchema`/`responseSchema`),
 `onCallEffect` (optional `inputSchema`/`outputSchema`; handler receives
-decoded input + `context.auth` when `inputSchema` is set, else the raw
-request), `onDocumentCreated/Updated/Deleted/WrittenEffect`,
+decoded input + `context` (`auth`, `app`, `rawRequest`, `acceptsStreaming`,
+`response` for manual `sendChunk`) when `inputSchema` is set, else the raw
+request), `onCallStreamEffect` (optional `inputSchema`/`chunkSchema`; handler
+returns a `Stream`, each element is sent with `response.sendChunk`, the
+collected chunks are the final `data`; interrupts on client disconnect; use for
+Effect AI `LanguageModel.streamText` with `httpsCallable(...).stream()` on the
+client; unit-test with `streamCallable(fn, input)` / `runCallable(fn, input)` /
+`makeCallableRequest` from `@effect-firebase/admin`), `onDocumentCreated/Updated/Deleted/WrittenEffect`,
 `onMessagePublishedEffect` (Pub/Sub, `messageSchema`), `onTaskDispatchedEffect`
 (`schema`), `onScheduleEffect`. All accept the native firebase-functions
 options plus `runtime`, trace with `Effect.withSpan`, and log defects.

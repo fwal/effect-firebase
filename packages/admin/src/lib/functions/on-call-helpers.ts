@@ -1,5 +1,5 @@
 import { Effect, pipe, Schema } from 'effect';
-import { CallableRequest } from 'firebase-functions/https';
+import { CallableRequest, CallableResponse } from 'firebase-functions/https';
 
 /**
  * Metadata from the callable request (auth, raw request, etc.)
@@ -13,16 +13,29 @@ export interface CallableContext {
   app?: CallableRequest['app'];
   /** Instance ID token */
   instanceIdToken?: string;
+  /** Whether the client supports streaming (`httpsCallable(...).stream()`) */
+  acceptsStreaming: boolean;
+  /**
+   * The callable response, used to stream chunks to the client with
+   * `response.sendChunk(chunk)`. Only meaningful when `acceptsStreaming` is
+   * true; use `onCallStreamEffect` for a typed streaming wrapper.
+   */
+  response?: CallableResponse;
 }
 
 /**
  * Extract context metadata from a CallableRequest.
  */
-export const extractContext = (request: CallableRequest): CallableContext => ({
+export const extractContext = (
+  request: CallableRequest,
+  response?: CallableResponse,
+): CallableContext => ({
   auth: request.auth,
   rawRequest: request.rawRequest,
   app: request.app,
   instanceIdToken: request.instanceIdToken,
+  acceptsStreaming: request.acceptsStreaming,
+  response,
 });
 
 /**
@@ -113,6 +126,7 @@ export const withSchemas =
   ) =>
   (
     request: CallableRequest,
+    response?: CallableResponse,
   ): Effect.Effect<
     Schema.Codec.Encoded<O>,
     E | Schema.SchemaError,
@@ -120,7 +134,9 @@ export const withSchemas =
   > =>
     pipe(
       decodeInput(inputSchema)(request),
-      Effect.andThen((input) => handler(input, extractContext(request))),
+      Effect.andThen((input) =>
+        handler(input, extractContext(request, response)),
+      ),
       Effect.andThen(encodeOutput(outputSchema)),
     );
 
@@ -149,10 +165,13 @@ export const withInputSchema =
   ) =>
   (
     request: CallableRequest,
+    response?: CallableResponse,
   ): Effect.Effect<T, E | Schema.SchemaError, R | I['DecodingServices']> =>
     pipe(
       decodeInput(inputSchema)(request),
-      Effect.andThen((input) => handler(input, extractContext(request))),
+      Effect.andThen((input) =>
+        handler(input, extractContext(request, response)),
+      ),
     );
 
 /**
