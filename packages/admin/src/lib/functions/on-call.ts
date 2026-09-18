@@ -104,7 +104,7 @@ export function onCallEffect<R>(
       Effect.andThen((inputOrRequest) => {
         if (inputSchema) {
           // Handler expects decoded input and context (uses helper)
-          return handler(inputOrRequest, extractContext(request));
+          return handler(inputOrRequest, extractContext(request, response));
         } else {
           // Handler expects raw request and response
           return handler(request, response);

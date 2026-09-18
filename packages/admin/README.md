@@ -62,6 +62,77 @@ export const createPost = onCallEffect(
 
 When `inputSchema` and `outputSchema` are provided, decoding and encoding are handled automatically.
 
+The handler's `context` exposes `auth`, `app`, `rawRequest`, `acceptsStreaming` and, when the
+client called `httpsCallable(...).stream()`, the `response` object for manual `sendChunk` calls.
+
+### Streaming callable (`onCall` + `sendChunk`)
+
+`onCallStreamEffect` takes a handler that returns a `Stream`. Each element is encoded with
+`chunkSchema` and sent to the client with `response.sendChunk` as it is produced. When the
+stream completes, the collected chunks are returned as the callable's final `data`, so a
+client that calls the function without `.stream()` still gets the full result. The stream is
+interrupted when the client disconnects, including an in-flight pull.
+
+```typescript
+import { onCallStreamEffect } from '@effect-firebase/admin';
+import { Schema, Stream } from 'effect';
+import { LanguageModel } from 'effect/unstable/ai';
+
+export const chat = onCallStreamEffect(
+  {
+    runtime,
+    timeoutSeconds: 540,
+    inputSchema: Schema.Struct({ prompt: Schema.String }),
+    chunkSchema: Schema.Struct({ delta: Schema.String }),
+  },
+  (input) =>
+    LanguageModel.streamText({ prompt: input.prompt }).pipe(
+      Stream.filter((part) => part.type === 'text-delta'),
+      Stream.map((part) => ({ delta: part.delta })),
+      Stream.provide(AnthropicModel), // any Effect AI provider layer
+    ),
+);
+```
+
+Client side:
+
+```typescript
+const { stream, data } = await httpsCallable(functions, 'chat').stream({
+  prompt,
+});
+for await (const chunk of stream) append(chunk.delta);
+const allChunks = await data; // ReadonlyArray<{ delta: string }>
+```
+
+Streaming callables require 2nd gen Cloud Functions; set `timeoutSeconds` high enough for
+long-running generations.
+
+#### Testing callables
+
+`CallableFunction.stream()` in firebase-functions is still a stub, so `@effect-firebase/admin`
+ships test helpers that invoke a callable with a fake `CallableResponse`:
+
+```typescript
+import {
+  runCallable,
+  streamCallable,
+  makeCallableRequest,
+} from '@effect-firebase/admin';
+
+const { stream, data, abort } = streamCallable(chat, { prompt: 'hi' });
+for await (const chunk of stream) chunks.push(chunk); // what the client would see
+expect(await data).toEqual(chunks); // final `data`
+abort(); // simulate a client disconnect
+
+await runCallable(chat, { prompt: 'hi' }); // non-streaming client, final `data` only
+
+// full control over auth/app/rawRequest
+streamCallable(
+  chat,
+  makeCallableRequest({ prompt: 'hi' }, { auth: { uid: 'u1', token } }),
+);
+```
+
 ### Firestore triggers
 
 ```typescript

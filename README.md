@@ -255,6 +255,7 @@ await Effect.runPromise(
 
 - `onRequestEffect` — HTTP
 - `onCallEffect` — Callable
+- `onCallStreamEffect` — Callable that streams a `Stream` to the client via `sendChunk`
 - `onDocumentCreatedEffect`, `onDocumentUpdatedEffect`, `onDocumentDeletedEffect`, `onDocumentWrittenEffect` — Firestore triggers
 - `onMessagePublishedEffect` — Pub/Sub
 - `onTaskDispatchedEffect` — Cloud Tasks
