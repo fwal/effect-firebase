@@ -126,7 +126,10 @@ const mock = layer({
 A collection group query (`queryGroup` / `streamQueryGroup`, or a
 repository's `group` view) resolves its state by collection ID, so
 `states: { comments: 'loading' }` covers both a top-level `comments`
-collection and the `comments` group across every parent.
+collection and the `comments` group across every parent. As in Firestore,
+a `__name__` cursor (`Query.orderByDocumentId`) in a group query is a full
+document path (`posts/p1/comments/c1`), while a single-collection query
+takes a bare ID.
 
 ## Driving the backend from outside Effect
 

@@ -222,6 +222,50 @@ describe('applyConstraints', () => {
     ).toEqual(['2', '4']);
   });
 
+  it('orders and pages a collection group by full path, not bare ID', () => {
+    // Same IDs under different parents: Firestore compares the full
+    // reference, so `posts/p1/comments/c1` sorts before `users/u1/comments/c1`
+    // and neither is dropped or treated as a duplicate.
+    const group: ReadonlyArray<Snapshot> = [
+      [{ id: 'c1', path: 'users/u1/comments/c1' }, { likes: 1 }],
+      [{ id: 'c1', path: 'posts/p1/comments/c1' }, { likes: 1 }],
+      [{ id: 'c2', path: 'posts/p1/comments/c2' }, { likes: 1 }],
+    ];
+    const paths = (results: ReadonlyArray<Snapshot>) =>
+      results.map(([ref]) => ref.path);
+
+    expect(paths(applyConstraints(group, []))).toEqual([
+      'posts/p1/comments/c1',
+      'posts/p1/comments/c2',
+      'users/u1/comments/c1',
+    ]);
+    expect(
+      paths(applyConstraints(group, Query.orderByDocumentId('desc'))),
+    ).toEqual([
+      'users/u1/comments/c1',
+      'posts/p1/comments/c2',
+      'posts/p1/comments/c1',
+    ]);
+    // A group cursor on __name__ is a full document path.
+    expect(
+      paths(
+        applyConstraints(group, [
+          ...Query.orderByDocumentId('asc'),
+          new Query.StartAfter({ values: ['posts/p1/comments/c1'] }),
+        ]),
+      ),
+    ).toEqual(['posts/p1/comments/c2', 'users/u1/comments/c1']);
+    // The implicit tiebreaker pages past equal field values the same way.
+    expect(
+      paths(
+        applyConstraints(group, [
+          new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+          new Query.StartAfter({ values: [1, 'posts/p1/comments/c2'] }),
+        ]),
+      ),
+    ).toEqual(['users/u1/comments/c1']);
+  });
+
   it('applies cursors relative to orderBy values', () => {
     const ordered = [new Query.OrderBy({ field: 'views', direction: 'asc' })];
     expect(

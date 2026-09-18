@@ -86,20 +86,47 @@ const matchesFilter = (data: DocData, filter: Filter): boolean => {
   }
 };
 
+/**
+ * Whether the orderBy at `index` is the document-name position: an explicit
+ * `__name__` orderBy, or the implicit tiebreaker Firestore appends after the
+ * last explicit one.
+ */
+const isNamePosition = (
+  orderBys: ReadonlyArray<Query.OrderBy>,
+  index: number,
+): boolean =>
+  index === orderBys.length ||
+  orderBys[index].field === Query.documentIdFieldPath;
+
 const orderValues = (
   snapshot: Snapshot,
   orderBys: ReadonlyArray<Query.OrderBy>,
 ): ReadonlyArray<unknown> => {
   const [ref, data] = snapshot;
-  // The __name__ sentinel (Query.orderByDocumentId) resolves to the
-  // document ID, which lives on the ref rather than in the data.
+  // The __name__ sentinel (Query.orderByDocumentId) resolves to the full
+  // document reference, so documents with the same ID under different
+  // parents (as in a collection group) still order deterministically.
   const values = orderBys.map((orderBy) =>
     orderBy.field === Query.documentIdFieldPath
-      ? ref.id
+      ? ref.path
       : fieldValue(data, orderBy.field),
   );
-  // Firestore implicitly orders by document ID as the final tiebreaker.
-  return [...values, ref.id];
+  // Firestore implicitly orders by document name as the final tiebreaker.
+  return [...values, ref.path];
+};
+
+/**
+ * Resolve a cursor value at a document-name position. Firestore accepts a
+ * bare ID for a single-collection query (expanded against that collection)
+ * and requires a full document path for a collection group query; the mock
+ * accepts both by expanding a bare ID against the snapshot's own parent.
+ */
+const nameCursor = (snapshot: Snapshot, value: unknown): unknown => {
+  if (typeof value !== 'string' || value.includes('/')) {
+    return value;
+  }
+  const [ref] = snapshot;
+  return `${ref.path.slice(0, ref.path.length - ref.id.length)}${value}`;
 };
 
 const compareSnapshots = (
@@ -127,7 +154,10 @@ const compareCursor = (
   const values = orderValues(snapshot, orderBys);
   for (let i = 0; i < Math.min(cursor.length, values.length); i++) {
     const direction = orderBys[i]?.direction ?? 'asc';
-    const diff = compare(values[i], cursor[i]);
+    const expected = isNamePosition(orderBys, i)
+      ? nameCursor(snapshot, cursor[i])
+      : cursor[i];
+    const diff = compare(values[i], expected);
     if (diff !== 0) {
       return direction === 'desc' ? -diff : diff;
     }
