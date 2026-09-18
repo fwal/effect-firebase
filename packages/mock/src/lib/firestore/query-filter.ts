@@ -96,7 +96,7 @@ const isNamePosition = (
   index: number,
 ): boolean =>
   index === orderBys.length ||
-  orderBys[index].field === Query.documentIdFieldPath;
+  orderBys[index]?.field === Query.documentIdFieldPath;
 
 const orderValues = (
   snapshot: Snapshot,
@@ -153,6 +153,11 @@ export const validateGroupCursors = (
 ): string | undefined => {
   const { orderBys, cursors } = cursorsOf(constraints);
   for (const cursor of cursors) {
+    // Firestore allows one value per orderBy plus the implicit document-name
+    // tiebreaker; anything beyond that is rejected by both SDKs.
+    if (cursor.length > orderBys.length + 1) {
+      return 'Too many cursor values specified. The specified values must match the orderBy() constraints of the query';
+    }
     for (let i = 0; i < cursor.length; i++) {
       if (!isNamePosition(orderBys, i)) {
         continue;

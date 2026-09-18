@@ -303,6 +303,23 @@ describe('applyConstraints', () => {
     ).toBeUndefined();
   });
 
+  it('rejects cursors with more values than the query orders by', () => {
+    // One value per orderBy plus the implicit document-name tiebreaker is the
+    // most Firestore accepts; more than that is an invalid cursor, not a
+    // crash.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({
+          values: [1, 'posts/p1/comments/c1', 'extra'],
+        }),
+      ]),
+    ).toMatch(/Too many cursor values/);
+    expect(
+      validateGroupCursors([new Query.StartAfter({ values: ['a', 'b'] })]),
+    ).toMatch(/Too many cursor values/);
+  });
+
   it('applies cursors relative to orderBy values', () => {
     const ordered = [new Query.OrderBy({ field: 'views', direction: 'asc' })];
     expect(
