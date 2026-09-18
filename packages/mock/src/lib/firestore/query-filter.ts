@@ -153,9 +153,15 @@ export const validateGroupCursors = (
 ): string | undefined => {
   const { orderBys, cursors } = cursorsOf(constraints);
   for (const cursor of cursors) {
-    // Firestore allows one value per orderBy plus the implicit document-name
-    // tiebreaker; anything beyond that is rejected by both SDKs.
-    if (cursor.length > orderBys.length + 1) {
+    // Firestore allows one value per orderBy, plus the implicit document-name
+    // tiebreaker when the query does not already order by __name__ itself.
+    // Anything beyond that is rejected by both SDKs.
+    const maxValues = orderBys.some(
+      (orderBy) => orderBy.field === Query.documentIdFieldPath,
+    )
+      ? orderBys.length
+      : orderBys.length + 1;
+    if (cursor.length > maxValues) {
       return 'Too many cursor values specified. The specified values must match the orderBy() constraints of the query';
     }
     for (let i = 0; i < cursor.length; i++) {

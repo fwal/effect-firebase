@@ -318,6 +318,23 @@ describe('applyConstraints', () => {
     expect(
       validateGroupCursors([new Query.StartAfter({ values: ['a', 'b'] })]),
     ).toMatch(/Too many cursor values/);
+    // An explicit __name__ ordering is the document-name position, so no
+    // implicit one is appended and a second value is already too many.
+    expect(
+      validateGroupCursors([
+        ...Query.orderByDocumentId('asc'),
+        new Query.StartAfter({
+          values: ['posts/p1/comments/c1', 'posts/p1/comments/c2'],
+        }),
+      ]),
+    ).toMatch(/Too many cursor values/);
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        ...Query.orderByDocumentId('asc'),
+        new Query.StartAfter({ values: [1, 'posts/p1/comments/c1'] }),
+      ]),
+    ).toBeUndefined();
   });
 
   it('applies cursors relative to orderBy values', () => {
