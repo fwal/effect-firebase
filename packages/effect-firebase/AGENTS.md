@@ -419,6 +419,35 @@ client; unit-test with `streamCallable(fn, input)` / `runCallable(fn, input)` /
 options plus `runtime`, trace with `Effect.withSpan`, and log defects.
 Handlers' `R` must be provided by the runtime layer or inside the handler.
 
+Schema decode/encode failures happen outside the handler and surface as
+`FunctionSetupError { phase, cause }` (`phase` is `decode-input`,
+`encode-output`, `decode-body`, `encode-response`, `decode-document`,
+`decode-message` or `decode-task`; `cause` is the `SchemaError`). Pass
+`onSetupError` to any wrapper to recover — it receives the error plus that
+wrapper's native arguments:
+
+```ts
+export const createPost = onCallEffect(
+  {
+    runtime,
+    inputSchema: Input,
+    outputSchema: Output,
+    onSetupError: (error, request) =>
+      Effect.fail(new HttpsError('invalid-argument', error.cause.message)),
+  },
+  (input, context) => handle(input, context),
+);
+```
+
+Without `onSetupError`: `onCallEffect` rejects invalid input with
+`HttpsError('invalid-argument')` and an encode failure with
+`HttpsError('internal')`; `onRequestEffect` responds `400` then `500`;
+the Firestore/Pub/Sub/Tasks triggers log a defect. `onCallEffect` also
+propagates an `HttpsError` failed by the handler with its code intact.
+Recovery wraps the boundary only, never the handler. An escaping error is
+logged as a defect unless it is an `HttpsError` or carries Effect's
+`ErrorReporter.ignore` annotation.
+
 ## Testing with the mock
 
 ```ts
@@ -471,6 +500,10 @@ root: https://github.com/fwal/effect-firebase/blob/main/REACT.md.
   Firestore error code string (`'not-found'`, `'permission-denied'`, ...).
 - `SchemaError` (from `effect`) — decode/encode failures; narrow with
   `Schema.isSchemaError` or `Effect.catchTag('SchemaError', ...)`.
+- `FunctionSetupError { phase, cause }` (from `@effect-firebase/admin`) —
+  a schema failure at a Cloud Functions boundary, outside the handler;
+  narrow with `isFunctionSetupError` or handle it via the wrapper's
+  `onSetupError` option.
 - `NoSuchElementError`, `UnknownError` (from `effect/Cause`).
 - `NotInitializedError` — from `noopLayer` when no real layer was provided.
 - Effect v4 names: `Effect.catch` (not `catchAll`), `Effect.catchTag`,

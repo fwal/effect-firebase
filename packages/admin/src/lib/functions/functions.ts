@@ -11,3 +11,4 @@ export * from './on-document-written.js';
 export * from './on-message-published.js';
 export * from './on-task-dispatched.js';
 export * from './on-schedule.js';
+export * from './setup-error.js';

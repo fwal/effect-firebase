@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect';
 import { firestoreDecode } from '../firestore/converter.js';
+import { FunctionSetupError } from './setup-error.js';
 
 /**
  * Decodes raw Firestore document data into a typed schema.
@@ -9,20 +10,30 @@ import { firestoreDecode } from '../firestore/converter.js';
  * @param docId - The document ID
  * @param schema - The schema to decode with
  * @param idField - Optional field name to inject the document ID
- * @returns An Effect that resolves to the decoded data
+ * @returns An Effect that resolves to the decoded data or fails with a FunctionSetupError
  */
 export const decodeDocumentData = <S extends Schema.Top>(
   rawData: Record<string, unknown> | undefined,
   docId: string | undefined,
   schema: S,
   idField?: string,
-): Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']> => {
+): Effect.Effect<
+  Schema.Schema.Type<S>,
+  FunctionSetupError,
+  S['DecodingServices']
+> => {
   const convertedData = firestoreDecode(rawData ?? {});
   const dataWithId = idField
     ? { ...convertedData, [idField]: docId }
     : convertedData;
   return Schema.decodeUnknownEffect(schema)(dataWithId).pipe(
-    Effect.orDie,
+    Effect.mapError(
+      (cause) => new FunctionSetupError({ phase: 'decode-document', cause }),
+    ),
     Effect.withSpan('decodeDocumentData'),
-  ) as Effect.Effect<Schema.Schema.Type<S>, never, S['DecodingServices']>;
+  ) as Effect.Effect<
+    Schema.Schema.Type<S>,
+    FunctionSetupError,
+    S['DecodingServices']
+  >;
 };

@@ -13,6 +13,8 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
+import { FunctionSetupError } from './setup-error.js';
+import { recoverSetupError } from './recover-setup-error.js';
 
 interface DocumentUpdatedEffectOptions<
   R,
@@ -23,6 +25,20 @@ interface DocumentUpdatedEffectOptions<
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
+  /**
+   * Recover from errors raised during function setup (document data not
+   * matching the schema). Use this to e.g. ignore or quarantine malformed
+   * documents instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: FirestoreEvent<
+      Change<QueryDocumentSnapshot> | undefined,
+      ParamsOf<Document>
+    >,
+  ) => Effect.Effect<void, never, R>;
 }
 
 /**
@@ -65,25 +81,29 @@ export function onDocumentUpdatedEffect<
       });
       const docId = event.data?.before.id;
 
-      const before = yield* decodeDocumentData(
-        event.data?.before.data(),
-        docId,
-        schema,
-        options.idField,
-      );
-      const after = yield* decodeDocumentData(
-        event.data?.after.data(),
-        docId,
-        schema,
-        options.idField,
-      );
-
-      return yield* handler(
-        {
-          before,
-          after,
-        } as TypedChange<Schema.Schema.Type<S>>,
-        event,
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* Effect.all([
+        decodeDocumentData(
+          event.data?.before.data(),
+          docId,
+          schema,
+          options.idField,
+        ),
+        decodeDocumentData(
+          event.data?.after.data(),
+          docId,
+          schema,
+          options.idField,
+        ),
+      ]).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: ([before, after]) =>
+            handler(
+              { before, after } as TypedChange<Schema.Schema.Type<S>>,
+              event,
+            ),
+        }),
       );
     }).pipe(Effect.withSpan('onDocumentUpdatedEffect'));
 
@@ -134,22 +154,30 @@ export function onDocumentUpdatedWithAuthContextEffect<
         document: event.data?.before.ref.path ?? 'unknown',
       });
       const docId = event.data?.before.id;
-      const before = yield* decodeDocumentData(
-        event.data?.before.data(),
-        docId,
-        schema,
-        options.idField,
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* Effect.all([
+        decodeDocumentData(
+          event.data?.before.data(),
+          docId,
+          schema,
+          options.idField,
+        ),
+        decodeDocumentData(
+          event.data?.after.data(),
+          docId,
+          schema,
+          options.idField,
+        ),
+      ]).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: ([before, after]) =>
+            handler(event, {
+              before,
+              after,
+            } as TypedChange<Schema.Schema.Type<S>>),
+        }),
       );
-      const after = yield* decodeDocumentData(
-        event.data?.after.data(),
-        docId,
-        schema,
-        options.idField,
-      );
-      return yield* handler(event, {
-        before,
-        after,
-      } as TypedChange<Schema.Schema.Type<S>>);
     }).pipe(Effect.withSpan('onDocumentUpdatedWithAuthContextEffect'));
 
     await run(

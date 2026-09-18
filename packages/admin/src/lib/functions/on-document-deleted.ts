@@ -12,6 +12,8 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
+import { FunctionSetupError } from './setup-error.js';
+import { recoverSetupError } from './recover-setup-error.js';
 
 interface DocumentDeletedEffectOptions<
   R,
@@ -22,6 +24,17 @@ interface DocumentDeletedEffectOptions<
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
+  /**
+   * Recover from errors raised during function setup (document data not
+   * matching the schema). Use this to e.g. ignore or quarantine malformed
+   * documents instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>,
+  ) => Effect.Effect<void, never, R>;
 }
 
 /**
@@ -54,13 +67,18 @@ export function onDocumentDeletedEffect<
       yield* Effect.annotateCurrentSpan({
         document: event.data?.ref.path ?? 'unknown',
       });
-      const data = yield* decodeDocumentData(
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(data as Schema.Schema.Type<S>, event),
+        }),
       );
-      return yield* handler(data as Schema.Schema.Type<S>, event);
     }).pipe(Effect.withSpan('onDocumentDeletedEffect'));
 
     await run(
@@ -106,13 +124,18 @@ export function onDocumentDeletedWithAuthContextEffect<
       yield* Effect.annotateCurrentSpan({
         document: event.data?.ref.path ?? 'unknown',
       });
-      const data = yield* decodeDocumentData(
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* decodeDocumentData(
         event.data?.data(),
         event.data?.id,
         schema,
         options.idField,
+      ).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: (data) => handler(event, data as Schema.Schema.Type<S>),
+        }),
       );
-      return yield* handler(event, data as Schema.Schema.Type<S>);
     }).pipe(Effect.withSpan('onDocumentDeletedWithAuthContextEffect'));
 
     await run(

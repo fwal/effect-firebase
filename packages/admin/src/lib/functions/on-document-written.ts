@@ -13,6 +13,8 @@ import { ParamsOf } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
+import { FunctionSetupError } from './setup-error.js';
+import { recoverSetupError } from './recover-setup-error.js';
 
 interface DocumentWrittenEffectOptions<
   R,
@@ -23,6 +25,20 @@ interface DocumentWrittenEffectOptions<
   runtime: Runtime<R | S['DecodingServices']>;
   schema?: S;
   idField?: IdField;
+  /**
+   * Recover from errors raised during function setup (document data not
+   * matching the schema). Use this to e.g. ignore or quarantine malformed
+   * documents instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: FirestoreEvent<
+      Change<DocumentSnapshot> | undefined,
+      ParamsOf<Document>
+    >,
+  ) => Effect.Effect<void, never, R>;
 }
 
 /**
@@ -71,33 +87,28 @@ export function onDocumentWrittenEffect<
       const beforeData = event.data?.before.data();
       const afterData = event.data?.after.data();
 
-      const before = beforeData
-        ? Option.some(
-            yield* decodeDocumentData(
-              beforeData,
-              docId,
-              schema,
-              options.idField,
-            ),
-          )
-        : Option.none();
-      const after = afterData
-        ? Option.some(
-            yield* decodeDocumentData(
-              afterData,
-              docId,
-              schema,
-              options.idField,
-            ),
-          )
-        : Option.none();
+      const decodeOptional = (data: Record<string, unknown> | undefined) =>
+        data
+          ? decodeDocumentData(data, docId, schema, options.idField).pipe(
+              Effect.map((decoded) => Option.some(decoded)),
+            )
+          : Effect.succeed(
+              Option.none<Schema.Schema.Type<typeof schema>>(),
+            );
 
-      return yield* handler(
-        {
-          before,
-          after,
-        } as TypedWrittenChange<Schema.Schema.Type<S>>,
-        event,
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* Effect.all([
+        decodeOptional(beforeData),
+        decodeOptional(afterData),
+      ]).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: ([before, after]) =>
+            handler(
+              { before, after } as TypedWrittenChange<Schema.Schema.Type<S>>,
+              event,
+            ),
+        }),
       );
     }).pipe(Effect.withSpan('onDocumentWrittenEffect'));
 
@@ -151,31 +162,29 @@ export function onDocumentWrittenWithAuthContextEffect<
       const beforeData = event.data?.before.data();
       const afterData = event.data?.after.data();
 
-      const before = beforeData
-        ? Option.some(
-            yield* decodeDocumentData(
-              beforeData,
-              docId,
-              schema,
-              options.idField,
-            ),
-          )
-        : Option.none();
-      const after = afterData
-        ? Option.some(
-            yield* decodeDocumentData(
-              afterData,
-              docId,
-              schema,
-              options.idField,
-            ),
-          )
-        : Option.none();
+      const decodeOptional = (data: Record<string, unknown> | undefined) =>
+        data
+          ? decodeDocumentData(data, docId, schema, options.idField).pipe(
+              Effect.map((decoded) => Option.some(decoded)),
+            )
+          : Effect.succeed(
+              Option.none<Schema.Schema.Type<typeof schema>>(),
+            );
 
-      return yield* handler(event, {
-        before,
-        after,
-      } as TypedWrittenChange<Schema.Schema.Type<S>>);
+      // Recovery covers decoding only; a handler failure stays its own error.
+      return yield* Effect.all([
+        decodeOptional(beforeData),
+        decodeOptional(afterData),
+      ]).pipe(
+        Effect.matchEffect({
+          onFailure: (error) => recoverSetupError(options, error, event),
+          onSuccess: ([before, after]) =>
+            handler(event, {
+              before,
+              after,
+            } as TypedWrittenChange<Schema.Schema.Type<S>>),
+        }),
+      );
     }).pipe(Effect.withSpan('onDocumentWrittenWithAuthContextEffect'));
 
     await run(

@@ -380,6 +380,14 @@ pipeable forms) are unchanged.
 
 - **`onScheduleEffect` is new** (`firebase-functions/v2/scheduler`). Failures
   are logged and rethrown so Cloud Scheduler's retry policy applies.
+- **Schema failures at a function boundary are now recoverable.** Data that
+  does not match a wrapper's schema raises `FunctionSetupError { phase, cause }`
+  instead of an opaque defect, and every wrapper takes an `onSetupError` option
+  to handle it. Two defaults changed: `onCallEffect` now rejects invalid input
+  with `HttpsError('invalid-argument', ...)` rather than a generic `internal`
+  error, and `onRequestEffect` answers an unparseable body with `400` rather
+  than `500`. Clients that matched on the old codes need updating; handler
+  signatures are unchanged.
 - **`App` is a `Context.Service`** in both packages (was `Context.Tag`).
   `yield* App` and `App.layer(app)` are unchanged; only code that referenced
   the class's `Context.Tag` type explicitly needs updating.

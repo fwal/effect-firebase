@@ -7,9 +7,21 @@ import {
 import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
+import { FunctionSetupError } from './setup-error.js';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
+  /**
+   * Recover from errors raised during function setup (message data not
+   * matching the schema). Use this to e.g. acknowledge and skip malformed
+   * messages instead of treating them as defects.
+   *
+   * When omitted, the setup error is treated as a defect and logged.
+   */
+  onSetupError?: (
+    error: FunctionSetupError,
+    event: CloudEvent<MessagePublishedData<unknown>>,
+  ) => Effect.Effect<void, never, R>;
 }
 
 interface MessagePublishedEffectOptionsWithSchema<
@@ -25,14 +37,33 @@ interface MessagePublishedEffectOptionsWithSchema<
 function decodeMessageData<S extends Schema.Top>(
   schema: S,
   event: CloudEvent<MessagePublishedData<unknown>>,
-): Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']> {
-  const messageData = event.data.message.json;
-  return Schema.decodeUnknownEffect(schema)(messageData).pipe(
-    Effect.mapError(
-      (error) =>
-        new Error(`Failed to decode Pub/Sub message: ${error.message}`),
+): Effect.Effect<
+  Schema.Schema.Type<S>,
+  FunctionSetupError,
+  S['DecodingServices']
+> {
+  return Effect.try({
+    // `message.json` parses the base64 payload on access and throws when it
+    // is not valid JSON, before any schema is involved.
+    try: () => event.data.message.json,
+    catch: (error) =>
+      new FunctionSetupError({
+        phase: 'decode-message',
+        cause: error instanceof Error ? error : new Error(String(error)),
+      }),
+  }).pipe(
+    Effect.flatMap((messageData) =>
+      Schema.decodeUnknownEffect(schema)(messageData).pipe(
+        Effect.mapError(
+          (cause) => new FunctionSetupError({ phase: 'decode-message', cause }),
+        ),
+      ),
     ),
-  ) as Effect.Effect<Schema.Schema.Type<S>, Error, S['DecodingServices']>;
+  ) as Effect.Effect<
+    Schema.Schema.Type<S>,
+    FunctionSetupError,
+    S['DecodingServices']
+  >;
 }
 
 /**
@@ -70,16 +101,22 @@ export function onMessagePublishedEffect<R>(
   const { messageSchema } = options;
 
   return onMessagePublished(options, async (event) => {
-    const effect = Effect.gen(function* () {
-      if (messageSchema) {
-        // Decode message data and pass to handler
-        const messageData = yield* decodeMessageData(messageSchema, event);
-        return yield* handler(messageData, event);
-      } else {
-        // Pass raw event to handler
-        return yield* handler(event);
-      }
-    }).pipe(Effect.withSpan('onMessagePublishedEffect'));
+    const recover = (error: FunctionSetupError) =>
+      options.onSetupError
+        ? options.onSetupError(error, event)
+        : Effect.die(error);
+
+    // Recovery covers decoding only; a handler failure stays its own error.
+    const effect = (
+      messageSchema
+        ? decodeMessageData(messageSchema, event).pipe(
+            Effect.matchEffect({
+              onFailure: (error) => recover(error),
+              onSuccess: (messageData) => handler(messageData, event),
+            }),
+          )
+        : handler(event)
+    ).pipe(Effect.withSpan('onMessagePublishedEffect'));
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
