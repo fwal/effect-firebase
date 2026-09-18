@@ -31,11 +31,17 @@ export const MockFirestoreService = (
     query: () => {
       throw new Error('MockFirestoreService.query not implemented.');
     },
+    queryGroup: () => {
+      throw new Error('MockFirestoreService.queryGroup not implemented.');
+    },
     streamDoc: () => {
       throw new Error('MockFirestoreService.streamDoc not implemented.');
     },
     streamQuery: () => {
       throw new Error('MockFirestoreService.streamQuery not implemented.');
+    },
+    streamQueryGroup: () => {
+      throw new Error('MockFirestoreService.streamQueryGroup not implemented.');
     },
     // The mock has no concurrency or staging semantics, so transactions and
     // batches simply run the effect: reads and writes hit the overridden

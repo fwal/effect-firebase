@@ -83,6 +83,25 @@ export const PostRepository = Firestore.makeRepository(PostModel, {
 );
 ```
 
+### Query a collection group
+
+Every repository has a `group` view that runs the same query methods across
+every collection with the same ID at any depth (`posts/{postId}/comments`,
+`users/{userId}/comments`). `pathField` fills in each document's full path.
+
+```typescript
+export const CommentRepository = (postId: string) =>
+  Firestore.makeRepository(CommentModel, {
+    collectionPath: `posts/${postId}/comments`,
+    idField: 'id',
+    pathField: 'path',
+    spanPrefix: 'CommentRepository',
+  });
+
+// repo.query(...)       — comments on this post
+// repo.group.query(...) — comments on every post
+```
+
 ### Writes at a known ID
 
 `add` lets Firestore pick the ID; `set` writes at an ID the caller already

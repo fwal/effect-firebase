@@ -83,9 +83,41 @@ repo.query(constraints); // Effect<ReadonlyArray<Post>>
 repo.queryStream(constraints); // Stream<ReadonlyArray<Post>>
 repo.getByQuery(constraints); // Effect<Option<Post>>
 repo.getByQueryStream(constraints); // Stream<Option<Post>>
+repo.group.query(constraints); // same four query methods over the collection group
 ```
 
 All methods fail with `ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`.
+
+### Collection groups
+
+Every repository has a `group` view with the same four query methods, run over the **collection group** with the repository's collection ID (the last segment of `collectionPath`) — `posts/{postId}/comments` and `users/{userId}/comments` are both part of the `comments` group. Set `pathField` to have every read fill in the document's full path.
+
+```typescript
+class CommentModel extends Model.Class<CommentModel>('CommentModel')({
+  id: Model.GeneratedByDb(CommentId),
+  path: Model.GeneratedByDb(Schema.String),
+  body: Schema.String,
+  createdAt: Firestore.DateTimeInsert,
+}) {}
+
+export const CommentRepository = (postId: string) =>
+  Firestore.makeRepository(CommentModel, {
+    collectionPath: `posts/${postId}/comments`,
+    idField: 'id',
+    pathField: 'path',
+    spanPrefix: 'CommentRepository',
+  });
+
+const program = Effect.gen(function* () {
+  const repo = yield* CommentRepository('p1');
+  const onPost = yield* repo.query(Query.orderBy('createdAt', 'desc'));
+  const everywhere = yield* repo.group.query(
+    Query.orderBy('createdAt', 'desc'),
+  );
+});
+```
+
+The underlying service methods are `FirestoreService.queryGroup` and `streamQueryGroup`. Firestore needs a collection-group index for the fields a group query filters or orders on.
 
 ## Queries
 
@@ -144,7 +176,7 @@ Firestore.withTransaction(
 - The SDK retries the transaction on contention, so the effect may run more than once.
 - Firestore requires all transactional reads to happen before the first write.
 - Nested `withTransaction` calls join the ambient transaction.
-- `streamDoc`, `streamQuery`, and `deleteRecursive` cannot be used inside a transaction; the client SDK additionally disallows `query`.
+- `streamDoc`, `streamQuery`, `streamQueryGroup`, and `deleteRecursive` cannot be used inside a transaction; the client SDK additionally disallows `query` and `queryGroup`.
 
 `Firestore.withBatch` stages writes on a write batch and commits them atomically when the effect succeeds. When the effect fails, nothing is committed:
 

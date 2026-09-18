@@ -279,6 +279,8 @@ Nothing was removed from repositories. `add`, `update`, `getById`,
 | `deleteRecursive(id)`                 | Delete a document and its subcollections. **Admin SDK only** — dies on the client layer.                      |
 | `getByQuery(constraints)`             | First result of a query as `Option`.                                                                          |
 | `getByQueryStream(constraints)`       | Live `Stream` of the first result.                                                                            |
+| `group.query(...)` etc.               | The four query methods over the collection group (every collection with the same ID, at any depth).           |
+| option `pathField`                    | A `GeneratedByDb(Schema.String)` field filled with each document's full path on read.                         |
 
 If you hand-rolled `set` through `FirestoreService.set` with a repository's
 encoder, replace it with `repo.set` and choose the `variant` deliberately —
@@ -306,13 +308,15 @@ nested partial flattened into dotted paths instead.
 Only relevant if you implement `FirestoreService` yourself or pass overrides
 to `MockFirestoreService`.
 
-| v0.x                  | v1.0                                                    |
-| --------------------- | ------------------------------------------------------- |
-| `remove(path)`        | `delete(path)` (**renamed**)                            |
-| `set(path, data)`     | `set(path, data, options?)` with `options.merge`        |
-| —                     | `withTransaction(effect)` (**new, required**)           |
-| —                     | `withBatch(effect)` (**new, required**)                 |
-| `Context.Tag` service | `Context.Service` (`yield* FirestoreService` unchanged) |
+| v0.x                  | v1.0                                                                        |
+| --------------------- | --------------------------------------------------------------------------- |
+| `remove(path)`        | `delete(path)` (**renamed**)                                                |
+| `set(path, data)`     | `set(path, data, options?)` with `options.merge`                            |
+| —                     | `withTransaction(effect)` (**new, required**)                               |
+| —                     | `withBatch(effect)` (**new, required**)                                     |
+| —                     | `queryGroup(collectionId, constraints)` (**new, required**)                 |
+| —                     | `streamQueryGroup(collectionId, constraints, options?)` (**new, required**) |
+| `Context.Tag` service | `Context.Service` (`yield* FirestoreService` unchanged)                     |
 
 The `noopLayer` and `MockFirestoreService` already implement the new members
 (`MockFirestoreService` runs `withTransaction`/`withBatch` as pass-through).
@@ -322,6 +326,11 @@ Custom implementations that do not support transactions can do the same:
 withTransaction: (self) => self,
 withBatch: (self) => self,
 ```
+
+`queryGroup` / `streamQueryGroup` back `repo.group`; a custom layer that
+never serves group queries can implement them by delegating to `query` /
+`streamQuery` with the collection ID as the path, or fail with a
+`FirestoreError` of code `unimplemented`.
 
 Transactions and batches are exposed to application code as
 `Firestore.withTransaction` and `Firestore.withBatch`; every repository call

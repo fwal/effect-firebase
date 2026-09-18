@@ -8,7 +8,7 @@ Beyond a plain test double, the mock is a small simulated backend built for **de
 - **Reactive streams** — `streamDoc` / `streamQuery` are live: writes and runtime toggles push new emissions through already-subscribed streams, just like `onSnapshot`.
 - **Simulated states** — flip any collection between `data`, `empty`, `loading` and `error` at runtime with the `MockController`, and watch your UI's spinner, empty and error paths render with no backend involved.
 - **Latency simulation** — add artificial delay to every operation.
-- **Write fidelity** — server timestamps materialize on write, `delete`/`arrayUnion`/`arrayRemove`/`increment` sentinels are honored, and queries (where, orderBy, cursors, limits) are evaluated in-process.
+- **Write fidelity** — server timestamps materialize on write, `delete`/`arrayUnion`/`arrayRemove`/`increment` sentinels are honored, and queries (where, orderBy, cursors, limits, collection groups) are evaluated in-process.
 
 ## Installation
 
@@ -123,6 +123,15 @@ const mock = layer({
 });
 ```
 
+A collection group query (`queryGroup` / `streamQueryGroup`, or a
+repository's `group` view) resolves its state by collection ID, so
+`states: { comments: 'loading' }` covers both a top-level `comments`
+collection and the `comments` group across every parent. As in Firestore,
+a `__name__` cursor (`Query.orderByDocumentId`) in a group query must be a
+full document path (`posts/p1/comments/c1`); a bare ID fails with
+`invalid-argument`, as it does on the real SDKs. A single-collection query
+takes a bare ID.
+
 ## Driving the backend from outside Effect
 
 `make()` returns a handle instead of just a layer: the same options as `layer()`, plus direct access to the controller as a plain value. Every controller effect requires no services, so React components, Storybook decorators or test helpers can run them with `Effect.runPromise` directly. This is what the [`@effect-firebase/devtools`](../devtools) panel builds on:
@@ -174,7 +183,7 @@ await Effect.runPromise(
 
 - In-memory only — no persistence between process restarts
 - Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in`/`!=` null semantics are simplified)
-- Simulated states are keyed per collection path (or the `'*'` wildcard), not per query
+- Simulated states are keyed per collection path (or the `'*'` wildcard), not per query; collection group queries resolve their state by collection ID
 - No security rules evaluation
 - `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
 - No multi-client synchronization

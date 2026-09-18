@@ -14,6 +14,7 @@ import {
   FirestoreError,
   FirestoreService,
   makeSnapshotPacker,
+  validateCollectionId,
 } from 'effect-firebase';
 import type { App as FirebaseAdminApp } from 'firebase-admin/app';
 import type { Snapshot } from 'effect-firebase';
@@ -21,12 +22,13 @@ import { UnknownError } from 'effect/Cause';
 import {
   getFirestore,
   type Firestore,
+  type Query,
   type Transaction,
   type WriteBatch,
 } from 'firebase-admin/firestore';
 import { App } from '../app.js';
 import { firestoreDecode, makeConverter } from './converter.js';
-import { buildQuery } from './query-builder.js';
+import { buildCollectionGroupQuery, buildQuery } from './query-builder.js';
 
 const packSnapshot = makeSnapshotPacker(firestoreDecode);
 
@@ -193,15 +195,14 @@ const make = (db: Firestore) => {
       ),
     );
 
-  const streamQuery = (
-    collectionPath: string,
-    constraints: Parameters<typeof buildQuery>[2],
+  const streamQueryOf = (
+    makeQuery: () => Query,
     options?: Parameters<typeof packSnapshot>[1],
   ) =>
     Stream.callback<ReadonlyArray<Snapshot>, FirestoreError>((queue) =>
       Effect.acquireRelease(
         Effect.sync(() => {
-          const query = buildQuery(db, collectionPath, constraints);
+          const query = makeQuery();
           return query.onSnapshot(
             (snapshot) => {
               const snapshots = Arr.filterMap(snapshot.docs, (doc) =>
@@ -225,6 +226,39 @@ const make = (db: Firestore) => {
         (unsubscribe) => Effect.sync(() => unsubscribe()),
       ),
     );
+
+  // The SDK throws synchronously on a malformed collection ID; validating
+  // up front turns that into a typed failure for both the effect and the
+  // stream, matching the mock.
+  const checkCollectionId = (
+    collectionId: string,
+  ): Effect.Effect<void, FirestoreError> => {
+    const invalid = validateCollectionId(collectionId);
+    return invalid === undefined
+      ? Effect.void
+      : Effect.fail(
+          new FirestoreError({
+            code: 'invalid-argument',
+            name: 'FirestoreError',
+            message: invalid,
+          }),
+        );
+  };
+
+  const runQuery = (makeQuery: () => Query) =>
+    Effect.gen(function* () {
+      const tx = yield* CurrentTransaction;
+      const snapshot = yield* Effect.tryPromise({
+        try: () => {
+          const query = makeQuery();
+          return Option.isSome(tx) ? tx.value.get(query) : query.get();
+        },
+        catch: (error) => mapError(error),
+      });
+      return Arr.filterMap(snapshot.docs, (doc) =>
+        Result.fromOption(packSnapshot(doc), () => void 0),
+      );
+    });
 
   return FirestoreService.of({
     get: (path, options) =>
@@ -317,19 +351,15 @@ const make = (db: Firestore) => {
         ),
       ),
     query: (collectionPath, constraints) =>
-      Effect.gen(function* () {
-        const tx = yield* CurrentTransaction;
-        const snapshot = yield* Effect.tryPromise({
-          try: () => {
-            const query = buildQuery(db, collectionPath, constraints);
-            return Option.isSome(tx) ? tx.value.get(query) : query.get();
-          },
-          catch: (error) => mapError(error),
-        });
-        return Arr.filterMap(snapshot.docs, (doc) =>
-          Result.fromOption(packSnapshot(doc), () => void 0),
-        );
-      }),
+      runQuery(() => buildQuery(db, collectionPath, constraints)),
+    queryGroup: (collectionId, constraints) =>
+      checkCollectionId(collectionId).pipe(
+        Effect.flatMap(() =>
+          runQuery(() =>
+            buildCollectionGroupQuery(db, collectionId, constraints),
+          ),
+        ),
+      ),
     streamDoc: (path, options) =>
       Stream.unwrap(
         assertNoTransaction('streamDoc').pipe(
@@ -339,7 +369,24 @@ const make = (db: Firestore) => {
     streamQuery: (collectionPath, constraints, options) =>
       Stream.unwrap(
         assertNoTransaction('streamQuery').pipe(
-          Effect.map(() => streamQuery(collectionPath, constraints, options)),
+          Effect.map(() =>
+            streamQueryOf(
+              () => buildQuery(db, collectionPath, constraints),
+              options,
+            ),
+          ),
+        ),
+      ),
+    streamQueryGroup: (collectionId, constraints, options) =>
+      Stream.unwrap(
+        assertNoTransaction('streamQueryGroup').pipe(
+          Effect.andThen(checkCollectionId(collectionId)),
+          Effect.map(() =>
+            streamQueryOf(
+              () => buildCollectionGroupQuery(db, collectionId, constraints),
+              options,
+            ),
+          ),
         ),
       ),
     withTransaction: <A, E, R>(self: Effect.Effect<A, E, R>) =>

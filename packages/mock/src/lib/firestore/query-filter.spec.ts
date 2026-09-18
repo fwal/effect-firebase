@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Query, Snapshot } from 'effect-firebase';
-import { applyConstraints } from './query-filter.js';
+import { applyConstraints, validateGroupCursors } from './query-filter.js';
 
 const snap = (id: string, data: Record<string, unknown>): Snapshot => [
   { id, path: `posts/${id}` },
@@ -220,6 +220,121 @@ describe('applyConstraints', () => {
         ]),
       ),
     ).toEqual(['2', '4']);
+  });
+
+  it('orders and pages a collection group by full path, not bare ID', () => {
+    // Same IDs under different parents: Firestore compares the full
+    // reference, so `posts/p1/comments/c1` sorts before `users/u1/comments/c1`
+    // and neither is dropped or treated as a duplicate.
+    const group: ReadonlyArray<Snapshot> = [
+      [{ id: 'c1', path: 'users/u1/comments/c1' }, { likes: 1 }],
+      [{ id: 'c1', path: 'posts/p1/comments/c1' }, { likes: 1 }],
+      [{ id: 'c2', path: 'posts/p1/comments/c2' }, { likes: 1 }],
+    ];
+    const paths = (results: ReadonlyArray<Snapshot>) =>
+      results.map(([ref]) => ref.path);
+
+    expect(paths(applyConstraints(group, []))).toEqual([
+      'posts/p1/comments/c1',
+      'posts/p1/comments/c2',
+      'users/u1/comments/c1',
+    ]);
+    expect(
+      paths(applyConstraints(group, Query.orderByDocumentId('desc'))),
+    ).toEqual([
+      'users/u1/comments/c1',
+      'posts/p1/comments/c2',
+      'posts/p1/comments/c1',
+    ]);
+    // A group cursor on __name__ is a full document path.
+    expect(
+      paths(
+        applyConstraints(group, [
+          ...Query.orderByDocumentId('asc'),
+          new Query.StartAfter({ values: ['posts/p1/comments/c1'] }),
+        ]),
+      ),
+    ).toEqual(['posts/p1/comments/c2', 'users/u1/comments/c1']);
+    // The implicit tiebreaker pages past equal field values the same way.
+    expect(
+      paths(
+        applyConstraints(group, [
+          new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+          new Query.StartAfter({ values: [1, 'posts/p1/comments/c2'] }),
+        ]),
+      ),
+    ).toEqual(['users/u1/comments/c1']);
+  });
+
+  it('rejects bare-ID name cursors for collection group queries', () => {
+    const named = Query.orderByDocumentId('asc');
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.StartAfter({ values: ['c1'] }),
+      ]),
+    ).toMatch(/full document path/);
+    // The implicit tiebreaker position is checked too.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({ values: [1, 'c1'] }),
+      ]),
+    ).toMatch(/full document path/);
+    // Odd segment counts name a collection, not a document.
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.EndAt({ values: ['posts/p1/comments'] }),
+      ]),
+    ).toMatch(/full document path/);
+    expect(
+      validateGroupCursors([
+        ...named,
+        new Query.StartAfter({ values: ['posts/p1/comments/c1'] }),
+      ]),
+    ).toBeUndefined();
+    // Field-only cursors are unaffected.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({ values: [1] }),
+      ]),
+    ).toBeUndefined();
+  });
+
+  it('rejects cursors with more values than the query orders by', () => {
+    // One value per orderBy plus the implicit document-name tiebreaker is the
+    // most Firestore accepts; more than that is an invalid cursor, not a
+    // crash.
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        new Query.StartAfter({
+          values: [1, 'posts/p1/comments/c1', 'extra'],
+        }),
+      ]),
+    ).toMatch(/Too many cursor values/);
+    expect(
+      validateGroupCursors([new Query.StartAfter({ values: ['a', 'b'] })]),
+    ).toMatch(/Too many cursor values/);
+    // An explicit __name__ ordering is the document-name position, so no
+    // implicit one is appended and a second value is already too many.
+    expect(
+      validateGroupCursors([
+        ...Query.orderByDocumentId('asc'),
+        new Query.StartAfter({
+          values: ['posts/p1/comments/c1', 'posts/p1/comments/c2'],
+        }),
+      ]),
+    ).toMatch(/Too many cursor values/);
+    expect(
+      validateGroupCursors([
+        new Query.OrderBy({ field: 'likes', direction: 'asc' }),
+        ...Query.orderByDocumentId('asc'),
+        new Query.StartAfter({ values: [1, 'posts/p1/comments/c1'] }),
+      ]),
+    ).toBeUndefined();
   });
 
   it('applies cursors relative to orderBy values', () => {

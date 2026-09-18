@@ -13,7 +13,13 @@ export * from './model/array.js';
 export * from './model/number.js';
 
 // Repository factory
-export { makeRepository } from './model/repository.js';
+export {
+  makeRepository,
+  type Repository,
+  type RepositoryQueries,
+  type RepositoryQuery,
+  type StringFieldKey,
+} from './model/repository.js';
 export {
   MAX_FIELD_PATH_DEPTH,
   type FieldPathLeaf,

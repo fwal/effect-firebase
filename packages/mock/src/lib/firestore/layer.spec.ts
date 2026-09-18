@@ -68,7 +68,174 @@ const awaitLength = (collected: ReadonlyArray<unknown>, length: number) =>
     }
   });
 
+const commentFixture = rawFixture('comments', {
+  top: { body: 'top-level', likes: 1 },
+});
+
+const nestedComments = rawFixture('posts/1/comments', {
+  a: { body: 'on post 1', likes: 5 },
+  b: { body: 'also on post 1', likes: 2 },
+});
+
+const userComments = rawFixture('users/u1/comments', {
+  c: { body: 'on user u1', likes: 9 },
+});
+
 describe('layer', () => {
+  describe('collection groups', () => {
+    it('queries every collection with the ID, at any depth', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const results = yield* firestore.queryGroup('comments', [
+            new Query.OrderBy({ field: 'likes', direction: 'desc' }),
+          ]);
+          expect(results.map(([ref]) => ref.path)).toEqual([
+            'users/u1/comments/c',
+            'posts/1/comments/a',
+            'posts/1/comments/b',
+            'comments/top',
+          ]);
+          // A regular query stays scoped to one collection.
+          const only = yield* firestore.query('posts/1/comments', []);
+          expect(only.map(([ref]) => ref.id)).toEqual(['a', 'b']);
+        }),
+        {
+          fixtures: [postFixture, commentFixture, nestedComments, userComments],
+        },
+      ));
+
+    it('ignores collections that merely contain the ID', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          yield* firestore.set('comments-archive/x', { body: 'nope' });
+          yield* firestore.set('posts/1/comment/y', { body: 'nope' });
+          const results = yield* firestore.queryGroup('comments', []);
+          expect(results.map(([ref]) => ref.path)).toEqual([
+            'posts/1/comments/a',
+            'posts/1/comments/b',
+          ]);
+        }),
+        { fixtures: [nestedComments] },
+      ));
+
+    it('rejects a collection ID with a slash', async () => {
+      const error = await run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          return yield* Effect.flip(firestore.queryGroup('posts/comments', []));
+        }),
+      );
+      expect((error as FirestoreError).code).toBe('invalid-argument');
+    });
+
+    it('rejects a bare-ID cursor on a group query, effect and stream', async () => {
+      const [fromEffect, fromStream] = await run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const constraints = [
+            ...Query.orderByDocumentId('asc'),
+            new Query.StartAfter({ values: ['a'] }),
+          ];
+          const effectError = yield* Effect.flip(
+            firestore.queryGroup('comments', constraints),
+          );
+          const streamError = yield* Effect.flip(
+            Stream.runCollect(
+              firestore.streamQueryGroup('comments', constraints),
+            ),
+          );
+          // A full path pages as expected.
+          const paged = yield* firestore.queryGroup('comments', [
+            ...Query.orderByDocumentId('asc'),
+            new Query.StartAfter({ values: ['posts/1/comments/a'] }),
+          ]);
+          expect(paged.map(([ref]) => ref.path)).toEqual([
+            'posts/1/comments/b',
+            'users/u1/comments/c',
+          ]);
+          return [effectError, streamError] as const;
+        }),
+        { fixtures: [nestedComments, userComments] },
+      );
+      expect((fromEffect as FirestoreError).code).toBe('invalid-argument');
+      expect((fromStream as FirestoreError).code).toBe('invalid-argument');
+    });
+
+    it('resolves the simulated state by collection ID', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const controller = yield* MockController;
+          yield* controller.setState('comments', 'empty');
+          expect(yield* firestore.queryGroup('comments', [])).toEqual([]);
+          yield* controller.setState('comments', 'data');
+          expect(yield* firestore.queryGroup('comments', [])).toHaveLength(2);
+        }),
+        { fixtures: [nestedComments] },
+      ));
+
+    it('streams live results across parents', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const emissions: Array<ReadonlyArray<Snapshot>> = [];
+
+          const fiber = yield* Effect.forkChild(
+            Stream.runForEach(
+              firestore.streamQueryGroup('comments', []),
+              (snapshots) =>
+                Effect.sync(() => {
+                  emissions.push(snapshots);
+                }),
+            ),
+          );
+
+          yield* awaitLength(emissions, 1);
+          expect(emissions[0].length).toBe(2);
+
+          yield* firestore.add('users/u2/comments', { body: 'new', likes: 0 });
+          yield* awaitLength(emissions, 2);
+          expect(emissions[1].length).toBe(3);
+
+          yield* Fiber.interrupt(fiber);
+        }),
+        { fixtures: [nestedComments] },
+      ));
+
+    it('drives a repository group view', () =>
+      run(
+        Effect.gen(function* () {
+          class Comment extends Model.Class<Comment>('Comment')({
+            id: Model.GeneratedByDb(Schema.String),
+            path: Model.GeneratedByDb(Schema.String),
+            body: Schema.String,
+            likes: Schema.Number,
+          }) {}
+          const repo = yield* Firestore.makeRepository(Comment, {
+            collectionPath: 'posts/1/comments',
+            idField: 'id',
+            pathField: 'path',
+            spanPrefix: 'test.CommentRepository',
+          });
+          const scoped = yield* repo.query([]);
+          expect(scoped.map((c) => c.id)).toEqual(['a', 'b']);
+
+          const top = yield* repo.group.getByQuery([
+            new Query.OrderBy({ field: 'likes', direction: 'desc' }),
+          ]);
+          expect(Option.isSome(top)).toBe(true);
+          expect((top as Option.Some<Comment>).value).toMatchObject({
+            id: 'c',
+            path: 'users/u1/comments/c',
+            likes: 9,
+          });
+        }),
+        { fixtures: [nestedComments, userComments] },
+      ));
+  });
+
   describe('CRUD', () => {
     it('adds, reads, updates and deletes documents', () =>
       run(

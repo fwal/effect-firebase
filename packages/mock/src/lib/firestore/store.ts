@@ -1,4 +1,6 @@
-import { Snapshot } from 'effect-firebase';
+import { Snapshot, validateCollectionId } from 'effect-firebase';
+
+export { validateCollectionId };
 import type * as MockState from './state.js';
 import { type DocData } from './value.js';
 
@@ -52,6 +54,22 @@ export const docsInCollection = (
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([path, data]) => makeSnapshot(path, data));
 };
+
+/**
+ * All documents in any collection whose ID is `collectionId`, at any depth,
+ * ordered by full document path.
+ */
+export const docsInCollectionGroup = (
+  docs: Readonly<Record<string, DocData>>,
+  collectionId: string,
+): ReadonlyArray<Snapshot> =>
+  Object.entries(docs)
+    .filter(([path]) => {
+      const segments = path.split('/');
+      return segments[segments.length - 2] === collectionId;
+    })
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([path, data]) => makeSnapshot(path, data));
 
 /**
  * Validate a path, returning an error message when it is malformed.

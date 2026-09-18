@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { Cause, Data, Effect, Exit, Result } from 'effect';
+import { Cause, Data, Effect, Exit, Result, Stream } from 'effect';
 import { FirestoreService } from 'effect-firebase';
 import type { Firestore } from 'firebase/firestore';
 
@@ -107,6 +107,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
         ? h.fakeDocRef(path)
         : h.fakeDocRef(`${dbOrCollection.path}/generated-id`),
     collection: (_db: unknown, path: string) => h.fakeCollection(path),
+    collectionGroup: (_db: unknown, id: string) => ({ path: `group:${id}` }),
     query: (ref: unknown) => ref,
     getDoc: async (ref: { path: string }) => {
       h.state.directOps.push(['get', ref.path]);
@@ -250,6 +251,17 @@ describe('FirestoreService (client)', () => {
         expect(Cause.hasDies(exit.cause)).toBe(true);
       }
     });
+
+    it('dies when querying a collection group inside a transaction', async () => {
+      const exit = await runExit(
+        withService((fs) => fs.withTransaction(fs.queryGroup('comments', []))),
+      );
+
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+      }
+    });
   });
 
   describe('withBatch', () => {
@@ -341,6 +353,28 @@ describe('FirestoreService (client)', () => {
       ]);
       expect(h.state.txOps).toEqual([]);
       expect(h.state.batchOps).toEqual([]);
+    });
+
+    it('fails typed on a malformed collection group ID, effect and stream', async () => {
+      const fromEffect = await run(
+        withService((fs) => Effect.flip(fs.queryGroup('a/b', []))),
+      );
+      const fromStream = await run(
+        withService((fs) =>
+          Effect.flip(Stream.runCollect(fs.streamQueryGroup('a/b', []))),
+        ),
+      );
+      expect(fromEffect.code).toBe('invalid-argument');
+      expect(fromStream.code).toBe('invalid-argument');
+    });
+
+    it('queries a collection group directly', async () => {
+      const results = await run(
+        withService((fs) => fs.queryGroup('comments', [])),
+      );
+
+      expect(h.state.directOps).toEqual([['query', 'group:comments']]);
+      expect(results).toHaveLength(1);
     });
   });
 });

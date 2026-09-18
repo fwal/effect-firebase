@@ -86,20 +86,117 @@ const matchesFilter = (data: DocData, filter: Filter): boolean => {
   }
 };
 
+/**
+ * Whether the orderBy at `index` is the document-name position: an explicit
+ * `__name__` orderBy, or the implicit tiebreaker Firestore appends after the
+ * last explicit one.
+ */
+const isNamePosition = (
+  orderBys: ReadonlyArray<Query.OrderBy>,
+  index: number,
+): boolean =>
+  index === orderBys.length ||
+  orderBys[index]?.field === Query.documentIdFieldPath;
+
 const orderValues = (
   snapshot: Snapshot,
   orderBys: ReadonlyArray<Query.OrderBy>,
 ): ReadonlyArray<unknown> => {
   const [ref, data] = snapshot;
-  // The __name__ sentinel (Query.orderByDocumentId) resolves to the
-  // document ID, which lives on the ref rather than in the data.
+  // The __name__ sentinel (Query.orderByDocumentId) resolves to the full
+  // document reference, so documents with the same ID under different
+  // parents (as in a collection group) still order deterministically.
   const values = orderBys.map((orderBy) =>
     orderBy.field === Query.documentIdFieldPath
-      ? ref.id
+      ? ref.path
       : fieldValue(data, orderBy.field),
   );
-  // Firestore implicitly orders by document ID as the final tiebreaker.
-  return [...values, ref.id];
+  // Firestore implicitly orders by document name as the final tiebreaker.
+  return [...values, ref.path];
+};
+
+/**
+ * Collect the orderBys and cursor arrays out of a constraint list.
+ */
+const cursorsOf = (
+  constraints: ReadonlyArray<QueryConstraint>,
+): {
+  readonly orderBys: ReadonlyArray<Query.OrderBy>;
+  readonly cursors: ReadonlyArray<ReadonlyArray<unknown>>;
+} => {
+  const orderBys: Array<Query.OrderBy> = [];
+  const cursors: Array<ReadonlyArray<unknown>> = [];
+  for (const constraint of constraints) {
+    switch (constraint._tag) {
+      case 'OrderBy':
+        orderBys.push(constraint);
+        break;
+      case 'StartAt':
+      case 'StartAfter':
+      case 'EndAt':
+      case 'EndBefore':
+        cursors.push(constraint.values);
+        break;
+    }
+  }
+  return { orderBys, cursors };
+};
+
+/**
+ * Validate the document-name cursor values of a **collection group** query,
+ * returning an error message when one is not a full document path. Both
+ * SDKs reject a bare ID there, since it does not name a document without
+ * knowing which parent it belongs to.
+ */
+export const validateGroupCursors = (
+  constraints: ReadonlyArray<QueryConstraint>,
+): string | undefined => {
+  const { orderBys, cursors } = cursorsOf(constraints);
+  for (const cursor of cursors) {
+    // Firestore allows one value per orderBy, plus the implicit document-name
+    // tiebreaker when the query does not already order by __name__ itself.
+    // Anything beyond that is rejected by both SDKs.
+    const maxValues = orderBys.some(
+      (orderBy) => orderBy.field === Query.documentIdFieldPath,
+    )
+      ? orderBys.length
+      : orderBys.length + 1;
+    if (cursor.length > maxValues) {
+      return 'Too many cursor values specified. The specified values must match the orderBy() constraints of the query';
+    }
+    for (let i = 0; i < cursor.length; i++) {
+      if (!isNamePosition(orderBys, i)) {
+        continue;
+      }
+      const value = cursor[i];
+      const segments = typeof value === 'string' ? value.split('/') : [];
+      const isDocumentPath =
+        segments.length >= 2 &&
+        segments.length % 2 === 0 &&
+        segments.every((segment) => segment.length > 0);
+      if (!isDocumentPath) {
+        return `When querying a collection group and ordering by document ID, the cursor value must be a full document path, but '${String(
+          value,
+        )}' is not`;
+      }
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Resolve a cursor value at a document-name position. A single-collection
+ * query takes a bare ID, which Firestore expands against that collection;
+ * the mock expands it against the snapshot's own parent. A collection group
+ * query only ever reaches here with full paths (see
+ * {@link validateGroupCursors}).
+ */
+const nameCursor = (snapshot: Snapshot, value: unknown): unknown => {
+  if (typeof value !== 'string' || value.includes('/')) {
+    return value;
+  }
+  const [ref] = snapshot;
+  return `${ref.path.slice(0, ref.path.length - ref.id.length)}${value}`;
 };
 
 const compareSnapshots = (
@@ -127,7 +224,10 @@ const compareCursor = (
   const values = orderValues(snapshot, orderBys);
   for (let i = 0; i < Math.min(cursor.length, values.length); i++) {
     const direction = orderBys[i]?.direction ?? 'asc';
-    const diff = compare(values[i], cursor[i]);
+    const expected = isNamePosition(orderBys, i)
+      ? nameCursor(snapshot, cursor[i])
+      : cursor[i];
+    const diff = compare(values[i], expected);
     if (diff !== 0) {
       return direction === 'desc' ? -diff : diff;
     }
