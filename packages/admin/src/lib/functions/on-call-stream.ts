@@ -1,4 +1,4 @@
-import { Effect, pipe, Schema, Stream } from 'effect';
+import { Cause, Effect, Exit, pipe, Schema, Stream } from 'effect';
 import {
   onCall,
   CallableFunction,
@@ -6,13 +6,16 @@ import {
   CallableRequest,
   CallableResponse,
 } from 'firebase-functions/https';
-import { run, Runtime } from './run.js';
+import { runExit, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import {
   CallableContext,
   decodeInput,
   extractContext,
 } from './on-call-helpers.js';
+import { FunctionSetupError } from './setup-error.js';
+import { isExpectedRejection } from './report.js';
+import { defaultSetupErrorResponse } from './recover-callable-setup-error.js';
 
 interface CallStreamEffectOptions<R> extends CallableOptions {
   runtime: Runtime<R>;
@@ -147,55 +150,84 @@ export function onCallStreamEffect<R>(
   return onCall(options, async (request, response) => {
     const context = extractContext(request, response);
 
-    const effect = pipe(
-      // Step 1: Decode input if schema provided
-      (inputSchema
-        ? decodeInput(inputSchema)(request)
-        : Effect.succeed(request)) as Effect.Effect<
-        unknown,
-        Schema.SchemaError
-      >,
-
-      // Step 2: Run handler to obtain the stream, then drain it
-      Effect.andThen((inputOrRequest) =>
-        pipe(
-          handler(inputOrRequest, context),
-
-          // Step 3: Encode each chunk if schema provided
-          Stream.mapEffect(
-            (chunk): Effect.Effect<unknown, Schema.SchemaError> =>
-              chunkSchema
-                ? (Schema.encodeUnknownEffect(chunkSchema)(
-                    chunk,
-                  ) as Effect.Effect<unknown, Schema.SchemaError>)
-                : Effect.succeed(chunk),
+    // Boundary step 1: decode the input. Its only failure is a setup error,
+    // recovered below so the handler and stream never run on bad input.
+    const decoded = inputSchema
+      ? decodeInput(inputSchema)(request).pipe(
+          Effect.mapError(
+            (cause) => new FunctionSetupError({ phase: 'decode-input', cause }),
           ),
+        )
+      : Effect.succeed(request);
 
-          // Step 4: Forward each encoded chunk to the client
-          Stream.mapEffect((encoded) =>
-            pipe(sendChunk(response, encoded), Effect.as(encoded)),
+    // Boundary step 2: encode each chunk. Likewise a setup error, recovered
+    // so a chunk that violates its schema fails the stream with an HttpsError.
+    const encodeChunk = (chunk: unknown) =>
+      chunkSchema
+        ? (
+            Schema.encodeUnknownEffect(chunkSchema)(chunk) as Effect.Effect<
+              unknown,
+              Schema.SchemaError
+            >
+          ).pipe(
+            Effect.mapError(
+              (cause) =>
+                new FunctionSetupError({ phase: 'encode-output', cause }),
+            ),
+            Effect.catch(defaultSetupErrorResponse),
+          )
+        : Effect.succeed(chunk);
+
+    const effect = decoded.pipe(
+      Effect.matchEffect({
+        // Decoding failed, so the handler and stream never run.
+        onFailure: (error) => defaultSetupErrorResponse(error),
+        // Recovery is deliberately NOT wrapped around the handler: a handler
+        // failure is the handler's own error, even when it happens to be a
+        // FunctionSetupError, and must reach the caller unchanged.
+        onSuccess: (inputOrRequest) =>
+          pipe(
+            handler(inputOrRequest, context),
+
+            // Step 3: Encode each chunk if a schema is provided
+            Stream.mapEffect(encodeChunk),
+
+            // Step 4: Forward each encoded chunk to the client
+            Stream.mapEffect((encoded) =>
+              pipe(sendChunk(response, encoded), Effect.as(encoded)),
+            ),
+
+            // Step 5: Interrupt the stream (including an in-flight pull) when
+            // the client disconnects; chunks collected so far are kept
+            Stream.interruptWhen(clientDisconnected(response)),
+
+            // Step 6: Collect all chunks as the final result
+            Stream.runCollect,
           ),
+      }),
+      Effect.withSpan('onCallStreamEffect'),
+    );
 
-          // Step 5: Interrupt the stream (including an in-flight pull) when
-          // the client disconnects; chunks collected so far are kept
-          Stream.interruptWhen(clientDisconnected(response)),
-
-          // Step 6: Collect all chunks as the final result
-          Stream.runCollect,
-        ),
-      ),
-    ).pipe(Effect.withSpan('onCallStreamEffect'));
-
-    return await run(
+    const exit = await runExit(
       options.runtime,
-      effect as unknown as Effect.Effect<ReadonlyArray<unknown>, never, R>,
-    ).catch((error) => {
+      effect as Effect.Effect<unknown, unknown, R>,
+    );
+
+    if (Exit.isSuccess(exit)) {
+      return exit.value as ReadonlyArray<unknown>;
+    }
+
+    const error = Cause.squash(exit.cause);
+    // Expected rejections (an HttpsError, or any error annotated with
+    // ErrorReporter.ignore) are rethrown for Firebase to serialize, so the
+    // client receives their code and message, but are not logged as defects.
+    if (!isExpectedRejection(error)) {
       logger.error('Defect in onCallStream', {
         inner: error,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      throw error;
-    });
+    }
+    throw error;
   });
 }
 

@@ -17,6 +17,7 @@ import {
 } from './on-call-helpers.js';
 import { FunctionSetupError } from './setup-error.js';
 import { isExpectedRejection } from './report.js';
+import { defaultSetupErrorResponse } from './recover-callable-setup-error.js';
 
 interface CallEffectOptions<R, A = unknown> extends CallableOptions {
   runtime: Runtime<R>;
@@ -59,19 +60,6 @@ interface CallEffectOptionsWithBoth<
   inputSchema: I;
   outputSchema: O;
 }
-
-/**
- * Default recovery: reject the call with an HttpsError that reflects the
- * setup phase that failed.
- */
-const defaultSetupErrorResponse = (
-  error: FunctionSetupError,
-): Effect.Effect<never, HttpsError> =>
-  Effect.fail(
-    error.phase === 'decode-input'
-      ? new HttpsError('invalid-argument', error.cause.message)
-      : new HttpsError('internal', 'Failed to encode function output'),
-  );
 
 /**
  * Create a Firebase Functions callable trigger that runs an effect.
