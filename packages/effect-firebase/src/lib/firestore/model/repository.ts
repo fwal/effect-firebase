@@ -546,25 +546,53 @@ export const makeRepository = <
     // `update` encoder with `{}`: a field is auto-managed when encoding it
     // through a one-key struct yields a `ServerTimestamp` for that key
     // (required fields fail the encode, optional ones drop the key — neither
-    // stamps). The encode is sync for the fields that can stamp
-    // (`ServerDateTimeSchema` has no encoding services).
+    // stamps).
+    //
+    // The probe runs at repository construction, where only `FirestoreService`
+    // is available. The built-in stampers (`DateTimeUpdate` and `ServerDateTime`
+    // via `ServerDateTimeSchema`) have no encoding services, so a probe that
+    // fails here means the field is not auto-managed through the standard
+    // `Model.Field` helpers — those reach the missing-key path only via
+    // `SchemaGetter.transformOptional`, which is synchronous and cannot
+    // require services. A custom schema built at a lower level can need a
+    // service to stamp a missing value; rather than silently treat its
+    // construction-time probe failure as "not auto-managed" (so an omitted
+    // field would never get its server timestamp even when the caller
+    // supplies that service to `update`), stash the encoder and re-probe on
+    // the first `update()` call, when the caller's services are in scope.
     const autoStampedUpdateFields: Array<string> = [];
+    const deferredProbes: Array<{
+      readonly field: string;
+      readonly encode: (
+        input: unknown,
+      ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
+    }> = [];
+    let deferredProbesResolved = false;
     for (const [field, fieldSchema] of Object.entries(
       (Model.update as Schema.Struct<Schema.Struct.Fields>).fields,
     )) {
       if (field === (options.idField as string)) continue;
       const probe = Schema.Struct({ [field]: fieldSchema });
+      const encode = Schema.encodeUnknownEffect(
+        probe,
+        Fetch.strictEncoding,
+      ) as (
+        input: unknown,
+      ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
       const encoded = yield* Effect.exit(
-        Schema.encodeUnknownEffect(
-          probe,
-          Fetch.strictEncoding,
-        )({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+        encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
       );
       if (Exit.isSuccess(encoded)) {
         const value = (encoded.value as Record<string, unknown>)[field];
         if (value instanceof FirestoreSchema.ServerTimestamp) {
           autoStampedUpdateFields.push(field);
         }
+      } else {
+        // Probe failed at construction — typically the encoder needs a
+        // service the caller supplies to `update`. Defer the field and
+        // re-probe there, so a service-requiring auto-stamper is detected
+        // instead of silently dropped.
+        deferredProbes.push({ field, encode });
       }
     }
 
@@ -635,6 +663,29 @@ export const makeRepository = <
           const encoded = yield* encode(value);
           if (Option.isSome(encoded)) {
             payload[key] = encoded.value;
+          }
+        }
+
+        // Resolve fields whose construction-time probe failed now that the
+        // caller's services are in scope, so an encoder that needs a service
+        // to stamp the missing-key path can run. A probe that now yields a
+        // `ServerTimestamp` confirms the field is auto-managed after all and
+        // it stays so for the repository's lifetime (no per-call cost on
+        // subsequent updates). A field whose probe fails again here is
+        // definitively not auto-managed — the same encode runs at call time
+        // for the supplied fields, so its requirements are the same.
+        if (!deferredProbesResolved) {
+          deferredProbesResolved = true;
+          for (const { field, encode } of deferredProbes) {
+            const encoded = yield* Effect.exit(
+              encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+            );
+            if (Exit.isSuccess(encoded)) {
+              const value = (encoded.value as Record<string, unknown>)[field];
+              if (value instanceof FirestoreSchema.ServerTimestamp) {
+                autoStampedUpdateFields.push(field);
+              }
+            }
           }
         }
 
