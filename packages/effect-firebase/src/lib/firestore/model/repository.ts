@@ -1,7 +1,16 @@
-import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
+import {
+  Array as Arr,
+  Effect,
+  Exit,
+  Option,
+  Schema,
+  Stream,
+  Struct,
+} from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { collectionIdOf, validateCollectionId } from '../path.js';
+import * as FirestoreSchema from '../schema/schema.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
@@ -518,6 +527,40 @@ export const makeRepository = <
       .mapFields(Struct.omit([options.idField as string]))
       .mapFields(Struct.map(Schema.optional));
 
+    // Fields whose `update` schema auto-stamps a server timestamp when the
+    // caller omits the key — `DateTimeUpdate` and `ServerDateTime`. Their
+    // inner encoder turns a missing key into a `ServerTimestamp` sentinel, so
+    // the documented contract for `DateTimeUpdate` is "server timestamp on
+    // every write". The `Schema.optional` wrap above turns an omitted input
+    // key into an omitted *output* key and never invokes that inner encoder,
+    // which is why `repo.update(id, { title })` would otherwise leave
+    // `updatedAt` unchanged. Collect these fields here and seed the sentinel
+    // into the payload in `update()` instead. Detection probes each field's
+    // `update` encoder with `{}`: a field is auto-managed when encoding it
+    // through a one-key struct yields a `ServerTimestamp` for that key
+    // (required fields fail the encode, optional ones drop the key — neither
+    // stamps). The encode is sync for the fields that can stamp
+    // (`ServerDateTimeSchema` has no encoding services).
+    const autoStampedUpdateFields: Array<string> = [];
+    for (const [field, fieldSchema] of Object.entries(
+      (Model.update as Schema.Struct<Schema.Struct.Fields>).fields,
+    )) {
+      if (field === (options.idField as string)) continue;
+      const probe = Schema.Struct({ [field]: fieldSchema });
+      const encoded = yield* Effect.exit(
+        Schema.encodeUnknownEffect(
+          probe,
+          Fetch.strictEncoding,
+        )({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+      );
+      if (Exit.isSuccess(encoded)) {
+        const value = (encoded.value as Record<string, unknown>)[field];
+        if (value instanceof FirestoreSchema.ServerTimestamp) {
+          autoStampedUpdateFields.push(field);
+        }
+      }
+    }
+
     const updateFieldsSchema = Schema.Struct({
       [options.idField]: idSchema,
     }).pipe(Schema.fieldsAssign(PartialDataSchema.fields));
@@ -585,6 +628,20 @@ export const makeRepository = <
           const encoded = yield* encode(value);
           if (Option.isSome(encoded)) {
             payload[key] = encoded.value;
+          }
+        }
+
+        // Re-stamp every auto-managed server-timestamp field (`DateTimeUpdate`,
+        // `ServerDateTime`) the caller omitted, so it advances to "now" on
+        // every write. The encoder above drops an omitted key (via the
+        // `Schema.optional` partial-update wrap), so seed the sentinel here.
+        // `hasOwnProperty` leaves a field the caller named alone — including
+        // `updatedAt: undefined`, which the encoder already turned into a
+        // `ServerTimestamp` — and an explicitly passed `DateTime.Utc`, which
+        // encoded to a `Timestamp`.
+        for (const field of autoStampedUpdateFields) {
+          if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+            payload[field] = new FirestoreSchema.ServerTimestamp();
           }
         }
 

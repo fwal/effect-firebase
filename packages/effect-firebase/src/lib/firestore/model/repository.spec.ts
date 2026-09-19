@@ -16,7 +16,11 @@ import * as FirestoreModel from './datetime.js';
 import * as FirestoreNumber from './number.js';
 import { OptionalDeletable } from './optional.js';
 import { increment } from '../fields/increment.js';
-import { Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
+import {
+  ServerTimestamp,
+  Timestamp,
+  TimestampDateTimeUtc,
+} from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
@@ -682,6 +686,153 @@ describe('Repository', () => {
           'title.length': 1,
         });
         expect(write).toBeDefined();
+      });
+    });
+
+    // DateTimeUpdate's documented contract is "server timestamp on every
+    // write". repo.update builds its request schema by wrapping every field
+    // in Schema.optional, which drops an omitted key before the inner
+    // ServerDateTimeSchema encoder can stamp it — so without the repository
+    // re-stamping, repo.update(id, { title }) left updatedAt unchanged. These
+    // pin the contract so a regression to that behaviour fails here first.
+    describe('auto-stamps DateTimeUpdate fields', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      it('re-stamps an omitted DateTimeUpdate field on update', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { title: 'Updated' }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({
+          title: 'Updated',
+          updatedAt: expect.any(ServerTimestamp),
+        });
+      });
+
+      it('re-stamps an omitted DateTimeUpdate field under merge', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(
+            PostId.make('post-1'),
+            { title: 'Updated' },
+            { merge: true },
+          ),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({
+          title: 'Updated',
+          updatedAt: expect.any(ServerTimestamp),
+        });
+      });
+
+      it('does not double-stamp when the caller passes updatedAt: undefined', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'Updated',
+            updatedAt: undefined,
+          }),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(Object.keys(payload).sort()).toEqual(['title', 'updatedAt']);
+        expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
+      });
+
+      it('preserves an explicitly passed DateTime.Utc for updatedAt', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        const when = DateTime.makeUnsafe(1_700_000_000_000);
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'Updated',
+            updatedAt: when,
+          }),
+        );
+
+        const { updatedAt } = payloadOf(updateMock) as { updatedAt: unknown };
+        expect(updatedAt).toBeInstanceOf(Timestamp);
+        expect((updatedAt as Timestamp).toMillis()).toBe(
+          DateTime.toEpochMillis(when),
+        );
+      });
+
+      it('stamps updatedAt even when no other field is given', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(repo.update(PostId.make('post-1'), {}));
+
+        expect(payloadOf(updateMock)).toEqual({
+          updatedAt: expect.any(ServerTimestamp),
+        });
+      });
+
+      it('does not stamp fields the model does not auto-manage (WithServerTimestamp)', async () => {
+        class WithStampModel extends Model.Class<WithStampModel>(
+          'WithStampModel',
+        )({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          lastSeenAt: FirestoreModel.WithServerTimestamp(
+            FirestoreModel.DateTime,
+          ),
+        }) {}
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(WithStampModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { title: 'Updated' }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({ title: 'Updated' });
+        expect(payloadOf(updateMock)).not.toHaveProperty('lastSeenAt');
+      });
+
+      it('stamps every auto-managed field independently (DateTimeUpdate + ServerDateTime)', async () => {
+        class MultiStampModel extends Model.Class<MultiStampModel>(
+          'MultiStampModel',
+        )({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          updatedAt: FirestoreModel.DateTimeUpdate,
+          seenAt: FirestoreModel.ServerDateTime,
+        }) {}
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(MultiStampModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { title: 'Updated' }),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(payload.title).toBe('Updated');
+        expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
+        expect(payload.seenAt).toBeInstanceOf(ServerTimestamp);
       });
     });
   });
