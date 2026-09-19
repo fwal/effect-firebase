@@ -39,9 +39,7 @@ const withCloudLogger = <R, E, RIn>(
  *
  * - An explicitly passed `app` wins.
  * - Otherwise the existing `[DEFAULT]` app is used (`getApp()` throws when
- *   no default app exists, which distinguishes it from `getApps()[0]` — that
- *   returns any app in registration order, including a named/non-default one
- *   registered before the default).
+ *   no default app exists).
  * - When no default app exists, a fresh default app is initialized.
  */
 const resolveApp = (app?: FirebaseAdminApp): FirebaseAdminApp => {
