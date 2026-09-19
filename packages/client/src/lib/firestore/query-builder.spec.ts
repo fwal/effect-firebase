@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from '@effect/vitest';
+import { vi } from 'vitest';
 import type { Firestore } from 'firebase/firestore';
 import { Query } from 'effect-firebase';
 

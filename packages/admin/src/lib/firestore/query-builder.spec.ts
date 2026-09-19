@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
 import { Filter, type Firestore } from 'firebase-admin/firestore';
 import { Query } from 'effect-firebase';
 import { buildCollectionGroupQuery, buildQuery } from './query-builder.js';
