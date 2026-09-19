@@ -15,6 +15,10 @@ const h = vi.hoisted(() => {
     runTransactionCalls: 0,
     batchesCreated: 0,
     commits: 0,
+    dataCalls: [] as Array<{
+      path: string;
+      serverTimestamps: string | undefined;
+    }>,
   };
 
   const reset = () => {
@@ -24,6 +28,7 @@ const h = vi.hoisted(() => {
     state.runTransactionCalls = 0;
     state.batchesCreated = 0;
     state.commits = 0;
+    state.dataCalls = [];
   };
 
   const idOf = (path: string) => path.split('/').pop() as string;
@@ -31,7 +36,13 @@ const h = vi.hoisted(() => {
   const fakeSnapshot = (path: string, data: Record<string, unknown>) => ({
     id: idOf(path),
     ref: { id: idOf(path), path },
-    data: () => data,
+    data: (options?: { serverTimestamps?: string }) => {
+      state.dataCalls.push({
+        path,
+        serverTimestamps: options?.serverTimestamps,
+      });
+      return data;
+    },
   });
 
   const fakeDocRef = (path: string): Record<string, unknown> => {
@@ -375,6 +386,48 @@ describe('FirestoreService (client)', () => {
 
       expect(h.state.directOps).toEqual([['query', 'group:comments']]);
       expect(results).toHaveLength(1);
+    });
+  });
+
+  describe('serverTimestamps option', () => {
+    // Regression: `query`/`queryGroup` (backed by `runQuery`) must pass the
+    // library-wide default `serverTimestamps: 'estimate'` to
+    // `QueryDocumentSnapshot.data()`, matching `get`/`streamDoc`/`streamQuery`.
+    // The Firebase client SDK defaults to `'none'` when the option is omitted,
+    // which decodes pending server timestamps as `null` and breaks models with
+    // required timestamp fields (e.g. `Firestore.DateTimeInsert`).
+    it('query passes `serverTimestamps: estimate` to snapshot.data', async () => {
+      await run(withService((fs) => fs.query('posts', [])));
+
+      expect(h.state.dataCalls).toEqual([
+        { path: 'posts/1', serverTimestamps: 'estimate' },
+      ]);
+    });
+
+    it('queryGroup passes `serverTimestamps: estimate` to snapshot.data', async () => {
+      await run(withService((fs) => fs.queryGroup('comments', [])));
+
+      expect(h.state.dataCalls).toEqual([
+        { path: 'group:comments/1', serverTimestamps: 'estimate' },
+      ]);
+    });
+
+    it('get defaults to `serverTimestamps: estimate`', async () => {
+      await run(withService((fs) => fs.get('posts/1')));
+
+      expect(h.state.dataCalls).toEqual([
+        { path: 'posts/1', serverTimestamps: 'estimate' },
+      ]);
+    });
+
+    it('get threads an explicit `serverTimestamps` option through', async () => {
+      await run(
+        withService((fs) => fs.get('posts/1', { serverTimestamps: 'none' })),
+      );
+
+      expect(h.state.dataCalls).toEqual([
+        { path: 'posts/1', serverTimestamps: 'none' },
+      ]);
     });
   });
 });
