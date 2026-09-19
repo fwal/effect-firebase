@@ -1,14 +1,20 @@
 import { Schema } from 'effect';
 import { Model, VariantSchema } from 'effect/unstable/schema';
-import { ArrayUnionInstance, ArrayRemoveInstance } from '../fields/array.js';
+import {
+  ArrayUnionInstance,
+  ArrayRemoveInstance,
+  makeArrayUnionInstance,
+  makeArrayRemoveInstance,
+} from '../fields/array.js';
 
 /**
  * Adds `ArrayUnion` and `ArrayRemove` sentinel support to an array field's `update` variant.
  *
  * The `get`, `add`, and JSON variants keep the original array type unchanged.
  * The `update` variant additionally accepts `ArrayUnion`  and
- * `ArrayRemove` values which are converted to Firestore
- * `FieldValue`s by the client/admin converters.
+ * `ArrayRemove` values: their inner `values` are encoded through the
+ * element schema, and the resulting sentinel is converted to a Firestore
+ * `FieldValue` by the client/admin converters.
  *
  * @example
  * ```ts
@@ -60,7 +66,7 @@ export const WithArrayFields: <
   select: identity,
   insert: identity,
   update: (s: Schema.Top) =>
-    Schema.Union([s, ArrayUnionInstance, ArrayRemoveInstance]),
+    Schema.Union([s, makeArrayUnionInstance(s), makeArrayRemoveInstance(s)]),
   json: identity,
   jsonCreate: identity,
   jsonUpdate: identity,
