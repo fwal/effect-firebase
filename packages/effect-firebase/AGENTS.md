@@ -494,6 +494,30 @@ per id, mutations with `reactivityKeys`, pagination, forms via
 `Schema.toStandardSchemaV1`, mock devtools) is in `REACT.md` at the repo
 root: https://github.com/fwal/effect-firebase/blob/main/REACT.md.
 
+## Path validation
+
+`effect-firebase` exports the path validators the Admin, Client and mock
+`FirestoreService` layers use to turn the Firestore SDK's synchronous
+wrong-parity throws into typed `FirestoreError` failures instead of a
+`Cause.die` defect (writers that build the ref inside `Effect.gen`) or a
+stalled stream consumer (`streamDoc`/`streamQuery`, whose ref is built inside
+`Stream.callback`). You rarely call them directly; they're exposed for custom
+`FirestoreService` implementers and preflight checks.
+
+```ts
+import { validateDocPath, validateCollectionPath } from 'effect-firebase';
+```
+
+| Export                         | Returns               | Rejects                                                                            |
+| ------------------------------ | --------------------- | ---------------------------------------------------------------------------------- |
+| `validateDocPath(path)`        | `string \| undefined` | A path whose segment count isn't even, or with any empty segment (document path).  |
+| `validateCollectionPath(path)` | `string \| undefined` | A path whose segment count isn't odd, or with any empty segment (collection path). |
+
+`undefined` means a valid path; the string is the failure message used to build a
+`FirestoreError({ code: 'invalid-argument', message })`. The same module exports
+`validateCollectionId` (a single collection-group segment) and `collectionIdOf`
+(the final segment of a collection path).
+
 ## Errors
 
 - `FirestoreError { code, name, message }` — SDK errors; `code` is the

@@ -217,6 +217,23 @@ repo.getById(id).pipe(
 );
 ```
 
+## Path validation
+
+`validateDocPath(path)` and `validateCollectionPath(path)` validate a full
+document or collection path and return `undefined` when it is well-formed, or a
+failure message otherwise. The Admin, Client and mock `FirestoreService` layers
+use them to surface wrong-parity paths as a typed `FirestoreError` (`code: 'invalid-argument'`) instead of a defect or a stalled stream.
+
+```typescript
+import { validateDocPath, validateCollectionPath } from 'effect-firebase';
+
+validateDocPath('posts/1/comments'); // -> error message (odd segment count)
+validateCollectionPath('posts'); // -> undefined
+```
+
+The same module exports `validateCollectionId` (a single collection-group
+segment) and `collectionIdOf` (the final segment of a collection path).
+
 ## Migration and agent guides
 
 This package ships [`MIGRATION.md`](./MIGRATION.md) (v0.x → v1.0) and [`AGENTS.md`](./AGENTS.md) (condensed usage reference for coding agents). Both are available in `node_modules/effect-firebase/` after installing.
