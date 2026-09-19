@@ -332,6 +332,39 @@ describe('FirestoreService (client)', () => {
       expect(h.state.batchesCreated).toBe(0);
       expect(h.state.txOps.map((op) => op[0])).toEqual(['set']);
     });
+
+    it('dies when withTransaction is nested inside withBatch (no partial commit)', async () => {
+      const exit = await runExit(
+        withService((fs) =>
+          fs.withBatch(
+            Effect.gen(function* () {
+              yield* fs.withTransaction(
+                Effect.gen(function* () {
+                  yield* fs.get('posts/1');
+                  yield* fs.set('posts/1', { title: 'a' });
+                }),
+              );
+              yield* new TestError({ reason: 'outer-batch-fails' });
+            }),
+          ),
+        ),
+      );
+
+      // withBatch's contract: "When the effect fails, nothing is committed."
+      // The combination is rejected with a defect BEFORE opening runTransaction,
+      // so nothing is staged on the batch and no transaction is opened.
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+        const pretty = Cause.pretty(exit.cause);
+        expect(pretty).toContain('withTransaction');
+        expect(pretty).toContain('withBatch');
+      }
+      expect(h.state.runTransactionCalls).toBe(0);
+      expect(h.state.txOps).toEqual([]);
+      expect(h.state.batchOps).toEqual([]);
+      expect(h.state.commits).toBe(0);
+    });
   });
 
   describe('outside a transaction or batch', () => {

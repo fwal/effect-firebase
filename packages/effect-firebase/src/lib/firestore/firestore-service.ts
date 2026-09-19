@@ -168,6 +168,10 @@ type FirestoreTransactions = {
    *   write. Violations surface as a {@link FirestoreError} at runtime.
    * - Nested `withTransaction` calls join the ambient transaction instead of
    *   starting a new one.
+   * - Nesting `withTransaction` inside `withBatch` causes a defect
+   *   (`Effect.die`): a transaction cannot join a write batch (batches are
+   *   write-only), and opening an independent transaction would commit
+   *   independently of the batch.
    * - `streamDoc`, `streamQuery`, `streamQueryGroup`, and `deleteRecursive`
    *   cannot participate in a transaction and cause a defect (`Effect.die`)
    *   when used inside one.
@@ -199,6 +203,9 @@ type FirestoreTransactions = {
    * - Nested `withBatch` calls join the ambient batch. Inside an ambient
    *   transaction, `withBatch` is a no-op wrapper: writes are already atomic
    *   through the transaction.
+   * - Nesting `withTransaction` inside `withBatch` causes a defect
+   *   (`Effect.die`): a transaction cannot join a write batch, and opening
+   *   one independently would partial-commit if the batch later fails.
    * - `deleteRecursive` cannot participate in a batch and causes a defect
    *   (`Effect.die`) when used inside one.
    *
