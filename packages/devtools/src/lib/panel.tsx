@@ -242,8 +242,17 @@ export function MockDevtoolsPanel({
     notifyEffectiveAfter(controller.clearState(MockState.All));
   };
 
+  // `controller.reset` restores the initial latency too, so resync the input
+  // (clearAll never touches latency, so it stays on `notifyEffectiveAfter`).
   const reset = (): void => {
-    notifyEffectiveAfter(controller.reset);
+    void Effect.runPromise(
+      Effect.flatMap(controller.reset, () =>
+        Effect.zip(controller.states, controller.latency),
+      ),
+    ).then(([states, latency]) => {
+      onStateChange?.(MockState.All, MockState.resolve(states, MockState.All));
+      setLatencyMs(Duration.toMillis(latency));
+    });
   };
 
   const applyLatency = (value: number): void => {
