@@ -678,6 +678,13 @@ export const makeRepository = <
         // seeded on every call below.
         const deferredStamped: Array<string> = [];
         for (const { field, encode } of deferredProbes) {
+          // A deferred field the caller explicitly supplied has already been
+          // encoded into `payload` above (the whole-field encoder ran its
+          // value branch). Re-probing it with `{}` would re-enter the field's
+          // missing-value branch — for an effectful encoder that's a duplicate
+          // side effect, and the probe's outcome has nothing to classify
+          // (`hasOwnProperty` guard below leaves the field untouched). Skip it.
+          if (Object.prototype.hasOwnProperty.call(payload, field)) continue;
           const encoded = yield* Effect.exit(
             encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
           );
