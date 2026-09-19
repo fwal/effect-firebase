@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   Cause,
+  Context,
   DateTime,
   Effect,
   Exit,
   Layer,
   Option,
   Schema,
+  SchemaGetter,
+  SchemaIssue,
   Stream,
 } from 'effect';
 import { delete as deleteField } from '../fields/delete.js';
@@ -16,6 +19,7 @@ import * as FirestoreModel from './datetime.js';
 import * as FirestoreNumber from './number.js';
 import { OptionalDeletable } from './optional.js';
 import { increment } from '../fields/increment.js';
+import * as FirestoreSchema from '../schema/schema.js';
 import {
   ServerTimestamp,
   Timestamp,
@@ -833,6 +837,110 @@ describe('Repository', () => {
         expect(payload.title).toBe('Updated');
         expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
         expect(payload.seenAt).toBeInstanceOf(ServerTimestamp);
+      });
+
+      it('stamps a custom effectful auto-managed field whose probe needs a service only available at update time', async () => {
+        // Mirror of ServerDateTimeSchema whose missing-key encode requires a
+        // service the caller supplies. Built via SchemaGetter.Getter so the
+        // missing-key branch carries the service requirement — at repository
+        // construction that service is not in scope, so the probe has to defer
+        // to the first `update()` call.
+        class StamperService extends Context.Service<
+          StamperService,
+          {
+            readonly shouldStamp: boolean;
+          }
+        >()('test/StamperService') {}
+
+        const EffectfulStampSchema = Schema.Union([
+          FirestoreSchema.TimestampInstance,
+          FirestoreSchema.ServerTimestampInstance,
+        ]).pipe(
+          Schema.decodeTo(Schema.optional(Schema.DateTimeUtc), {
+            decode: SchemaGetter.transformEffect(
+              (
+                input:
+                  FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              ) => {
+                if (input instanceof FirestoreSchema.Timestamp) {
+                  return Effect.succeed(
+                    DateTime.makeUnsafe(input.toMillis()) as
+                      DateTime.Utc | undefined,
+                  );
+                }
+                return Effect.fail(
+                  new SchemaIssue.Forbidden({
+                    message:
+                      'EffectfulStampSchema: cannot decode ServerTimestamp',
+                  }),
+                );
+              },
+            ),
+            encode: new SchemaGetter.Getter<
+              FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              DateTime.Utc | undefined,
+              StamperService
+            >((input) =>
+              Option.isSome(input) && input.value !== undefined
+                ? Effect.succeed(
+                    Option.some(
+                      FirestoreSchema.Timestamp.fromDateTime(input.value),
+                    ),
+                  )
+                : Effect.gen(function* () {
+                    const svc = yield* StamperService;
+                    return svc.shouldStamp
+                      ? Option.some(new FirestoreSchema.ServerTimestamp())
+                      : Option.none();
+                  }),
+            ),
+          }),
+        );
+
+        class EffectfulStampModel extends Model.Class<EffectfulStampModel>(
+          'EffectfulStampModel',
+        )({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          effStamp: Model.Field({
+            select: FirestoreSchema.TimestampDateTimeUtc,
+            insert: FirestoreSchema.TimestampDateTimeUtc,
+            update: EffectfulStampSchema,
+            json: Schema.DateTimeUtcFromString,
+          }),
+        }) {}
+
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        // Construct with only FirestoreService in scope: the probe for
+        // effStamp needs StamperService and so fails, and the field is
+        // deferred to update time rather than silently dropped.
+        const repo = await Effect.runPromise(
+          makeRepository(EffectfulStampModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+
+        // Update with StamperService provided (shouldStamp: true): the
+        // deferred probe re-runs with the service in scope, classifies
+        // effStamp as auto-managed, and the re-stamp seeds a ServerTimestamp.
+        await Effect.runPromise(
+          repo
+            .update(PostId.make('post-1'), { title: 'Updated' })
+            .pipe(
+              Effect.provide(
+                Layer.merge(
+                  makeLayer({ update: updateMock }),
+                  Layer.succeed(StamperService, { shouldStamp: true }),
+                ),
+              ),
+            ),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(payload.title).toBe('Updated');
+        expect(payload.effStamp).toBeInstanceOf(ServerTimestamp);
       });
     });
   });
