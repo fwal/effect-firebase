@@ -1226,6 +1226,120 @@ describe('Repository', () => {
         expect(thirdPayload.title).toBe('third');
         expect(thirdPayload).not.toHaveProperty('effStamp');
       });
+
+      it('skips the deferred probe for a field the caller supplied explicitly, so the missing-value encoder does not re-run', async () => {
+        // A deferred field that the caller supplies explicitly has already
+        // been encoded into the payload by the whole-field encoder. The
+        // deferred probe must not re-invoke that field's encoder with `{}`:
+        // for an effectful encoder that re-enters the missing-value branch and
+        // is a duplicate side effect whose result the `hasOwnProperty` seeding
+        // guard discards anyway. A recorder placed past the service read in
+        // the missing-value branch fires only when that branch actually runs
+        // against the present service — once under the buggy no-skip path,
+        // zero with the skip.
+        class StamperService extends Context.Service<
+          StamperService,
+          {
+            readonly shouldStamp: boolean;
+          }
+        >()('test/StamperService') {}
+
+        const missingValueCalls = vi.fn(() => Effect.succeed(undefined));
+
+        const EffectfulStampSchema = Schema.Union([
+          FirestoreSchema.TimestampInstance,
+          FirestoreSchema.ServerTimestampInstance,
+        ]).pipe(
+          Schema.decodeTo(Schema.optional(Schema.DateTimeUtc), {
+            decode: SchemaGetter.transformEffect(
+              (
+                input:
+                  FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              ) => {
+                if (input instanceof FirestoreSchema.Timestamp) {
+                  return Effect.succeed(
+                    DateTime.makeUnsafe(input.toMillis()) as
+                      DateTime.Utc | undefined,
+                  );
+                }
+                return Effect.fail(
+                  new SchemaIssue.Forbidden({
+                    message:
+                      'EffectfulStampSchema: cannot decode ServerTimestamp',
+                  }),
+                );
+              },
+            ),
+            encode: new SchemaGetter.Getter<
+              FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              DateTime.Utc | undefined,
+              StamperService
+            >((input) =>
+              Option.isSome(input) && input.value !== undefined
+                ? Effect.succeed(
+                    Option.some(
+                      FirestoreSchema.Timestamp.fromDateTime(input.value),
+                    ),
+                  )
+                : Effect.gen(function* () {
+                    const svc = yield* StamperService;
+                    yield* missingValueCalls();
+                    return svc.shouldStamp
+                      ? Option.some(new FirestoreSchema.ServerTimestamp())
+                      : Option.none();
+                  }),
+            ),
+          }),
+        );
+
+        class EffectfulStampModel extends Model.Class<EffectfulStampModel>(
+          'EffectfulStampModel',
+        )({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          effStamp: Model.Field({
+            select: FirestoreSchema.TimestampDateTimeUtc,
+            insert: FirestoreSchema.TimestampDateTimeUtc,
+            update: EffectfulStampSchema,
+            json: Schema.DateTimeUtcFromString,
+          }),
+        }) {}
+
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(EffectfulStampModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+
+        // The caller supplies effStamp explicitly. The whole-field encoder
+        // runs the value branch (-> Timestamp); the missing-value branch must
+        // not run at all, even though the service says to stamp, so the
+        // explicit value is preserved and no duplicate side effect fires.
+        const when = DateTime.makeUnsafe(1_700_000_000_000);
+        await Effect.runPromise(
+          repo
+            .update(PostId.make('post-1'), { title: 'Updated', effStamp: when })
+            .pipe(
+              Effect.provide(
+                Layer.merge(
+                  makeLayer({ update: updateMock }),
+                  Layer.succeed(StamperService, { shouldStamp: true }),
+                ),
+              ),
+            ),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(payload.title).toBe('Updated');
+        expect(payload.effStamp).toBeInstanceOf(Timestamp);
+        expect((payload.effStamp as Timestamp).toMillis()).toBe(
+          DateTime.toEpochMillis(when),
+        );
+        expect(missingValueCalls).toHaveBeenCalledTimes(0);
+      });
     });
   });
 
