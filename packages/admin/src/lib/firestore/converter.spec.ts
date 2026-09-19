@@ -94,6 +94,30 @@ describe('Firestore Converter', () => {
       expect((result as AdminTimestamp).toMillis()).toBe(1705315800123);
     });
 
+    it('should preserve a plain JS Date as a Date (not corrupted to {})', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const date = new Date(1705315800123);
+      const result = firestoreEncode(fakeFirestore, date);
+
+      expect(result).toBe(date);
+      expect(result).toBeInstanceOf(Date);
+      expect(result).not.toEqual({});
+    });
+
+    it('should preserve a plain JS Date nested in objects and arrays', () => {
+      const fakeFirestore = {} as unknown as Firestore;
+      const date = new Date(1705315800123);
+      const result = firestoreEncode(fakeFirestore, {
+        at: date,
+        history: [date],
+      }) as Record<string, unknown>;
+
+      expect(result.at).toBe(date);
+      expect(result.at).toBeInstanceOf(Date);
+      expect((result.history as unknown[])[0]).toBe(date);
+      expect((result.history as unknown[])[0]).toBeInstanceOf(Date);
+    });
+
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {
       const fakeFirestore = {} as unknown as Firestore;
       const result = firestoreEncode(
@@ -150,7 +174,10 @@ describe('Firestore Converter', () => {
 
     it('should convert Increment to increment FieldValue', () => {
       const fakeFirestore = {} as unknown as Firestore;
-      const result = firestoreEncode(fakeFirestore, FirestoreHelper.increment(3));
+      const result = firestoreEncode(
+        fakeFirestore,
+        FirestoreHelper.increment(3),
+      );
 
       expect(result).toStrictEqual(FieldValue.increment(3));
     });

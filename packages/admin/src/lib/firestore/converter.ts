@@ -22,6 +22,7 @@ export const firestoreEncode = (
 ): unknown => {
   if (
     data === null ||
+    data instanceof Date ||
     data instanceof Timestamp ||
     data instanceof GeoPoint ||
     data instanceof DocumentReference ||

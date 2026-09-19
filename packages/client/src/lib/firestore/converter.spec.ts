@@ -110,6 +110,28 @@ describe('Firestore Converter', () => {
       );
     });
 
+    it('should preserve a plain JS Date as a Date (not corrupted to {})', () => {
+      const date = new Date(1705315800123);
+      const result = firestoreEncode(fakeFirestore, date);
+
+      expect(result).toBe(date);
+      expect(result).toBeInstanceOf(Date);
+      expect(result).not.toEqual({});
+    });
+
+    it('should preserve a plain JS Date nested in objects and arrays', () => {
+      const date = new Date(1705315800123);
+      const result = firestoreEncode(fakeFirestore, {
+        at: date,
+        history: [date],
+      }) as Record<string, unknown>;
+
+      expect(result.at).toBe(date);
+      expect(result.at).toBeInstanceOf(Date);
+      expect((result.history as unknown[])[0]).toBe(date);
+      expect((result.history as unknown[])[0]).toBeInstanceOf(Date);
+    });
+
     it('should convert FirestoreSchema.GeoPoint to Firestore GeoPoint', () => {
       const result = firestoreEncode(
         fakeFirestore,
