@@ -44,6 +44,78 @@ describe('applyConstraints', () => {
     ).toEqual(['1', '4']);
   });
 
+  describe('not-equal null and missing field semantics', () => {
+    // Fixtures mixing present, explicit-null, and missing `status` values:
+    // the combination produced by `Firestore.Optional` writing `Option.none()`
+    // as a literal `null` field.
+    const docs: ReadonlyArray<Snapshot> = [
+      snap('a', { status: 'active' }),
+      snap('b', { status: 'archived' }),
+      snap('c', { status: null }),
+      snap('d', { title: 'no status field' }),
+    ];
+
+    it('excludes explicit-null and missing field values from != clauses', () => {
+      // Real Firestore `!= 'active'` returns docs where status exists, is not
+      // null, and is not 'active' -> only [b]. The mock previously returned
+      // [b, c] because it only guarded against missing fields.
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({ field: 'status', op: '!=', value: 'active' }),
+          ]),
+        ),
+      ).toEqual(['b']);
+    });
+
+    it('excludes the matching non-null value from != clauses', () => {
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({ field: 'status', op: '!=', value: 'archived' }),
+          ]),
+        ),
+      ).toEqual(['a']);
+    });
+
+    it('!= null returns the present non-null values, like Firestore', () => {
+      // A null *field* never matches `!=` (so [c] is out and [d] is out), but a
+      // present non-null value is "not equal to null", so it is returned.
+      // Cross-checked manually against the Firestore emulator: `!= null` is
+      // NOT the empty set.
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({ field: 'status', op: '!=', value: null }),
+          ]),
+        ),
+      ).toEqual(['a', 'b']);
+    });
+
+    it('still includes explicit-null fields in == null queries', () => {
+      // Regression guard for the adjacent == branch: == null matches docs
+      // whose field is explicitly null, but not docs where it is missing.
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({ field: 'status', op: '==', value: null }),
+          ]),
+        ),
+      ).toEqual(['c']);
+    });
+
+    it('still excludes explicit-null fields from == with a non-null value', () => {
+      // Regression guard: == 'active' matches only [a], not [c] (null).
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({ field: 'status', op: '==', value: 'active' }),
+          ]),
+        ),
+      ).toEqual(['a']);
+    });
+  });
+
   it('filters with range operators', () => {
     expect(
       ids(

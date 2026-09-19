@@ -740,4 +740,66 @@ describe('layer', () => {
         { fixtures: [postFixture] },
       ));
   });
+
+  describe('not-equal null semantics through the repository', () => {
+    const ItemId = Schema.String.pipe(Schema.brand('ItemId'));
+
+    class Item extends Model.Class<Item>('Item')({
+      id: Model.GeneratedByDb(ItemId),
+      name: Schema.String,
+      // `Firestore.Optional` encodes `Option.none()` as a literal `null`
+      // field on write — the exact shape Firestore excludes from `!=`.
+      status: Firestore.Optional(Schema.String),
+    }) {}
+
+    it('excludes null-status documents from where(status, !=, active)', () =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* Firestore.makeRepository(Item, {
+            collectionPath: 'items',
+            idField: 'id',
+            spanPrefix: 'test.ItemRepository',
+          });
+
+          yield* repo.set(ItemId.make('a'), {
+            data: { name: 'A', status: Option.some('active') },
+          });
+          yield* repo.set(ItemId.make('b'), {
+            data: { name: 'B', status: Option.some('archived') },
+          });
+          yield* repo.set(ItemId.make('c'), {
+            data: { name: 'C', status: Option.none() },
+          });
+
+          // Firestore `!= 'active'` returns docs where status exists, is not
+          // null, and is not 'active' -> only [B]. The mock previously included
+          // [C] (the explicit-null doc) too.
+          const results = yield* repo.query(
+            Query.where('status', '!=', 'active'),
+          );
+          expect(results.map((item) => item.name)).toEqual(['B']);
+        }),
+      ));
+
+    it('round-trips a null-status document as Option.none', () =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* Firestore.makeRepository(Item, {
+            collectionPath: 'items',
+            idField: 'id',
+            spanPrefix: 'test.ItemRepository',
+          });
+
+          yield* repo.set(ItemId.make('c'), {
+            data: { name: 'C', status: Option.none() },
+          });
+
+          const found = yield* repo.getById(ItemId.make('c'));
+          expect(Option.isSome(found)).toBe(true);
+          const item = (found as Option.Some<Item>).value;
+          expect(item.name).toBe('C');
+          expect(Option.isNone(item.status)).toBe(true);
+        }),
+      ));
+  });
 });

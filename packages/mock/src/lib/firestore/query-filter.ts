@@ -20,7 +20,13 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
     case '==':
       return value !== undefined && equals(value, where.value);
     case '!=':
-      return value !== undefined && !equals(value, where.value);
+      // Firestore excludes null and missing field values from every `!=`
+      // clause (`x != null` is undefined), so `!=` only matches present,
+      // non-null field values that are not equal to the comparison value.
+      if (value === null || value === undefined) {
+        return false;
+      }
+      return !equals(value, where.value);
     case '<':
     case '<=':
     case '>':

@@ -182,7 +182,7 @@ await Effect.runPromise(
 ## Limitations
 
 - In-memory only — no persistence between process restarts
-- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in`/`!=` null semantics are simplified)
+- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in` null semantics are simplified)
 - Simulated states are keyed per collection path (or the `'*'` wildcard), not per query; collection group queries resolve their state by collection ID
 - No security rules evaluation
 - `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
