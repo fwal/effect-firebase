@@ -1,5 +1,5 @@
 import {
-  getApps,
+  getApp,
   initializeApp,
   type App as FirebaseAdminApp,
 } from 'firebase-admin/app';
@@ -35,12 +35,32 @@ const withCloudLogger = <R, E, RIn>(
 ): Layer.Layer<R, E, RIn> => Layer.merge(services, cloudConsole);
 
 /**
+ * Resolves the Firebase Admin app to bind Firestore to.
+ *
+ * - An explicitly passed `app` wins.
+ * - Otherwise the existing `[DEFAULT]` app is used (`getApp()` throws when
+ *   no default app exists).
+ * - When no default app exists, a fresh default app is initialized.
+ */
+const resolveApp = (app?: FirebaseAdminApp): FirebaseAdminApp => {
+  if (app) {
+    return app;
+  }
+
+  try {
+    return getApp();
+  } catch {
+    return initializeApp();
+  }
+};
+
+/**
  * Creates the default admin layer with Firestore service and cloud logging.
  *
  * Resolution order:
  * 1. `options.firestore`
  * 2. `options.app`
- * 3. existing default app (`getApps()[0]`)
+ * 3. existing default app (`getApp()`)
  * 4. a newly initialized default app (`initializeApp()`)
  *
  * @throws If both `app` and `firestore` are provided.
@@ -89,6 +109,6 @@ export function layer(options: LayerOptions = {}): ReadyLayer {
   }
 
   const baseLayer = withCloudLogger(firestoreLayerLive);
-  const app = options.app || getApps()[0] || initializeApp();
+  const app = resolveApp(options.app);
   return Layer.provide(baseLayer, appLayer(app));
 }
