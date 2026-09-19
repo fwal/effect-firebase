@@ -27,7 +27,7 @@ interface MessagePublishedEffectOptions<R> extends PubSubOptions {
 interface MessagePublishedEffectOptionsWithSchema<
   R,
   S extends Schema.Top,
-> extends MessagePublishedEffectOptions<R> {
+> extends MessagePublishedEffectOptions<R | S['DecodingServices']> {
   messageSchema: S;
 }
 
