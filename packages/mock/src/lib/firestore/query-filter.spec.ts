@@ -357,4 +357,198 @@ describe('applyConstraints', () => {
       ),
     ).toEqual(['3', '2']);
   });
+
+  describe('NaN field values', () => {
+    // Firestore stores NaN, normalizes it, and places it in a total order
+    // below -Infinity (so orderBy lists it first ascending, last descending).
+    // For FILTERS, Firestore excludes a NaN field value from range scans and
+    // `in`, but always includes it in `not-in`; `==`/`!=` use equality, where
+    // NaN is equal only to NaN. IDs are assigned in views-asc order so the
+    // mock's implicit document-name ordering matches Firestore's
+    // inequality-field ordering for the same result sets.
+    // Verified against the Firestore emulator — see T9 in the test plan.
+    const nanPosts: ReadonlyArray<Snapshot> = [
+      snap('1', { views: Number.NaN }),
+      snap('2', { views: -Infinity }),
+      snap('3', { views: 0 }),
+      snap('4', { views: 5 }),
+      snap('5', { views: Infinity }),
+    ];
+
+    it('matches NaN with == only via NaN, and with != for any non-NaN', () => {
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '==', value: 5 }),
+          ]),
+        ),
+      ).toEqual(['4']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '==', value: Number.NaN }),
+          ]),
+        ),
+      ).toEqual(['1']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '!=', value: 5 }),
+          ]),
+        ),
+      ).toEqual(['1', '2', '3', '5']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '!=', value: Number.NaN }),
+          ]),
+        ),
+      ).toEqual(['2', '3', '4', '5']);
+    });
+
+    it('excludes NaN from every range filter, against any operand', () => {
+      // NaN is never matched by <, <=, >, >= — even though NaN < -Infinity in
+      // Firestore's total order, range scans skip NaN field values entirely.
+      for (const operand of [5, -Infinity, Infinity]) {
+        expect(
+          ids(
+            applyConstraints(nanPosts, [
+              new Query.Where({ field: 'views', op: '<', value: operand }),
+            ]),
+          ),
+        ).not.toContain('1');
+        expect(
+          ids(
+            applyConstraints(nanPosts, [
+              new Query.Where({ field: 'views', op: '<=', value: operand }),
+            ]),
+          ),
+        ).not.toContain('1');
+        expect(
+          ids(
+            applyConstraints(nanPosts, [
+              new Query.Where({ field: 'views', op: '>', value: operand }),
+            ]),
+          ),
+        ).not.toContain('1');
+        expect(
+          ids(
+            applyConstraints(nanPosts, [
+              new Query.Where({ field: 'views', op: '>=', value: operand }),
+            ]),
+          ),
+        ).not.toContain('1');
+      }
+      // Concrete results for representative operands, pinning the full
+      // result set (not just NaN exclusion) against the Firestore emulator.
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '<', value: 5 }),
+          ]),
+        ),
+      ).toEqual(['2', '3']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '<=', value: -Infinity }),
+          ]),
+        ),
+      ).toEqual(['2']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '>=', value: -Infinity }),
+          ]),
+        ),
+      ).toEqual(['2', '3', '4', '5']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: '>=', value: Infinity }),
+          ]),
+        ),
+      ).toEqual(['5']);
+    });
+
+    it('excludes NaN from in, and always includes NaN in not-in', () => {
+      // `in` never matches a NaN field value, even when NaN is a candidate.
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: 'in', value: [5] }),
+          ]),
+        ),
+      ).toEqual(['4']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({
+              field: 'views',
+              op: 'in',
+              value: [Number.NaN],
+            }),
+          ]),
+        ),
+      ).toEqual([]);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({
+              field: 'views',
+              op: 'in',
+              value: [5, Number.NaN],
+            }),
+          ]),
+        ),
+      ).toEqual(['4']);
+      // `not-in` always includes a NaN field value, regardless of candidates.
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: 'not-in', value: [5] }),
+          ]),
+        ),
+      ).toEqual(['1', '2', '3', '5']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({
+              field: 'views',
+              op: 'not-in',
+              value: [Number.NaN],
+            }),
+          ]),
+        ),
+      ).toEqual(['1', '2', '3', '4', '5']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({
+              field: 'views',
+              op: 'not-in',
+              value: [5, Number.NaN],
+            }),
+          ]),
+        ),
+      ).toEqual(['1', '2', '3', '5']);
+    });
+
+    it('orders NaN first ascending and last descending', () => {
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.OrderBy({ field: 'views', direction: 'asc' }),
+          ]),
+        ),
+      ).toEqual(['1', '2', '3', '4', '5']);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.OrderBy({ field: 'views', direction: 'desc' }),
+          ]),
+        ),
+      ).toEqual(['5', '4', '3', '2', '1']);
+    });
+  });
 });

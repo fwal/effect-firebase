@@ -18,6 +18,24 @@ describe('compare', () => {
     expect(compare(1, 1)).toBe(0);
   });
 
+  it('orders NaN below -Infinity and equal only to itself', () => {
+    // Firestore normalizes NaN and places it in a total order below -Infinity.
+    expect(compare(Number.NaN, Number.NaN)).toBe(0);
+    expect(compare(Number.NaN, -Infinity)).toBeLessThan(0);
+    expect(compare(-Infinity, Number.NaN)).toBeGreaterThan(0);
+    expect(compare(Number.NaN, Infinity)).toBeLessThan(0);
+    expect(compare(Infinity, Number.NaN)).toBeGreaterThan(0);
+    expect(compare(Number.NaN, 5)).toBeLessThan(0);
+    expect(compare(5, Number.NaN)).toBeGreaterThan(0);
+    expect(compare(Number.NaN, 0)).toBeLessThan(0);
+    expect(compare(Number.NaN, -1e308)).toBeLessThan(0);
+    // Antisymmetry: NaN is less than every other number, both ways.
+    expect(compare(Number.NaN, 5)).toBe(-compare(5, Number.NaN));
+    expect(compare(Number.NaN, -Infinity)).toBe(
+      -compare(-Infinity, Number.NaN),
+    );
+  });
+
   it('orders strings lexicographically', () => {
     expect(compare('a', 'b')).toBeLessThan(0);
     expect(compare('b', 'a')).toBeGreaterThan(0);
@@ -91,6 +109,19 @@ describe('equals', () => {
       ),
     ).toBe(true);
     expect(equals({ a: 1 }, { a: 2 })).toBe(false);
+  });
+
+  it('treats NaN as equal only to NaN', () => {
+    expect(equals(Number.NaN, Number.NaN)).toBe(true);
+    expect(equals(Number.NaN, 5)).toBe(false);
+    expect(equals(5, Number.NaN)).toBe(false);
+    expect(equals(Number.NaN, 0)).toBe(false);
+    expect(equals(Number.NaN, -Infinity)).toBe(false);
+    expect(equals(Number.NaN, Infinity)).toBe(false);
+    expect(equals({ v: Number.NaN }, { v: Number.NaN })).toBe(true);
+    expect(equals({ v: Number.NaN }, { v: 5 })).toBe(false);
+    expect(equals([Number.NaN], [Number.NaN])).toBe(true);
+    expect(equals([Number.NaN], [5])).toBe(false);
   });
 });
 
@@ -166,6 +197,49 @@ describe('applyUpdate', () => {
       now,
     );
     expect(result['tags']).toEqual(['a', 'c']);
+  });
+
+  it('arrayUnion dedups NaN against only NaN, not every number', () => {
+    // Firestore normalizes NaN; a stored NaN does not absorb a finite addition.
+    const addFinite = applyUpdate(
+      { tags: [Number.NaN] },
+      { tags: Firestore.arrayUnion([5]) },
+      now,
+    );
+    expect(addFinite['tags']).toEqual([Number.NaN, 5]);
+
+    const addNaN = applyUpdate(
+      { tags: [5] },
+      { tags: Firestore.arrayUnion([Number.NaN]) },
+      now,
+    );
+    expect(addNaN['tags']).toEqual([5, Number.NaN]);
+
+    // A second NaN is a duplicate (NaN == NaN after normalization).
+    const dedupNaN = applyUpdate(
+      { tags: [Number.NaN] },
+      { tags: Firestore.arrayUnion([Number.NaN]) },
+      now,
+    );
+    expect(dedupNaN['tags']).toEqual([Number.NaN]);
+  });
+
+  it('arrayRemove removes only an actual NaN element', () => {
+    // No NaN is present, so nothing is removed (NaN does not match 5 or 6).
+    const noMatch = applyUpdate(
+      { tags: [5, 6] },
+      { tags: Firestore.arrayRemove([Number.NaN]) },
+      now,
+    );
+    expect(noMatch['tags']).toEqual([5, 6]);
+
+    // A real NaN element is removed while finite elements are kept.
+    const removeNaN = applyUpdate(
+      { tags: [Number.NaN, 5] },
+      { tags: Firestore.arrayRemove([Number.NaN]) },
+      now,
+    );
+    expect(removeNaN['tags']).toEqual([5]);
   });
 
   it('applies increment to an existing number', () => {
