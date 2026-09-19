@@ -1,7 +1,16 @@
-import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
+import {
+  Array as Arr,
+  Effect,
+  Exit,
+  Option,
+  Schema,
+  Stream,
+  Struct,
+} from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { collectionIdOf, validateCollectionId } from '../path.js';
+import * as FirestoreSchema from '../schema/schema.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
@@ -518,6 +527,71 @@ export const makeRepository = <
       .mapFields(Struct.omit([options.idField as string]))
       .mapFields(Struct.map(Schema.optional));
 
+    // Fields whose `update` schema auto-stamps a server timestamp when the
+    // caller omits the key — `DateTimeUpdate` and `ServerDateTime`. Their
+    // inner encoder turns a missing key into a `ServerTimestamp` sentinel, so
+    // the documented contract for `DateTimeUpdate` is "server timestamp on
+    // every write". The `Schema.optional` wrap above turns an omitted input
+    // key into an omitted *output* key and never invokes that inner encoder,
+    // which is why `repo.update(id, { title })` would otherwise leave
+    // `updatedAt` unchanged. Collect these fields here and seed the sentinel
+    // into the payload in `update()` instead. Detection probes each field's
+    // `update` encoder with `{}`: a field is auto-managed when encoding it
+    // through a one-key struct yields a `ServerTimestamp` for that key
+    // (required fields fail the encode, optional ones drop the key — neither
+    // stamps).
+    //
+    // The probe runs at repository construction, where only `FirestoreService`
+    // is available. The built-in stampers (`DateTimeUpdate` and `ServerDateTime`
+    // via `ServerDateTimeSchema`) have no encoding services, so a probe that
+    // fails here means the field is not auto-managed through the standard
+    // `Model.Field` helpers — those reach the missing-key path only via
+    // `SchemaGetter.transformOptional`, which is synchronous and cannot
+    // require services. A custom schema built at a lower level can need a
+    // service to stamp a missing value; rather than silently treat its
+    // construction-time probe failure as "not auto-managed" (so an omitted
+    // field would never get its server timestamp even when the caller
+    // supplies that service to `update`), stash the encoder and re-probe on
+    // every `update()` call, when the caller's services are in scope. The
+    // re-probe runs per call rather than caching the first call's outcome:
+    // encoding services are supplied per `update()`, so a service that gates
+    // the missing-key path can answer differently on a later call, and the
+    // classification must track the current services instead of freezing.
+    const autoStampedUpdateFields: Array<string> = [];
+    const deferredProbes: Array<{
+      readonly field: string;
+      readonly encode: (
+        input: unknown,
+      ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
+    }> = [];
+    for (const [field, fieldSchema] of Object.entries(
+      (Model.update as Schema.Struct<Schema.Struct.Fields>).fields,
+    )) {
+      if (field === (options.idField as string)) continue;
+      const probe = Schema.Struct({ [field]: fieldSchema });
+      const encode = Schema.encodeUnknownEffect(
+        probe,
+        Fetch.strictEncoding,
+      ) as (
+        input: unknown,
+      ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
+      const encoded = yield* Effect.exit(
+        encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+      );
+      if (Exit.isSuccess(encoded)) {
+        const value = (encoded.value as Record<string, unknown>)[field];
+        if (value instanceof FirestoreSchema.ServerTimestamp) {
+          autoStampedUpdateFields.push(field);
+        }
+      } else {
+        // Probe failed at construction — typically the encoder needs a
+        // service the caller supplies to `update`. Defer the field and
+        // re-probe there, so a service-requiring auto-stamper is detected
+        // instead of silently dropped.
+        deferredProbes.push({ field, encode });
+      }
+    }
+
     const updateFieldsSchema = Schema.Struct({
       [options.idField]: idSchema,
     }).pipe(Schema.fieldsAssign(PartialDataSchema.fields));
@@ -585,6 +659,60 @@ export const makeRepository = <
           const encoded = yield* encode(value);
           if (Option.isSome(encoded)) {
             payload[key] = encoded.value;
+          }
+        }
+
+        // Re-probe fields whose construction-time probe failed, now that
+        // the caller's services are in scope. Encoding services are supplied
+        // per `update()` call, so a field that gates its missing-key stamp on
+        // a service can answer differently on each call. Probe on every call
+        // and seed any field that yields a `ServerTimestamp` this call, so the
+        // classification tracks the current services instead of freezing the
+        // first call's outcome for the repository's lifetime. `deferredProbes`
+        // is read-only here and `deferredStamped` is local, so there is no
+        // shared mutable flag a concurrent update could observe before the
+        // fields are seeded — a probe that would race with another update's
+        // probe runs against this call's services and seeds this call's
+        // payload only. `autoStampedUpdateFields` (the service-independent
+        // built-in stampers, populated once at construction) is read-only and
+        // seeded on every call below.
+        const deferredStamped: Array<string> = [];
+        for (const { field, encode } of deferredProbes) {
+          // A deferred field the caller explicitly supplied has already been
+          // encoded into `payload` above (the whole-field encoder ran its
+          // value branch). Re-probing it with `{}` would re-enter the field's
+          // missing-value branch — for an effectful encoder that's a duplicate
+          // side effect, and the probe's outcome has nothing to classify
+          // (`hasOwnProperty` guard below leaves the field untouched). Skip it.
+          if (Object.prototype.hasOwnProperty.call(payload, field)) continue;
+          const encoded = yield* Effect.exit(
+            encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+          );
+          if (Exit.isSuccess(encoded)) {
+            const value = (encoded.value as Record<string, unknown>)[field];
+            if (value instanceof FirestoreSchema.ServerTimestamp) {
+              deferredStamped.push(field);
+            }
+          }
+        }
+
+        // Re-stamp every auto-managed server-timestamp field (`DateTimeUpdate`,
+        // `ServerDateTime`) the caller omitted, so it advances to "now" on
+        // every write. The encoder above drops an omitted key (via the
+        // `Schema.optional` partial-update wrap), so seed the sentinel here.
+        // `hasOwnProperty` leaves a field the caller named alone — including
+        // `updatedAt: undefined`, which the encoder already turned into a
+        // `ServerTimestamp` — and an explicitly passed `DateTime.Utc`, which
+        // encoded to a `Timestamp`. `deferredStamped` carries the service-gated
+        // stampers that re-probed against this call's services.
+        for (const field of autoStampedUpdateFields) {
+          if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+            payload[field] = new FirestoreSchema.ServerTimestamp();
+          }
+        }
+        for (const field of deferredStamped) {
+          if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+            payload[field] = new FirestoreSchema.ServerTimestamp();
           }
         }
 
