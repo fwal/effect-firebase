@@ -4,7 +4,15 @@ import { describe, expect, it } from 'vitest';
 import * as FirestoreModel from '../model/datetime.js';
 import { OptionalDeletable } from '../model/optional.js';
 import { TimestampDateTimeUtc } from '../schema/timestamp.js';
-import { Limit, OrderBy, StartAfter } from './constraints.js';
+import {
+  And,
+  Limit,
+  LimitToLast,
+  OrderBy,
+  Or,
+  StartAfter,
+  Where,
+} from './constraints.js';
 import * as Query from './query.js';
 
 class Inner extends Schema.Class<Inner>('Inner')({ x: Schema.Number }) {}
@@ -131,6 +139,152 @@ describe('Query', () => {
       expect(query[2]).toBeInstanceOf(StartAfter);
       expect(query[2]).toMatchObject({ values: ['ts-value', 'doc-id'] });
       expect(query[3]).toBeInstanceOf(Limit);
+    });
+  });
+
+  describe('and/or composite combinators', () => {
+    // Mirrors how `repo.query(...)` supplies the model: S is inferred from the
+    // contextual `Query<S>` type, not from the arguments (see "nested field
+    // paths (#18)" above). PostModel has `status`, `createdAt` and a string
+    // `metaData.type`, so those field names type-check against the model.
+    const post = (query: Query.Query<typeof PostModel>) => query;
+    const where = post(Query.where('status', '==', 'published'));
+    const orderBy = post(Query.orderBy('createdAt', 'desc'));
+    const limit = post(Query.limit(20));
+    const or = post(
+      Query.or(
+        Query.where('metaData.type', '==', 'news'),
+        Query.where('metaData.type', '==', 'tech'),
+      ),
+    );
+
+    describe('and — flatten path (no nested composite)', () => {
+      it('returns the constraints flat without wrapping', () => {
+        const result = Query.and(where, orderBy, limit);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toBeInstanceOf(Where);
+        expect(result[1]).toBeInstanceOf(OrderBy);
+        expect(result[2]).toBeInstanceOf(Limit);
+        // No And node is synthesized.
+        expect(result.some((c) => c._tag === 'And')).toBe(false);
+      });
+
+      it('returns a single constraint flat', () => {
+        const result = Query.and(where);
+        expect(result).toEqual(where);
+      });
+
+      it('returns an empty array when given no constraints', () => {
+        const result = Query.and();
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('and — wrap path (nested composite present)', () => {
+      it('keeps only filter constraints inside the And and returns non-filters as top-level siblings', () => {
+        const result = Query.and(where, or, orderBy, limit);
+
+        // Top-level: [And, OrderBy, Limit]
+        expect(result).toHaveLength(3);
+        expect(result[0]).toBeInstanceOf(And);
+        expect(result[1]).toBeInstanceOf(OrderBy);
+        expect(result[2]).toBeInstanceOf(Limit);
+
+        // The And composite contains only the filter constraints, in order.
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(2);
+        expect(andNode.constraints[0]).toBeInstanceOf(Where);
+        expect(andNode.constraints[1]).toBeInstanceOf(Or);
+
+        // Non-filter values are preserved on the siblings.
+        expect(result[1]).toMatchObject({
+          field: 'createdAt',
+          direction: 'desc',
+        });
+        expect(result[2]).toMatchObject({ count: 20 });
+      });
+
+      it('wraps only filters when no non-filter constraints are present', () => {
+        const result = Query.and(where, or);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBeInstanceOf(And);
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(2);
+        expect(andNode.constraints[0]).toBeInstanceOf(Where);
+        expect(andNode.constraints[1]).toBeInstanceOf(Or);
+      });
+
+      it('preserves the relative order of non-filter siblings including cursors', () => {
+        const startAfter = post(Query.startAfter('news'));
+        const result = Query.and(where, or, orderBy, startAfter, limit);
+
+        // Top-level: [And, OrderBy, StartAfter, Limit]
+        expect(result).toHaveLength(4);
+        expect(result[0]).toBeInstanceOf(And);
+        expect(result[1]).toBeInstanceOf(OrderBy);
+        expect(result[2]).toBeInstanceOf(StartAfter);
+        expect(result[3]).toBeInstanceOf(Limit);
+
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(2);
+        // Cursors stay out of the composite.
+        expect(andNode.constraints.some((c) => c._tag === 'StartAfter')).toBe(
+          false,
+        );
+      });
+
+      it('wraps composite-only input without non-filter siblings', () => {
+        const result = Query.and(or);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBeInstanceOf(And);
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(1);
+        expect(andNode.constraints[0]).toBeInstanceOf(Or);
+      });
+
+      it('keeps limitToLast as a top-level sibling, not inside And', () => {
+        const limitToLast = post(Query.limitToLast(5));
+        const result = Query.and(where, or, orderBy, limitToLast);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toBeInstanceOf(And);
+        expect(result[1]).toBeInstanceOf(OrderBy);
+        const ltl = result[2];
+        expect(ltl).toBeInstanceOf(LimitToLast);
+        expect(ltl).toMatchObject({ count: 5 });
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(2);
+      });
+
+      it('keeps all cursor constraints (StartAt/StartAfter/EndAt/EndBefore) as siblings', () => {
+        const startAt = post(Query.startAt('a'));
+        const endAt = post(Query.endAt('z'));
+        const result = Query.and(where, or, orderBy, startAt, endAt, limit);
+        expect(result).toHaveLength(5);
+        expect(result[0]).toBeInstanceOf(And);
+        expect(result[1]).toBeInstanceOf(OrderBy);
+        expect(result[2]).toMatchObject({ _tag: 'StartAt' });
+        expect(result[3]).toMatchObject({ _tag: 'EndAt' });
+        expect(result[4]).toBeInstanceOf(Limit);
+        const andNode = result[0] as And;
+        expect(andNode.constraints).toHaveLength(2);
+      });
+    });
+
+    describe('or', () => {
+      it('wraps all children in an Or composite', () => {
+        const result = post(
+          Query.or(
+            Query.where('metaData.type', '==', 'news'),
+            Query.where('metaData.type', '==', 'tech'),
+          ),
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBeInstanceOf(Or);
+        const orNode = result[0] as Or;
+        expect(orNode.constraints).toHaveLength(2);
+        expect(orNode.constraints[0]).toBeInstanceOf(Where);
+        expect(orNode.constraints[1]).toBeInstanceOf(Where);
+      });
     });
   });
 });
