@@ -38,8 +38,16 @@ const rank = (value: unknown): number => {
   return 9;
 };
 
-const compareNumbers = (a: number, b: number): number =>
-  a < b ? -1 : a > b ? 1 : 0;
+const compareNumbers = (a: number, b: number): number => {
+  const aIsNaN = Number.isNaN(a);
+  const bIsNaN = Number.isNaN(b);
+  if (aIsNaN || bIsNaN) {
+    // Firestore normalizes NaN and orders it below -Infinity (equal only to NaN).
+    if (aIsNaN && bIsNaN) return 0;
+    return aIsNaN ? -1 : 1;
+  }
+  return a < b ? -1 : a > b ? 1 : 0;
+};
 
 /**
  * Compare two stored values following Firestore's ordering semantics.
