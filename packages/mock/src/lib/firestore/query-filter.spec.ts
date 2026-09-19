@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
 import { pipe, Schema } from 'effect';
 import { Query, Snapshot } from 'effect-firebase';
 import { applyConstraints, validateGroupCursors } from './query-filter.js';
