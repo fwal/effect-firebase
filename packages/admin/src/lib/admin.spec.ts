@@ -1,4 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { vi } from 'vitest';
+import { describe, expect, it, beforeEach } from '@effect/vitest';
 import { Effect } from 'effect';
 import { FirestoreService } from 'effect-firebase';
 import type { App as FirebaseAdminApp } from 'firebase-admin/app';
