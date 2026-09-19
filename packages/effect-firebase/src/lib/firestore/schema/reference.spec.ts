@@ -58,6 +58,43 @@ describe('Reference', () => {
     });
   });
 
+  describe('makeFromPath path normalization', () => {
+    it('should normalize a trailing slash instead of throwing', () => {
+      const ref = Reference.makeFromPath('users/abc/');
+      expect(ref.id).toBe('abc');
+      expect(ref.path).toBe('users/abc');
+      expect(ref.parent).toBeUndefined();
+    });
+
+    it('should throw for a trailing slash on an odd-segment path', () => {
+      expect(() => Reference.makeFromPath('users/')).toThrow();
+    });
+
+    it('should normalize a leading slash to the canonical form', () => {
+      const ref = Reference.makeFromPath('/users/abc/posts/def');
+      expect(ref.id).toBe('def');
+      expect(ref.path).toBe('users/abc/posts/def');
+      expect(ref.parent?.id).toBe('abc');
+      expect(ref.parent?.path).toBe('users/abc');
+    });
+
+    it('should normalize consecutive slashes between segments', () => {
+      const ref = Reference.makeFromPath('users//abc');
+      expect(ref.id).toBe('abc');
+      expect(ref.path).toBe('users/abc');
+    });
+
+    it('should store a canonical .path so equality survives differing input forms', () => {
+      const leading = Reference.makeFromPath('/users/abc/posts/def');
+      const canonical = Reference.makeFromPath('users/abc/posts/def');
+      const trailing = Reference.makeFromPath('users/abc/posts/def/');
+      expect(leading.path).toBe(canonical.path);
+      expect(trailing.path).toBe(canonical.path);
+      expect(leading.id).toBe(canonical.id);
+      expect(trailing.id).toBe(canonical.id);
+    });
+  });
+
   describe('Schema encoding/decoding', () => {
     const decode = Schema.decodeUnknownSync(Reference);
     const encode = Schema.encodeSync(Reference);
@@ -252,6 +289,15 @@ describe('ReferenceId (typed)', () => {
       expect(encoded.id).toBe('author123');
       expect(encoded.path).toBe('authors/author123');
     });
+
+    it('should normalize a branded ID with a trailing slash instead of throwing', () => {
+      const authorId = AuthorId.make('author123/' as never);
+      const encoded = encode(authorId);
+
+      expect(encoded).toBeInstanceOf(Reference);
+      expect(encoded.id).toBe('author123');
+      expect(encoded.path).toBe('authors/author123');
+    });
   });
 
   describe('roundtrip', () => {
@@ -311,6 +357,12 @@ describe('ReferencePath (typed)', () => {
 
     it('should fail encoding empty path', () => {
       expect(() => encode('')).toThrow(/Path must start with "users\/"/);
+    });
+
+    it('should reject a leading slash via the startsWith guard', () => {
+      expect(() => encode('/users/user123')).toThrow(
+        /Path must start with "users\/"/,
+      );
     });
   });
 

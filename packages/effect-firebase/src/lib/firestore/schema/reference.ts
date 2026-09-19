@@ -61,8 +61,9 @@ export class Reference extends Schema.Class<Reference>('Reference')(
         ? Reference.makeFromPath(parentParts.join('/'))
         : undefined;
 
+    const normalizedPath = parts.join('/');
     const id = parts.pop() ?? '';
-    return new Reference({ id, path, parent });
+    return new Reference({ id, path: normalizedPath, parent });
   }
 }
 
