@@ -377,6 +377,34 @@ describe('Repository', () => {
       expect(updateMock).not.toHaveBeenCalled();
     });
 
+    it('rejects an explicit undefined for a declared field with SchemaError, without reaching Firestore', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRepo({ update: updateMock }));
+      const error = await failureOf(
+        repo.update(PostId.make('post-1'), { title: undefined }),
+      );
+
+      expect(error._tag).toBe('SchemaError');
+      expect(String(error)).toContain('title');
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects an explicit undefined for a nested leaf passed via a dotted path', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(
+        makeNestedRepo({ update: updateMock }),
+      );
+      const error = await failureOf(
+        repo.update(PostId.make('post-1'), {
+          'metaData.deleted': undefined,
+        }),
+      );
+
+      expect(error._tag).toBe('SchemaError');
+      expect(String(error)).toContain('metaData.deleted');
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
     describe('field paths', () => {
       const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
         (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
