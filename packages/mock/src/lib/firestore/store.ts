@@ -1,6 +1,11 @@
-import { Snapshot, validateCollectionId } from 'effect-firebase';
+import {
+  Snapshot,
+  validateCollectionId,
+  validateCollectionPath,
+  validateDocPath,
+} from 'effect-firebase';
 
-export { validateCollectionId };
+export { validateCollectionId, validateCollectionPath, validateDocPath };
 import type * as MockState from './state.js';
 import { type DocData } from './value.js';
 
@@ -70,26 +75,3 @@ export const docsInCollectionGroup = (
     })
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([path, data]) => makeSnapshot(path, data));
-
-/**
- * Validate a path, returning an error message when it is malformed.
- * Documents sit at an even number of segments, collections at an odd number;
- * `split` never yields fewer than one segment, so requiring every segment to
- * be non-empty already rules out the empty path.
- */
-const validatePath = (path: string, kind: 'document' | 'collection') => {
-  const segments = path.split('/');
-  const parity = kind === 'document' ? 0 : 1;
-  return segments.length % 2 === parity &&
-    segments.every((segment) => segment.length > 0)
-    ? undefined
-    : `Invalid ${kind} path '${path}': expected a non-empty path with an ${
-        parity === 0 ? 'even' : 'odd'
-      } number of segments`;
-};
-
-export const validateDocPath = (path: string): string | undefined =>
-  validatePath(path, 'document');
-
-export const validateCollectionPath = (path: string): string | undefined =>
-  validatePath(path, 'collection');
