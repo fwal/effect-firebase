@@ -45,36 +45,6 @@ export const findAll = <
 };
 
 /**
- * Find all records in the collection, failing with NoSuchElementError if the result is empty.
- */
-export const findNonEmpty = <
-  Req extends Schema.Top,
-  Res extends Schema.Top,
-  E,
-  R,
->(options: {
-  readonly Request: Req;
-  readonly Result: Res;
-  readonly execute: (
-    request: Req['Encoded'],
-  ) => Effect.Effect<ReadonlyArray<unknown>, E, R>;
-}) => {
-  const find = findAll(options);
-  return (
-    request: Req['Type'],
-  ): Effect.Effect<
-    Arr.NonEmptyArray<Res['Type']>,
-    E | Schema.SchemaError | Cause.NoSuchElementError,
-    R | Req['EncodingServices'] | Res['DecodingServices']
-  > =>
-    Effect.flatMap(find(request), (results) =>
-      Arr.isArrayNonEmpty(results)
-        ? Effect.succeed(results)
-        : Effect.fail(new Cause.NoSuchElementError()),
-    );
-};
-
-/**
  * Run a query with a request schema and discard the result.
  */
 const _void = <Req extends Schema.Top, E, R>(options: {
