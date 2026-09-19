@@ -8,22 +8,35 @@ import * as FirestoreSchema from '../schema/schema.js';
 type StringBasedSchema = Schema.Top & { readonly Type: string };
 
 /**
- * A reference field that stores DocumentReference in DB and exposes the ID as a string in JSON.
+ * A read-only reference field that stores DocumentReference in DB and exposes
+ * the ID as a string in JSON.
  *
- * Use this for untyped references where you just need the ID string.
+ * Use this for untyped references where you only read the ID string and never
+ * write the field. The field is **omitted from the `insert` and `update`
+ * variants**: a bare id string carries no collection path, so there is no way
+ * to encode it back to a `DocumentReference` without a known collection. As a
+ * result `repo.add`, `repo.set` and `repo.update` neither accept nor send this
+ * field — TypeScript rejects a payload containing it, and the write encoders
+ * never reach the forbidden encode path.
+ *
+ * For an untyped reference you need to **write**, use {@link AnyPathReference}
+ * (which round-trips through the full path) or the typed
+ * {@link Reference} / {@link ReferenceOptional} (which carry a known
+ * collection path).
+ *
+ * Reads still decode the stored `DocumentReference` to its bare id on the
+ * `select` variant, and JSON keeps the id string shape.
  *
  * @example
  * ```ts
  * class PostModel extends Model.Class<PostModel>('PostModel')({
- *   // Untyped reference - just stores/returns the ID string
+ *   // Untyped reference - just stores/returns the ID string; read-only.
  *   authorId: Firestore.AnyIdReference,
  * }) {}
  * ```
  */
 export const AnyIdReference = Model.Field({
   select: FirestoreSchema.AnyReferenceId,
-  insert: FirestoreSchema.AnyReferenceId,
-  update: FirestoreSchema.AnyReferenceId,
   json: Schema.String,
   jsonCreate: Schema.String,
   jsonUpdate: Schema.String,
