@@ -81,8 +81,8 @@ describe('applyConstraints', () => {
     it('!= null returns the present non-null values, like Firestore', () => {
       // A null *field* never matches `!=` (so [c] is out and [d] is out), but a
       // present non-null value is "not equal to null", so it is returned.
-      // Cross-checked against the Firestore emulator (see layer.spec.ts /
-      // emulator-parity.spec.ts): `!= null` is NOT the empty set.
+      // Cross-checked manually against the Firestore emulator: `!= null` is
+      // NOT the empty set.
       expect(
         ids(
           applyConstraints(docs, [
