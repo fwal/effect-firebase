@@ -179,10 +179,21 @@ await Effect.runPromise(
 );
 ```
 
+## NaN field values
+
+Firestore stores and normalizes `NaN`, and the mock follows its semantics:
+
+- **Ordering** — `NaN` is placed in the total order below `-Infinity`, so `orderBy` lists it first ascending and last descending. `Timestamp` and `GeoPoint` sub-fields use the same rule for their numeric components.
+- **Equality** (`==`, `!=`) — `NaN` is equal only to `NaN`. This also drives `arrayUnion` / `arrayRemove` dedup, so a stored `NaN` neither absorbs nor is absorbed by a finite value.
+- **Range filters** (`<`, `<=`, `>`, `>=`) — a `NaN` field value is excluded from range scans entirely, even though it sorts below `-Infinity` for `orderBy`.
+- **`in`** — never matches a `NaN` field value, even with a `NaN` candidate (unlike `== NaN`, which matches).
+- **`not-in`** — always includes a `NaN` field value, regardless of the candidate list.
+- **Live streams** — `streamDoc` / `streamQuery` detect a `NaN`-to-number transition as a real change (a stored `NaN` and a finite number are not equal) and re-emit, instead of collapsing it via the old `NaN`-equals-everything comparison.
+
 ## Limitations
 
 - In-memory only — no persistence between process restarts
-- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in` null semantics are simplified)
+- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in`/`!=` null semantics are simplified, and a `NaN` query _operand_ such as `where('v', '<', NaN)` is not validated — real Firestore rejects it with `invalid-argument`, the mock returns an empty/ordered result; only `NaN` field-value semantics are emulated)
 - Simulated states are keyed per collection path (or the `'*'` wildcard), not per query; collection group queries resolve their state by collection ID
 - No security rules evaluation
 - `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
