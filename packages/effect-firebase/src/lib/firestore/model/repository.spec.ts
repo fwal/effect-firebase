@@ -16,6 +16,14 @@ import * as FirestoreModel from './datetime.js';
 import * as FirestoreNumber from './number.js';
 import { OptionalDeletable } from './optional.js';
 import { increment } from '../fields/increment.js';
+import {
+  ArrayUnion,
+  ArrayRemove,
+  arrayRemove,
+  arrayUnion,
+} from '../fields/array.js';
+import { Array as ArrayField, WithArrayFields } from './array.js';
+import * as FirestoreSchema from '../schema/schema.js';
 import { Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
@@ -49,6 +57,28 @@ class NestedModel extends Model.Class<NestedModel>('NestedModel')({
     Schema.Struct({ lastSeenAt: TimestampDateTimeUtc }),
   ),
   counters: Schema.Record(Schema.String, Schema.Number),
+}) {}
+
+/**
+ * Array field whose element schema has a non-identity encode
+ * (`Schema.NumberFromString`): app-domain `number`, DB-domain `string`.
+ */
+const TagId = Schema.String.pipe(Schema.brand('TagId'));
+
+class TagModel extends Model.Class<TagModel>('TagModel')({
+  id: Model.GeneratedByDb(TagId),
+  tags: ArrayField(Schema.NumberFromString),
+}) {}
+
+/** Array field of typed references, encoded as `Reference` instances. */
+const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
+const RefId = Schema.String.pipe(Schema.brand('RefId'));
+
+class RefModel extends Model.Class<RefModel>('RefModel')({
+  id: Model.GeneratedByDb(RefId),
+  authors: WithArrayFields(
+    Schema.Array(FirestoreSchema.ReferenceId(AuthorId, 'authors')),
+  ),
 }) {}
 
 const notMocked = (name: string) => (): never => {
@@ -90,6 +120,20 @@ const makeNestedRepo = (overrides: Partial<FirestoreServiceShape>) =>
     collectionPath: 'posts',
     idField: 'id',
     spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
+const makeTagRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(TagModel, {
+    collectionPath: 'tags',
+    idField: 'id',
+    spanPrefix: 'test.TagRepository',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
+const makeRefRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(RefModel, {
+    collectionPath: 'refs',
+    idField: 'id',
+    spanPrefix: 'test.RefRepository',
   }).pipe(Effect.provide(makeLayer(overrides)));
 
 const failureOf = <A, E>(effect: Effect.Effect<A, E>) =>
@@ -682,6 +726,81 @@ describe('Repository', () => {
           'title.length': 1,
         });
         expect(write).toBeDefined();
+      });
+    });
+
+    describe('array sentinel encoding (non-identity element encode)', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      it('encodes a NumberFromString arrayUnion through the element schema', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeTagRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(TagId.make('p1'), { tags: arrayUnion([3, 4]) }),
+        );
+
+        const tags = payloadOf(updateMock).tags;
+        expect(tags).toBeInstanceOf(ArrayUnion);
+        expect((tags as ArrayUnion).values).toEqual(['3', '4']);
+      });
+
+      it('encodes a NumberFromString arrayRemove through the element schema', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeTagRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(TagId.make('p1'), { tags: arrayRemove([3]) }),
+        );
+
+        const tags = payloadOf(updateMock).tags;
+        expect(tags).toBeInstanceOf(ArrayRemove);
+        expect((tags as ArrayRemove).values).toEqual(['3']);
+      });
+
+      it('encodes a ReferenceId arrayUnion through the element schema', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRefRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(RefId.make('p1'), {
+            authors: arrayUnion([AuthorId.make('a2')]),
+          }),
+        );
+
+        const authors = payloadOf(updateMock).authors;
+        expect(authors).toBeInstanceOf(ArrayUnion);
+        const values = (authors as ArrayUnion).values;
+        expect(values).toHaveLength(1);
+        expect(values[0]).toBeInstanceOf(FirestoreSchema.Reference);
+        expect((values[0] as FirestoreSchema.Reference).path).toBe(
+          'authors/a2',
+        );
+      });
+
+      it('encodes a ReferenceId arrayRemove through the element schema', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRefRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(RefId.make('p1'), {
+            authors: arrayRemove([AuthorId.make('a2')]),
+          }),
+        );
+
+        const authors = payloadOf(updateMock).authors;
+        expect(authors).toBeInstanceOf(ArrayRemove);
+        const values = (authors as ArrayRemove).values;
+        expect(values).toHaveLength(1);
+        expect(values[0]).toBeInstanceOf(FirestoreSchema.Reference);
+        expect((values[0] as FirestoreSchema.Reference).path).toBe(
+          'authors/a2',
+        );
       });
     });
   });
