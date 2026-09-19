@@ -559,7 +559,11 @@ export const makeRepository = <
     // construction-time probe failure as "not auto-managed" (so an omitted
     // field would never get its server timestamp even when the caller
     // supplies that service to `update`), stash the encoder and re-probe on
-    // the first `update()` call, when the caller's services are in scope.
+    // every `update()` call, when the caller's services are in scope. The
+    // re-probe runs per call rather than caching the first call's outcome:
+    // encoding services are supplied per `update()`, so a service that gates
+    // the missing-key path can answer differently on a later call, and the
+    // classification must track the current services instead of freezing.
     const autoStampedUpdateFields: Array<string> = [];
     const deferredProbes: Array<{
       readonly field: string;
@@ -567,7 +571,6 @@ export const makeRepository = <
         input: unknown,
       ) => Effect.Effect<unknown, Schema.SchemaError, unknown>;
     }> = [];
-    let deferredProbesResolved = false;
     for (const [field, fieldSchema] of Object.entries(
       (Model.update as Schema.Struct<Schema.Struct.Fields>).fields,
     )) {
@@ -666,25 +669,29 @@ export const makeRepository = <
           }
         }
 
-        // Resolve fields whose construction-time probe failed now that the
-        // caller's services are in scope, so an encoder that needs a service
-        // to stamp the missing-key path can run. A probe that now yields a
-        // `ServerTimestamp` confirms the field is auto-managed after all and
-        // it stays so for the repository's lifetime (no per-call cost on
-        // subsequent updates). A field whose probe fails again here is
-        // definitively not auto-managed — the same encode runs at call time
-        // for the supplied fields, so its requirements are the same.
-        if (!deferredProbesResolved) {
-          deferredProbesResolved = true;
-          for (const { field, encode } of deferredProbes) {
-            const encoded = yield* Effect.exit(
-              encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
-            );
-            if (Exit.isSuccess(encoded)) {
-              const value = (encoded.value as Record<string, unknown>)[field];
-              if (value instanceof FirestoreSchema.ServerTimestamp) {
-                autoStampedUpdateFields.push(field);
-              }
+        // Re-probe fields whose construction-time probe failed, now that
+        // the caller's services are in scope. Encoding services are supplied
+        // per `update()` call, so a field that gates its missing-key stamp on
+        // a service can answer differently on each call. Probe on every call
+        // and seed any field that yields a `ServerTimestamp` this call, so the
+        // classification tracks the current services instead of freezing the
+        // first call's outcome for the repository's lifetime. `deferredProbes`
+        // is read-only here and `deferredStamped` is local, so there is no
+        // shared mutable flag a concurrent update could observe before the
+        // fields are seeded — a probe that would race with another update's
+        // probe runs against this call's services and seeds this call's
+        // payload only. `autoStampedUpdateFields` (the service-independent
+        // built-in stampers, populated once at construction) is read-only and
+        // seeded on every call below.
+        const deferredStamped: Array<string> = [];
+        for (const { field, encode } of deferredProbes) {
+          const encoded = yield* Effect.exit(
+            encode({}) as Effect.Effect<unknown, Schema.SchemaError, never>,
+          );
+          if (Exit.isSuccess(encoded)) {
+            const value = (encoded.value as Record<string, unknown>)[field];
+            if (value instanceof FirestoreSchema.ServerTimestamp) {
+              deferredStamped.push(field);
             }
           }
         }
@@ -696,8 +703,14 @@ export const makeRepository = <
         // `hasOwnProperty` leaves a field the caller named alone — including
         // `updatedAt: undefined`, which the encoder already turned into a
         // `ServerTimestamp` — and an explicitly passed `DateTime.Utc`, which
-        // encoded to a `Timestamp`.
+        // encoded to a `Timestamp`. `deferredStamped` carries the service-gated
+        // stampers that re-probed against this call's services.
         for (const field of autoStampedUpdateFields) {
+          if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+            payload[field] = new FirestoreSchema.ServerTimestamp();
+          }
+        }
+        for (const field of deferredStamped) {
           if (!Object.prototype.hasOwnProperty.call(payload, field)) {
             payload[field] = new FirestoreSchema.ServerTimestamp();
           }

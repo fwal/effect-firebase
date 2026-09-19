@@ -1087,6 +1087,145 @@ describe('Repository', () => {
         expect(payload.title).toBe('Updated');
         expect(payload.effStamp).toBeInstanceOf(ServerTimestamp);
       });
+
+      it('re-probes the deferred field on every update, so the classification tracks the current service instead of freezing on the first call', async () => {
+        // Same service-gated stamper as the case above. The probe defers at
+        // construction; the decisive question is whether a first `update()`
+        // that declines to stamp can keep a later `update()` — whose service
+        // now says to stamp — from stamping. Caching the first call's
+        // outcome (the bug) would freeze effStamp as not-auto-managed and the
+        // second call would omit the timestamp; re-probing per call stamps it.
+        class StamperService extends Context.Service<
+          StamperService,
+          {
+            readonly shouldStamp: boolean;
+          }
+        >()('test/StamperService') {}
+
+        const EffectfulStampSchema = Schema.Union([
+          FirestoreSchema.TimestampInstance,
+          FirestoreSchema.ServerTimestampInstance,
+        ]).pipe(
+          Schema.decodeTo(Schema.optional(Schema.DateTimeUtc), {
+            decode: SchemaGetter.transformEffect(
+              (
+                input:
+                  FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              ) => {
+                if (input instanceof FirestoreSchema.Timestamp) {
+                  return Effect.succeed(
+                    DateTime.makeUnsafe(input.toMillis()) as
+                      DateTime.Utc | undefined,
+                  );
+                }
+                return Effect.fail(
+                  new SchemaIssue.Forbidden({
+                    message:
+                      'EffectfulStampSchema: cannot decode ServerTimestamp',
+                  }),
+                );
+              },
+            ),
+            encode: new SchemaGetter.Getter<
+              FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
+              DateTime.Utc | undefined,
+              StamperService
+            >((input) =>
+              Option.isSome(input) && input.value !== undefined
+                ? Effect.succeed(
+                    Option.some(
+                      FirestoreSchema.Timestamp.fromDateTime(input.value),
+                    ),
+                  )
+                : Effect.gen(function* () {
+                    const svc = yield* StamperService;
+                    return svc.shouldStamp
+                      ? Option.some(new FirestoreSchema.ServerTimestamp())
+                      : Option.none();
+                  }),
+            ),
+          }),
+        );
+
+        class EffectfulStampModel extends Model.Class<EffectfulStampModel>(
+          'EffectfulStampModel',
+        )({
+          id: Model.GeneratedByDb(PostId),
+          title: Schema.String,
+          effStamp: Model.Field({
+            select: FirestoreSchema.TimestampDateTimeUtc,
+            insert: FirestoreSchema.TimestampDateTimeUtc,
+            update: EffectfulStampSchema,
+            json: Schema.DateTimeUtcFromString,
+          }),
+        }) {}
+
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeRepository(EffectfulStampModel, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test',
+          }).pipe(Effect.provide(makeLayer({ update: updateMock }))),
+        );
+
+        const layerWith = (shouldStamp: boolean) =>
+          Layer.merge(
+            makeLayer({ update: updateMock }),
+            Layer.succeed(StamperService, { shouldStamp }),
+          );
+
+        // First call: the service declines, so effStamp is not auto-managed
+        // for this call and the timestamp is not seeded.
+        await Effect.runPromise(
+          repo
+            .update(PostId.make('post-1'), { title: 'first' })
+            .pipe(Effect.provide(layerWith(false))),
+        );
+        const firstPayload = (
+          updateMock.mock.calls[0] as unknown as [
+            string,
+            Record<string, unknown>,
+          ]
+        )[1];
+        expect(firstPayload.title).toBe('first');
+        expect(firstPayload).not.toHaveProperty('effStamp');
+
+        // Second call on the same repo: the service now says to stamp. The
+        // probe re-runs against this call's services, classifies effStamp as
+        // auto-managed, and the re-stamp seeds a ServerTimestamp — proving the
+        // classification was not frozen by the first call's decline.
+        await Effect.runPromise(
+          repo
+            .update(PostId.make('post-1'), { title: 'second' })
+            .pipe(Effect.provide(layerWith(true))),
+        );
+        const secondPayload = (
+          updateMock.mock.calls[1] as unknown as [
+            string,
+            Record<string, unknown>,
+          ]
+        )[1];
+        expect(secondPayload.title).toBe('second');
+        expect(secondPayload.effStamp).toBeInstanceOf(ServerTimestamp);
+
+        // Third call: the service declines again. The probe re-runs per call,
+        // so effStamp is not auto-managed this time and no timestamp is seeded —
+        // it doesn't keep stamping once just because the second call did.
+        await Effect.runPromise(
+          repo
+            .update(PostId.make('post-1'), { title: 'third' })
+            .pipe(Effect.provide(layerWith(false))),
+        );
+        const thirdPayload = (
+          updateMock.mock.calls[2] as unknown as [
+            string,
+            Record<string, unknown>,
+          ]
+        )[1];
+        expect(thirdPayload.title).toBe('third');
+        expect(thirdPayload).not.toHaveProperty('effStamp');
+      });
     });
   });
 
