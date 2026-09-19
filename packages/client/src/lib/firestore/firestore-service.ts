@@ -360,6 +360,21 @@ const make = (db: Firestore) => {
         if (Option.isSome(ambient)) {
           return yield* self;
         }
+        const ambientBatch = yield* CurrentBatch;
+        // A transaction cannot join a write batch: batches are write-only, so
+        // transactional reads have nowhere to stage, and opening an independent
+        // runTransaction here would commit on its own — a silent partial commit
+        // if the batch later fails. Reject loudly, consistent with how
+        // streamDoc/deleteRecursive reject unsupported combinations.
+        if (Option.isSome(ambientBatch)) {
+          return yield* Effect.die(
+            new Error(
+              'FirestoreService.withTransaction cannot be used inside withBatch: ' +
+                'a transaction cannot join a write batch. Move the reads/writes out of ' +
+                'the batch, or replace withBatch with withTransaction.',
+            ),
+          );
+        }
         const context = yield* Effect.context<R>();
         const exit = yield* Effect.tryPromise({
           try: (signal) =>

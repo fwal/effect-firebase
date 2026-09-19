@@ -408,6 +408,41 @@ describe('FirestoreService (admin)', () => {
       expect(state.txOps.map((op) => op[0])).toEqual(['set']);
     });
 
+    it('dies when withTransaction is nested inside withBatch (no partial commit)', async () => {
+      const { db, state } = makeFakeDb();
+      const exit = await runExit(
+        db,
+        withService((fs) =>
+          fs.withBatch(
+            Effect.gen(function* () {
+              yield* fs.withTransaction(
+                Effect.gen(function* () {
+                  yield* fs.get('posts/1');
+                  yield* fs.set('posts/1', { title: 'a' });
+                }),
+              );
+              yield* new TestError({ reason: 'outer-batch-fails' });
+            }),
+          ),
+        ),
+      );
+
+      // withBatch's contract: "When the effect fails, nothing is committed."
+      // The combination is rejected with a defect BEFORE opening runTransaction,
+      // so nothing is staged on the batch and no transaction is opened.
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+        const pretty = Cause.pretty(exit.cause);
+        expect(pretty).toContain('withTransaction');
+        expect(pretty).toContain('withBatch');
+      }
+      expect(state.runTransactionCalls).toBe(0);
+      expect(state.txOps).toEqual([]);
+      expect(state.batchOps).toEqual([]);
+      expect(state.commits).toBe(0);
+    });
+
     it('dies when deleteRecursive is used inside a batch', async () => {
       const { db } = makeFakeDb();
       const exit = await runExit(
