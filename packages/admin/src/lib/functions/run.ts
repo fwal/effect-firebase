@@ -5,8 +5,15 @@ export type Runtime<R> =
   | (() => ManagedRuntime.ManagedRuntime<R, never>);
 
 /**
- * Run an effect with a runtime and dispose the runtime after the effect is complete.
- * @param runtime - The runtime to run the effect on.
+ * Run an effect with a runtime.
+ *
+ * A factory-form `runtime` (a `() => ManagedRuntime`) is built per call and
+ * disposed once the effect completes, so layer-level `Effect.acquireRelease`
+ * finalizers run. An instance-form `ManagedRuntime` is **not** disposed
+ * here; its owner is responsible for its lifecycle (e.g. via
+ * `FunctionsRuntime.make`'s signal handler or an explicit `dispose()`).
+ *
+ * @param runtime - The runtime to run the effect on, or a factory that builds one per call.
  * @param effect - The effect to run.
  * @returns The result of the effect.
  */
@@ -14,15 +21,27 @@ export async function run<A, R>(
   runtime: Runtime<R>,
   effect: Effect.Effect<A, never, R>,
 ): Promise<A> {
-  const runner = typeof runtime === 'function' ? runtime() : runtime;
-  return await runner.runPromise(effect);
+  if (typeof runtime === 'function') {
+    const runner = runtime();
+    try {
+      return await runner.runPromise(effect);
+    } finally {
+      await runner.dispose();
+    }
+  }
+  return await runtime.runPromise(effect);
 }
 
 /**
  * Run an effect with a runtime and return its exit, so callers can
  * distinguish expected failures (e.g. an HttpsError raised to signal an
  * invalid request) from defects.
- * @param runtime - The runtime to run the effect on.
+ *
+ * Disposal semantics mirror {@link run}: a factory-form runtime is disposed
+ * once the effect completes (success or failure); an instance-form runtime
+ * is left for its owner to dispose.
+ *
+ * @param runtime - The runtime to run the effect on, or a factory that builds one per call.
  * @param effect - The effect to run.
  * @returns The exit of the effect.
  */
@@ -30,8 +49,15 @@ export async function runExit<A, E, R>(
   runtime: Runtime<R>,
   effect: Effect.Effect<A, E, R>,
 ): Promise<Exit.Exit<A, E>> {
-  const runner = typeof runtime === 'function' ? runtime() : runtime;
-  return await runner.runPromiseExit(effect);
+  if (typeof runtime === 'function') {
+    const runner = runtime();
+    try {
+      return await runner.runPromiseExit(effect);
+    } finally {
+      await runner.dispose();
+    }
+  }
+  return await runtime.runPromiseExit(effect);
 }
 
 /**
