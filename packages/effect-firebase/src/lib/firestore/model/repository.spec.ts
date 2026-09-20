@@ -28,8 +28,11 @@ import {
   arrayUnion,
 } from '../fields/array.js';
 import { Array as ArrayField, WithArrayFields } from './array.js';
-import * as FirestoreSchema from '../schema/schema.js';
-import { ServerTimestamp, Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
+import {
+  ServerTimestamp,
+  Timestamp,
+  TimestampDateTimeUtc,
+} from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
