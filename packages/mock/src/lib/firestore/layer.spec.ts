@@ -13,6 +13,7 @@ import { MockController } from './controller.js';
 import { fixture, rawFixture } from './fixture.js';
 import { layer, make } from './layer.js';
 import * as MockState from './state.js';
+import { equals } from './value.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
@@ -739,6 +740,73 @@ describe('layer', () => {
         }),
         { fixtures: [postFixture] },
       ));
+
+    it('canonicalises a Reference field whose id carries a trailing slash end-to-end', () => {
+      const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
+
+      class PostWithAuthor extends Model.Class<PostWithAuthor>(
+        'PostWithAuthor',
+      )({
+        id: Model.GeneratedByDb(PostId),
+        title: Schema.String,
+        author: Firestore.Reference(AuthorId, 'authors'),
+      }) {}
+
+      return run(
+        Effect.gen(function* () {
+          const repo = yield* Firestore.makeRepository(PostWithAuthor, {
+            collectionPath: 'posts',
+            idField: 'id',
+            spanPrefix: 'test.PostWithAuthorRepository',
+          });
+          const controller = yield* MockController;
+
+          // A trailing slash on the branded id reaches ReferenceId's encode,
+          // which builds `authors/1/` and feeds it through makeFromPath.
+          const id = yield* repo.add({
+            title: 'Trailing',
+            author: AuthorId.make('1/' as never),
+          });
+
+          const opt = yield* repo.getById(id);
+          expect(Option.isSome(opt)).toBe(true);
+          const doc = (opt as Option.Some<PostWithAuthor>).value;
+          // The decoded app-side value is the normalised branded id.
+          expect(doc.author).toBe('1');
+
+          // The mock store holds the encoded FirestoreSchema.Reference
+          // instance; its .path must be canonical (no trailing slash).
+          const docs = yield* controller.docs;
+          const stored = docs[`posts/${id}`];
+          expect(stored).toBeDefined();
+          expect(stored.author).toBeInstanceOf(FirestoreSchema.Reference);
+          expect((stored.author as FirestoreSchema.Reference).path).toBe(
+            'authors/1',
+          );
+          expect((stored.author as FirestoreSchema.Reference).id).toBe('1');
+        }),
+      );
+    });
+
+    it('the mock compares a canonical and a non-canonically-constructed Reference as equal', () => {
+      // Before the fix, the mock's `compare` (which orders References by
+      // .path) treated a Reference built from a non-canonical input as
+      // unequal to its canonical counterpart, breaking app-level equality.
+      const canonical = FirestoreSchema.Reference.makeFromPath('authors/1');
+      const trailingSlash =
+        FirestoreSchema.Reference.makeFromPath('authors/1/');
+      const leadingSlash = FirestoreSchema.Reference.makeFromPath('/authors/1');
+      const doubleSlash = FirestoreSchema.Reference.makeFromPath('authors//1');
+
+      expect(canonical.path).toBe('authors/1');
+      expect(trailingSlash.path).toBe('authors/1');
+      expect(leadingSlash.path).toBe('authors/1');
+      expect(doubleSlash.path).toBe('authors/1');
+
+      expect(equals(canonical, trailingSlash)).toBe(true);
+      expect(equals(canonical, leadingSlash)).toBe(true);
+      expect(equals(canonical, doubleSlash)).toBe(true);
+    });
   });
 
   describe('not-equal null semantics through the repository', () => {
