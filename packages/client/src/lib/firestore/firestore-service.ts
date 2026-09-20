@@ -230,7 +230,7 @@ const make = (db: Firestore) => {
           try: async () => {
             const snapshot = await getDocs(makeQuery());
             return Arr.filterMap(snapshot.docs, (queryDoc) => {
-              const data = queryDoc.data();
+              const data = queryDoc.data(dataOptions());
               if (!data) return Result.failVoid;
               return Result.succeed([
                 { id: queryDoc.id, path: queryDoc.ref.path },
