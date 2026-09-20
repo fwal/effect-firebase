@@ -103,12 +103,17 @@ export function onTaskDispatchedEffect<R>(
         : handler(request)
     ).pipe(Effect.withSpan('onTaskDispatchedEffect'));
 
+    // Rethrow after logging so the invocation is recorded as failed and
+    // Cloud Tasks' retry configuration applies. Swallowing the error made the
+    // SDK answer HTTP 204, so Cloud Tasks deleted the task and retryConfig was
+    // inert on the handler-failure path.
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
         logger.error('Defect in onTaskDispatched', {
           inner: error,
           stack: error instanceof Error ? error.stack : undefined,
         });
+        throw error;
       },
     );
   });
