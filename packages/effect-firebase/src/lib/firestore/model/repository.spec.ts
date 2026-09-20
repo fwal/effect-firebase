@@ -12,6 +12,7 @@ import {
 import { delete as deleteField } from '../fields/delete.js';
 import { Model } from 'effect/unstable/schema';
 import { makeRepository } from './repository.js';
+import { AnyIdReference } from './reference.js';
 import * as FirestoreModel from './datetime.js';
 import * as FirestoreNumber from './number.js';
 import { OptionalDeletable } from './optional.js';
@@ -28,6 +29,7 @@ import { Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
+import { Reference as SchemaReference } from '../schema/reference.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
@@ -1008,6 +1010,133 @@ describe('Repository', () => {
       if (Exit.isFailure(exit)) {
         expect(Cause.hasDies(exit.cause)).toBe(true);
       }
+    });
+  });
+
+  // Regression for the bug where AnyIdReference wired a forbidden id→Reference
+  // encoder into the insert/update variants, so every repository write that
+  // traversed the field failed with a SchemaError before FirestoreService was
+  // reached. The field is now read-only: it is omitted from the insert and
+  // update variants, so the encoders never reach the forbidden path and the
+  // TypeScript types reject payloads containing the field.
+  describe('AnyIdReference write boundary', () => {
+    class RefPostModel extends Model.Class<RefPostModel>('RefPostModel')({
+      id: Model.GeneratedByDb(PostId),
+      title: Schema.String,
+      authorId: AnyIdReference,
+    }) {}
+
+    const makeRefRepo = (overrides: Partial<FirestoreServiceShape>) =>
+      makeRepository(RefPostModel, {
+        collectionPath: 'posts',
+        idField: 'id',
+        spanPrefix: 'test',
+      }).pipe(Effect.provide(makeLayer(overrides)));
+
+    it('add succeeds and encodes a payload without the read-only field', async () => {
+      const addMock = vi.fn(() =>
+        Effect.succeed({ id: 'new-id', path: 'posts/new-id' }),
+      );
+      const repo = await Effect.runPromise(makeRefRepo({ add: addMock }));
+      const id = await Effect.runPromise(repo.add({ title: 'Hello' }));
+
+      expect(addMock).toHaveBeenCalledWith('posts', { title: 'Hello' });
+      expect(id).toBe('new-id');
+    });
+
+    it('add rejects the read-only field at the type level', () => {
+      const repo = Effect.runSync(makeRefRepo({}));
+      // @ts-expect-error authorId is read-only; it is omitted from insert.
+      const write = repo.add({ title: 'Hello', authorId: 'author-123' });
+      expect(write).toBeDefined();
+    });
+
+    it('set (insert variant) succeeds without the read-only field', async () => {
+      const setMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRefRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), { data: { title: 'Hello' } }),
+      );
+
+      expect(setMock).toHaveBeenCalledWith(
+        'posts/post-1',
+        { title: 'Hello' },
+        undefined,
+      );
+    });
+
+    it('set (update variant) succeeds without the read-only field', async () => {
+      const setMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRefRepo({ set: setMock }));
+      await Effect.runPromise(
+        repo.set(PostId.make('post-1'), {
+          variant: 'update',
+          data: { title: 'Hello' },
+        }),
+      );
+
+      expect(setMock).toHaveBeenCalledWith(
+        'posts/post-1',
+        { title: 'Hello' },
+        undefined,
+      );
+    });
+
+    it('set rejects the read-only field at the type level (insert variant)', () => {
+      const repo = Effect.runSync(makeRefRepo({}));
+      const write = repo.set(PostId.make('post-1'), {
+        // @ts-expect-error authorId is read-only; it is omitted from insert.
+        data: { title: 'Hello', authorId: 'author-123' },
+      });
+      expect(write).toBeDefined();
+    });
+
+    it('update succeeds without the read-only field', async () => {
+      const updateMock = vi.fn(() => Effect.succeed(undefined));
+      const repo = await Effect.runPromise(makeRefRepo({ update: updateMock }));
+      await Effect.runPromise(
+        repo.update(PostId.make('post-1'), { title: 'Updated' }),
+      );
+
+      expect(updateMock).toHaveBeenCalledWith('posts/post-1', {
+        title: 'Updated',
+      });
+    });
+
+    it('update rejects the read-only field at the type level', () => {
+      const repo = Effect.runSync(makeRefRepo({}));
+      const write = repo.update(PostId.make('post-1'), {
+        // @ts-expect-error authorId is read-only; it is omitted from update.
+        authorId: 'author-123',
+      });
+      expect(write).toBeDefined();
+    });
+
+    it('getById decodes the stored Reference to the bare id on read', async () => {
+      const getMock = vi.fn(() =>
+        Effect.succeed(
+          Option.some(
+            snap('post-1', {
+              title: 'Hello',
+              authorId: SchemaReference.make({
+                id: 'author-123',
+                path: 'authors/author-123',
+              }),
+            }),
+          ),
+        ),
+      );
+      const repo = await Effect.runPromise(makeRefRepo({ get: getMock }));
+      const result = await Effect.runPromise(
+        repo.getById(PostId.make('post-1')),
+      );
+
+      expect(getMock).toHaveBeenCalledWith('posts/post-1');
+      expect(Option.getOrThrow(result)).toMatchObject({
+        id: 'post-1',
+        title: 'Hello',
+        authorId: 'author-123',
+      });
     });
   });
 });

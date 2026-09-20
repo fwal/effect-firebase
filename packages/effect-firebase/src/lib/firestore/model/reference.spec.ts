@@ -34,17 +34,53 @@ describe('Model.AnyIdReference', () => {
     });
   });
 
-  describe('add variant', () => {
-    it('should decode Reference to ID string', () => {
-      const decode = Schema.decodeSync(TestModel.insert);
-      const result = decode({
-        authorId: SchemaReference.make({
-          id: 'author-123',
-          path: 'authors/author-123',
-        }),
-      });
+  describe('insert variant — read-only (omitted)', () => {
+    it('omits authorId from the insert struct fields', () => {
+      const fields = (TestModel.insert as Schema.Struct<Schema.Struct.Fields>)
+        .fields;
+      expect(Object.keys(fields)).not.toContain('authorId');
+    });
 
-      expect(result.authorId).toBe('author-123');
+    it('encodes an empty payload without producing an authorId key', () => {
+      const encoded = Schema.encodeSync(TestModel.insert)({});
+
+      expect(encoded).toEqual({});
+      expect(encoded).not.toHaveProperty('authorId');
+    });
+
+    it('does not raise the forbidden id-to-Reference error (regression)', () => {
+      // Before the fix, encoding an insert payload that included authorId
+      // threw `Id string cannot be encoded to Reference` because the field's
+      // encode was forbidden. The field is now omitted from the insert
+      // variant, so even a stray authorId never reaches that encoder.
+      expect(() =>
+        Schema.encodeSync(TestModel.insert)({
+          authorId: 'author-123',
+        } as Record<string, unknown>),
+      ).not.toThrow(/Id string cannot be encoded to Reference/);
+    });
+  });
+
+  describe('update variant — read-only (omitted)', () => {
+    it('omits authorId from the update struct fields', () => {
+      const fields = (TestModel.update as Schema.Struct<Schema.Struct.Fields>)
+        .fields;
+      expect(Object.keys(fields)).not.toContain('authorId');
+    });
+
+    it('encodes an empty payload without producing an authorId key', () => {
+      const encoded = Schema.encodeSync(TestModel.update)({});
+
+      expect(encoded).toEqual({});
+      expect(encoded).not.toHaveProperty('authorId');
+    });
+
+    it('does not raise the forbidden id-to-Reference error (regression)', () => {
+      expect(() =>
+        Schema.encodeSync(TestModel.update)({
+          authorId: 'author-123',
+        } as Record<string, unknown>),
+      ).not.toThrow(/Id string cannot be encoded to Reference/);
     });
   });
 

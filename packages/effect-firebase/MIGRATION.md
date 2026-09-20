@@ -225,6 +225,22 @@ through `Model.update`. A merge update whose only field is `Option.none()`
 therefore fails with `FirestoreError` code `invalid-argument` (empty
 payload); use `Option.some(Firestore.delete())` to remove the field.
 
+**`AnyIdReference` is read-only for writes.** A bare id string carries no
+collection path, so there is no valid encoder from `string` to
+`DocumentReference`. The field was previously wired into the `insert` and
+`update` variants with a forbidden encoder, which made every `repo.add`,
+`repo.set` and `repo.update` that traversed it fail with `SchemaError` at
+runtime — while the TypeScript types advertised it as writable. The field is
+now **omitted from `Model.insert` and `Model.update`**, mirroring
+`Model.GeneratedByDb`: `repo.add({ ..., authorId })`, `repo.set(..., { data:
+{ ..., authorId } })` and `repo.update(id, { authorId })` are now compile
+errors, matching the runtime. Reads (`Model.select`) still decode a stored
+`DocumentReference` to the bare id string, and the `json*` variants keep the
+id string shape. For an untyped reference you need to write, use
+`Firestore.AnyPathReference` (round-trips through the full path) or the
+typed `Firestore.Reference` / `Firestore.ReferenceOptional` (which carry a
+known collection path).
+
 ### 5. Update `FirestoreField` import (converter usage)
 
 The sentinel classes (`Delete`, `ArrayUnion`, `ArrayRemove`) moved from
