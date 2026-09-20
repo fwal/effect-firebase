@@ -391,3 +391,199 @@ describe('OptionalDeletable', () => {
     });
   });
 });
+
+// Regression test for the type-vs-runtime divergence on the `json` variant of
+// composed `Optional(Field)` / `OptionalNull(Field)`. The hand-written
+// conditional return type used to map `json` to `Schema.OptionFromOptionalNullOr`
+// (admitting `null` in the `Encoded` type) while the runtime `Model.fieldEvolve`
+// table maps `json` to `Schema.OptionFromOptional` (rejecting `null` with a
+// `SchemaError`). The fix narrows the conditional's `json` branch to
+// `Schema.OptionFromOptional`, matching both the runtime and
+// `OptionalDeletable`'s existing conditional.
+describe('composed json null-admission', () => {
+  const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
+
+  // A multi-variant Field exposing all six variants (select/insert/update/json/
+  // jsonCreate/jsonUpdate). Used with Optional/OptionalNull/OptionalDeletable,
+  // this exercises the composed conditional's branch for every variant key.
+  class OptionalRefModel extends Model.Class<OptionalRefModel>(
+    'OptionalRefModel',
+  )({
+    name: Schema.String,
+    author: Optional(Reference(AuthorId, 'authors')),
+  }) {}
+
+  class OptionalNullRefModel extends Model.Class<OptionalNullRefModel>(
+    'OptionalNullRefModel',
+  )({
+    name: Schema.String,
+    author: OptionalNull(Reference(AuthorId, 'authors')),
+  }) {}
+
+  class OptionalDeletableRefModel extends Model.Class<OptionalDeletableRefModel>(
+    'OptionalDeletableRefModel',
+  )({
+    name: Schema.String,
+    author: OptionalDeletable(Reference(AuthorId, 'authors')),
+  }) {}
+
+  // A multi-variant Field exposing only four variants (select/insert/update/json,
+  // no jsonCreate/jsonUpdate). Exercised by the bug report.
+  class OptionalDateModel extends Model.Class<OptionalDateModel>(
+    'OptionalDateModel',
+  )({
+    name: Schema.String,
+    at: Optional(DateTime),
+  }) {}
+
+  class OptionalNullDateModel extends Model.Class<OptionalNullDateModel>(
+    'OptionalNullDateModel',
+  )({
+    name: Schema.String,
+    at: OptionalNull(DateTime),
+  }) {}
+
+  describe('json runtime rejects null (unchanged by the type-only fix)', () => {
+    it('Optional(Reference(...)) rejects null', () => {
+      const decode = Schema.decodeUnknownSync(OptionalRefModel.json);
+      expect(() => decode({ name: 'x', author: null })).toThrow();
+    });
+
+    it('OptionalNull(Reference(...)) rejects null', () => {
+      const decode = Schema.decodeUnknownSync(OptionalNullRefModel.json);
+      expect(() => decode({ name: 'x', author: null })).toThrow();
+    });
+
+    it('OptionalDeletable(Reference(...)) rejects null', () => {
+      const decode = Schema.decodeUnknownSync(OptionalDeletableRefModel.json);
+      expect(() => decode({ name: 'x', author: null })).toThrow();
+    });
+
+    it('Optional(DateTime) rejects null', () => {
+      const decode = Schema.decodeUnknownSync(OptionalDateModel.json);
+      expect(() => decode({ name: 'x', at: null })).toThrow();
+    });
+
+    it('OptionalNull(DateTime) rejects null', () => {
+      const decode = Schema.decodeUnknownSync(OptionalNullDateModel.json);
+      expect(() => decode({ name: 'x', at: null })).toThrow();
+    });
+  });
+
+  // The fix is type-only. Each helper below is a typed identity function whose
+  // parameter is the `json.Encoded` of a composed model. Calling it with
+  // `{ ..., <field>: null }` is a type error iff the conditional return type
+  // rejects `null` for the `json` variant — exactly the behaviour the fix
+  // establishes for `Optional`/`OptionalNull` and the existing behaviour for
+  // `OptionalDeletable`. The `@ts-expect-error` directive on the line above
+  // each call is consumed only while the conditional correctly rejects `null`;
+  // if the divergence ever returns the directive becomes "unused" and `tsc`
+  // fails this file. Each declared const is referenced below to satisfy
+  // `noUnusedLocals`.
+  describe('json Encoded type rejects null for composed Optional/OptionalNull', () => {
+    const expectJsonRef = (_: typeof OptionalRefModel.json.Encoded) => _;
+    const expectJsonNullRef = (_: typeof OptionalNullRefModel.json.Encoded) =>
+      _;
+    const expectJsonDeletableRef = (
+      _: typeof OptionalDeletableRefModel.json.Encoded,
+    ) => _;
+    const expectJsonDate = (_: typeof OptionalDateModel.json.Encoded) => _;
+    const expectJsonNullDate = (_: typeof OptionalNullDateModel.json.Encoded) =>
+      _;
+
+    it('rejects null at the type level (all directives must be consumed)', () => {
+      // @ts-expect-error null is not in Optional(Reference).json Encoded
+      const ref = expectJsonRef({ name: 'x', author: null });
+      // @ts-expect-error null is not in OptionalNull(Reference).json Encoded
+      const nullRef = expectJsonNullRef({ name: 'x', author: null });
+      // @ts-expect-error null is not in OptionalDeletable(Reference).json Encoded
+      const deletableRef = expectJsonDeletableRef({ name: 'x', author: null });
+      // @ts-expect-error null is not in Optional(DateTime).json Encoded
+      const date = expectJsonDate({ name: 'x', at: null });
+      // @ts-expect-error null is not in OptionalNull(DateTime).json Encoded
+      const nullDate = expectJsonNullDate({ name: 'x', at: null });
+      expect([ref, nullRef, deletableRef, date, nullDate]).toHaveLength(5);
+    });
+  });
+
+  describe('jsonCreate/jsonUpdate Encoded types still admit null (no regression)', () => {
+    it('Optional(Reference) jsonCreate/jsonUpdate still accept null', () => {
+      const jsonCreate: typeof OptionalRefModel.jsonCreate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      const jsonUpdate: typeof OptionalRefModel.jsonUpdate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      expect([jsonCreate, jsonUpdate]).toHaveLength(2);
+    });
+
+    it('OptionalNull(Reference) jsonCreate/jsonUpdate still accept null', () => {
+      const jsonCreate: typeof OptionalNullRefModel.jsonCreate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      const jsonUpdate: typeof OptionalNullRefModel.jsonUpdate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      expect([jsonCreate, jsonUpdate]).toHaveLength(2);
+    });
+
+    it('OptionalDeletable(Reference) jsonCreate/jsonUpdate still accept null', () => {
+      const jsonCreate: typeof OptionalDeletableRefModel.jsonCreate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      const jsonUpdate: typeof OptionalDeletableRefModel.jsonUpdate.Encoded = {
+        name: 'x',
+        author: null,
+      };
+      expect([jsonCreate, jsonUpdate]).toHaveLength(2);
+    });
+  });
+
+  describe('jsonCreate/jsonUpdate runtime still accept null (no regression)', () => {
+    it('Optional(Reference) jsonCreate/jsonUpdate decode null to Option.none', () => {
+      const jsonCreate = Schema.decodeUnknownSync(OptionalRefModel.jsonCreate);
+      const jsonUpdate = Schema.decodeUnknownSync(OptionalRefModel.jsonUpdate);
+      expect(
+        Option.isNone(jsonCreate({ name: 'x', author: null }).author),
+      ).toBe(true);
+      expect(
+        Option.isNone(jsonUpdate({ name: 'x', author: null }).author),
+      ).toBe(true);
+    });
+
+    it('OptionalNull(Reference) jsonCreate/jsonUpdate decode null to Option.none', () => {
+      const jsonCreate = Schema.decodeUnknownSync(
+        OptionalNullRefModel.jsonCreate,
+      );
+      const jsonUpdate = Schema.decodeUnknownSync(
+        OptionalNullRefModel.jsonUpdate,
+      );
+      expect(
+        Option.isNone(jsonCreate({ name: 'x', author: null }).author),
+      ).toBe(true);
+      expect(
+        Option.isNone(jsonUpdate({ name: 'x', author: null }).author),
+      ).toBe(true);
+    });
+
+    it('OptionalDeletable(Reference) jsonCreate/jsonUpdate decode null to Option.none', () => {
+      const jsonCreate = Schema.decodeUnknownSync(
+        OptionalDeletableRefModel.jsonCreate,
+      );
+      const jsonUpdate = Schema.decodeUnknownSync(
+        OptionalDeletableRefModel.jsonUpdate,
+      );
+      expect(
+        Option.isNone(jsonCreate({ name: 'x', author: null }).author),
+      ).toBe(true);
+      expect(
+        Option.isNone(jsonUpdate({ name: 'x', author: null }).author),
+      ).toBe(true);
+    });
+  });
+});

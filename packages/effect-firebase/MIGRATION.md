@@ -211,6 +211,19 @@ spelled these fields out as `Schema.OptionFromNullishOr<...>` must use
 `Schema.OptionFromOptionalNullOr<...>` instead. `OptionalNull` and
 `ReferenceOptional` are unchanged and still require the key to be present.
 
+**Composed optional `json` encoded type.** When `Firestore.Optional(s)` or
+`Firestore.OptionalNull(s)` wraps a multi-variant field (e.g.
+`Optional(DateTime)` or `Optional(Reference(id, path))`), the `json`
+variant's `Encoded` type no longer admits `null` for the optional field — it
+is the field's type or a missing key, matching the `json` runtime decoder
+(which always rejected `null` with `SchemaError`). The earlier conditional
+type was wider than the runtime, so a `null` literal annotated against
+`typeof Model.json.Encoded` for such a field compiled but threw at runtime;
+the narrowing turns that runtime failure into a compile-time error. The
+simple `Optional(Schema)` / `OptionalNull(Schema)` forms, `OptionalDeletable`,
+the encoding direction, and the `jsonCreate` / `jsonUpdate` `Encoded` types
+(which still admit `null`) are unaffected.
+
 **Plain optional fields.** For a field that should be `T | absent` in the
 app (no `Option`), declare it with `Schema.optionalKey(s)` rather than
 `Schema.optional(s)`. `Schema.optional` also admits `undefined` as a value,

@@ -34,7 +34,9 @@ export const OptionalNull: <
         readonly [K in keyof S]: S[K] extends Schema.Top
           ? K extends Model.VariantsDatabase
             ? Schema.OptionFromNullOr<S[K]>
-            : Schema.OptionFromOptionalNullOr<S[K]>
+            : K extends 'json'
+              ? Schema.OptionFromOptional<S[K]>
+              : Schema.OptionFromOptionalNullOr<S[K]>
           : never;
       }>
     : never = Model.fieldEvolve({
@@ -78,7 +80,9 @@ export const Optional: <Field extends VariantSchema.Field<any> | Schema.Top>(
   : Field extends VariantSchema.Field<infer S>
     ? VariantSchema.Field<{
         readonly [K in keyof S]: S[K] extends Schema.Top
-          ? Schema.OptionFromOptionalNullOr<S[K]>
+          ? K extends 'json'
+            ? Schema.OptionFromOptional<S[K]>
+            : Schema.OptionFromOptionalNullOr<S[K]>
           : never;
       }>
     : never = Model.fieldEvolve({
