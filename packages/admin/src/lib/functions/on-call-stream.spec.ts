@@ -1,7 +1,25 @@
-import { Effect, ManagedRuntime, Layer, Schema, Stream } from 'effect';
-import { describe, expect, it } from '@effect/vitest';
+import {
+  Data,
+  Effect,
+  ErrorReporter,
+  Layer,
+  ManagedRuntime,
+  Schema,
+  Stream,
+} from 'effect';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from '@effect/vitest';
+import { logger } from 'firebase-functions';
+import { HttpsError } from 'firebase-functions/https';
 import { onCallStreamEffect } from './on-call-stream.js';
 import { onCallEffect } from './on-call.js';
+import { FunctionSetupError } from './setup-error.js';
 import {
   makeCallableRequest,
   runCallable,
@@ -132,14 +150,202 @@ describe('onCallStreamEffect', () => {
   });
 
   it('fails when the input does not match the schema', async () => {
+    let handlerRan = false;
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({ count: Schema.Number }) },
+      (input) => {
+        handlerRan = true;
+        return Stream.make(input.count);
+      },
+    );
+
+    const error = await streamCallable(fn, { count: 'nope' } as never)
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect((error as HttpsError).code).toBe('invalid-argument');
+    expect((error as HttpsError).message).toContain('count');
+    expect(handlerRan).toBe(false);
+  });
+});
+
+describe('onCallStreamEffect setup-error recovery', () => {
+  it('rejects with an invalid-argument HttpsError carrying the decode message', async () => {
     const fn = onCallStreamEffect(
       { runtime, inputSchema: Schema.Struct({ count: Schema.Number }) },
       (input) => Stream.make(input.count),
     );
 
-    await expect(
-      streamCallable(fn, { count: 'nope' } as never).data,
-    ).rejects.toThrow();
+    const error = await streamCallable(fn, { count: 'nope' } as never)
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect((error as HttpsError).code).toBe('invalid-argument');
+    expect((error as HttpsError).message).toMatch(/Expected number/i);
+    expect((error as HttpsError).message).toContain('count');
+  });
+
+  it('rejects with an internal HttpsError when a chunk fails chunkSchema', async () => {
+    const fn = onCallStreamEffect(
+      {
+        runtime,
+        inputSchema: Schema.Struct({ name: Schema.String }),
+        chunkSchema: Schema.Struct({ name: Schema.NonEmptyString }),
+      },
+      (input) => Stream.succeed({ name: input.name }),
+    );
+
+    // '' passes inputSchema (String) but is rejected by NonEmptyString at the
+    // encode boundary.
+    const error = await streamCallable(fn, { name: '' } as never)
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect((error as HttpsError).code).toBe('internal');
+    expect((error as HttpsError).message).toBe(
+      'Failed to encode function output',
+    );
+  });
+
+  it('fails the stream at the first unencodable chunk, keeping the chunks sent before it', async () => {
+    const fn = onCallStreamEffect(
+      {
+        runtime,
+        chunkSchema: Schema.Struct({ name: Schema.NonEmptyString }),
+      },
+      () => Stream.make({ name: 'ok' }, { name: '' }, { name: 'also-ok' }),
+    );
+
+    const { stream, data } = streamCallable(fn, null);
+    const seen: unknown[] = [];
+    for await (const chunk of stream) seen.push(chunk);
+
+    expect(seen).toEqual([{ name: 'ok' }]);
+    const error = await data.then(() => undefined).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(HttpsError);
+    expect((error as HttpsError).code).toBe('internal');
+    expect((error as HttpsError).message).toBe(
+      'Failed to encode function output',
+    );
+  });
+
+  it('propagates an HttpsError raised by the handler verbatim', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      () => Stream.fail(new HttpsError('permission-denied', 'no access')),
+    );
+
+    const error = await streamCallable(fn, {})
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect((error as HttpsError).code).toBe('permission-denied');
+    expect((error as HttpsError).message).toBe('no access');
+  });
+
+  it('does not route a FunctionSetupError raised by the handler through setup recovery', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      () =>
+        Stream.fail(
+          new FunctionSetupError({
+            phase: 'decode-input',
+            cause: new Error('raised by the handler, not the boundary'),
+          }),
+        ),
+    );
+
+    const error = await streamCallable(fn, {})
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(FunctionSetupError);
+    expect((error as FunctionSetupError).phase).toBe('decode-input');
+  });
+});
+
+class QuietError extends Data.TaggedError('QuietError')<{
+  readonly reason: string;
+}> {
+  readonly [ErrorReporter.ignore] = true;
+}
+
+class LoudError extends Data.TaggedError('LoudError')<{
+  readonly reason: string;
+}> {}
+
+describe('onCallStreamEffect defect logging', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it('does not log a decode-input failure (now an HttpsError) as a defect', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({ count: Schema.Number }) },
+      (input) => Stream.make(input.count),
+    );
+
+    const error = await streamCallable(fn, { count: 'nope' } as never)
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not log an HttpsError raised by the handler as a defect', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      () => Stream.fail(new HttpsError('not-found', 'gone')),
+    );
+
+    const error = await streamCallable(fn, {})
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HttpsError);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not log an error annotated with ErrorReporter.ignore', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      () => Stream.fail(new QuietError({ reason: 'expected' })),
+    );
+
+    const error = await streamCallable(fn, {})
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(QuietError);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs an unannotated handler error as a defect, and rethrows it', async () => {
+    const fn = onCallStreamEffect(
+      { runtime, inputSchema: Schema.Struct({}) },
+      () => Stream.fail(new LoudError({ reason: 'unexpected' })),
+    );
+
+    const error = await streamCallable(fn, {})
+      .data.then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(LoudError);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Defect in onCallStream',
+      expect.objectContaining({ inner: expect.any(LoudError) }),
+    );
   });
 });
 
