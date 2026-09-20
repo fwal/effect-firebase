@@ -212,7 +212,10 @@ export type Repository<
    *
    * Keys the model does not declare fail with a `SchemaError` naming the
    * key; an empty payload fails with `FirestoreError` code
-   * `invalid-argument`.
+   * `invalid-argument`. An explicit `undefined` for a *declared* key
+   * likewise fails with a `SchemaError` naming the key rather than being
+   * forwarded to Firestore, where the SDKs reject `undefined` as a value at
+   * write time. Omit the key to leave a field untouched instead.
    *
    * @param id - The ID of the document model to update.
    * @param data - The fields and field paths to update. See
@@ -511,12 +514,16 @@ export const makeRepository = <
 
     // Request schema for update: required id + partial data fields (all
     // optional). Encoded strictly, so an undeclared key fails with a
-    // SchemaError naming it instead of being dropped from the payload.
+    // SchemaError naming it instead of being dropped from the payload. Uses
+    // `Schema.optionalKey` (not `Schema.optional`) so an explicit
+    // `{ field: undefined }` fails the encoder with a `SchemaError` naming
+    // the field instead of being forwarded to Firestore, where the SDKs
+    // reject `undefined` at write time (AGENTS.md gotcha #11).
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
     )
       .mapFields(Struct.omit([options.idField as string]))
-      .mapFields(Struct.map(Schema.optional));
+      .mapFields(Struct.map(Schema.optionalKey));
 
     const updateFieldsSchema = Schema.Struct({
       [options.idField]: idSchema,
