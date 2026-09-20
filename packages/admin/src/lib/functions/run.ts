@@ -33,19 +33,3 @@ export async function runExit<A, E, R>(
   const runner = typeof runtime === 'function' ? runtime() : runtime;
   return await runner.runPromiseExit(effect);
 }
-
-/**
- * Check if a value is a runtime.
- * @param value - The value to check.
- * @returns True if the value is a runtime, false otherwise.
- */
-export function isRuntime<R>(
-  value: unknown,
-): value is ManagedRuntime.ManagedRuntime<R, never> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'runPromise' in value &&
-    'dispose' in value
-  );
-}
