@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Effect } from 'effect';
+import { Duration, Effect } from 'effect';
 import { make, rawFixture } from '@effect-firebase/mock';
 import { MockDevtoolsPanel } from './panel.js';
 import { firestoreMockPlugin } from './plugin.js';
@@ -181,6 +181,72 @@ describe('MockDevtoolsPanel', () => {
     await waitFor(() => {
       expect(seen).toEqual([['*', 'Empty']]);
     });
+  });
+
+  it('resyncs the latency input to the backend latency after reset', async () => {
+    const handle = make({
+      latency: '200 millis',
+      fixtures: [rawFixture('posts', { '1': { title: 'Alpha' } })],
+    });
+    await seed(handle);
+
+    const { container } = render(
+      <MockDevtoolsPanel controller={handle.controller} />,
+    );
+    await screen.findByText('posts');
+    const input = container.querySelector(
+      'input[type="number"]',
+    ) as HTMLInputElement;
+    await waitFor(() => expect(input.value).toBe('200'));
+
+    // The developer dials the latency up through the panel.
+    fireEvent.change(input, { target: { value: '500' } });
+    await waitFor(() => expect(input.value).toBe('500'));
+    expect(
+      Duration.toMillis(await Effect.runPromise(handle.controller.latency)),
+    ).toBe(500);
+
+    // Reset restores the backend's initial latency; the input must follow.
+    fireEvent.click(screen.getByText('reset'));
+    await waitFor(async () =>
+      expect(
+        Duration.toMillis(await Effect.runPromise(handle.controller.latency)),
+      ).toBe(200),
+    );
+    await waitFor(() => expect(input.value).toBe('200'));
+  });
+
+  it('does not resync latency on clearAll — clearAll never touches latency', async () => {
+    const handle = make({
+      latency: '200 millis',
+      fixtures: [rawFixture('posts', { '1': { title: 'Alpha' } })],
+    });
+    await seed(handle);
+
+    const { container } = render(
+      <MockDevtoolsPanel controller={handle.controller} />,
+    );
+    await screen.findByText('posts');
+    const input = container.querySelector(
+      'input[type="number"]',
+    ) as HTMLInputElement;
+    await waitFor(() => expect(input.value).toBe('200'));
+
+    fireEvent.change(input, { target: { value: '500' } });
+    await waitFor(() => expect(input.value).toBe('500'));
+    expect(
+      Duration.toMillis(await Effect.runPromise(handle.controller.latency)),
+    ).toBe(500);
+
+    fireEvent.click(screen.getByText('clear'));
+    expect(input.value).toBe('500');
+    await waitFor(async () =>
+      expect(
+        Duration.toMillis(await Effect.runPromise(handle.controller.latency)),
+      ).toBe(500),
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    expect(input.value).toBe('500');
   });
 });
 
