@@ -15,6 +15,8 @@ import {
   FirestoreService,
   makeSnapshotPacker,
   validateCollectionId,
+  validateCollectionPath,
+  validateDocPath,
 } from 'effect-firebase';
 import type { App as FirebaseAdminApp } from 'firebase-admin/app';
 import type { Snapshot } from 'effect-firebase';
@@ -229,12 +231,15 @@ const make = (db: Firestore) => {
 
   // The SDK throws synchronously on a malformed collection ID; validating
   // up front turns that into a typed failure for both the effect and the
-  // stream, matching the mock.
-  const checkCollectionId = (
-    collectionId: string,
-  ): Effect.Effect<void, FirestoreError> => {
-    const invalid = validateCollectionId(collectionId);
-    return invalid === undefined
+  // stream, matching the mock. The same holds for full doc/collection paths:
+  // a wrong-parity path would otherwise escape as a Cause.die defect (for
+  // set/delete/add-writer, which build the ref inside Effect.gen) or stall
+  // the stream consumer (for streamDoc/streamQuery, whose ref is built inside
+  // Effect.sync under Stream.callback).
+  const checkPath = (
+    invalid: string | undefined,
+  ): Effect.Effect<void, FirestoreError> =>
+    invalid === undefined
       ? Effect.void
       : Effect.fail(
           new FirestoreError({
@@ -243,7 +248,19 @@ const make = (db: Firestore) => {
             message: invalid,
           }),
         );
-  };
+
+  const checkCollectionId = (
+    collectionId: string,
+  ): Effect.Effect<void, FirestoreError> =>
+    checkPath(validateCollectionId(collectionId));
+
+  const checkDocPath = (path: string): Effect.Effect<void, FirestoreError> =>
+    checkPath(validateDocPath(path));
+
+  const checkCollectionPath = (
+    path: string,
+  ): Effect.Effect<void, FirestoreError> =>
+    checkPath(validateCollectionPath(path));
 
   const runQuery = (makeQuery: () => Query) =>
     Effect.gen(function* () {
@@ -275,6 +292,7 @@ const make = (db: Firestore) => {
       Effect.gen(function* () {
         const writer = yield* currentWriter;
         if (Option.isSome(writer)) {
+          yield* checkCollectionPath(path);
           const ref = db.collection(path).withConverter(converter).doc();
           yield* Effect.try({
             try: () => writer.value.create(ref, data),
@@ -295,6 +313,7 @@ const make = (db: Firestore) => {
       }),
     set: (path, data, options) =>
       Effect.gen(function* () {
+        yield* checkDocPath(path);
         const writer = yield* currentWriter;
         const ref = db.doc(path).withConverter(converter);
         if (Option.isSome(writer)) {
@@ -327,6 +346,7 @@ const make = (db: Firestore) => {
       }),
     delete: (path) =>
       Effect.gen(function* () {
+        yield* checkDocPath(path);
         const writer = yield* currentWriter;
         const ref = db.doc(path).withConverter(converter);
         if (Option.isSome(writer)) {
@@ -363,12 +383,14 @@ const make = (db: Firestore) => {
     streamDoc: (path, options) =>
       Stream.unwrap(
         assertNoTransaction('streamDoc').pipe(
+          Effect.andThen(checkDocPath(path)),
           Effect.map(() => streamDoc(path, options)),
         ),
       ),
     streamQuery: (collectionPath, constraints, options) =>
       Stream.unwrap(
         assertNoTransaction('streamQuery').pipe(
+          Effect.andThen(checkCollectionPath(collectionPath)),
           Effect.map(() =>
             streamQueryOf(
               () => buildQuery(db, collectionPath, constraints),
