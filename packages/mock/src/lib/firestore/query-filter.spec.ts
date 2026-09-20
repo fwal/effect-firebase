@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
+import { pipe, Schema } from 'effect';
 import { Query, Snapshot } from 'effect-firebase';
 import { applyConstraints, validateGroupCursors } from './query-filter.js';
 
@@ -428,5 +429,101 @@ describe('applyConstraints', () => {
         ]),
       ),
     ).toEqual(['3', '2']);
+  });
+
+  describe('Query.and with a nested or and non-filter constraints', () => {
+    // `Query.where`/`Query.and` are type-checked against a model (S is
+    // inferred from the contextual `Query<S>` type the way `repo.query(...)`
+    // supplies it). The `posts` fixtures have `status`, `tags` and `views`.
+    class TestModel extends Schema.Class<TestModel>('TestModel')({
+      status: Schema.String,
+      tags: Schema.Array(Schema.String),
+      views: Schema.Number,
+    }) {}
+    const post = (query: Query.Query<typeof TestModel>) => query;
+
+    // Published posts with a news-or-tech tag: posts '2' (views 30) and '3'
+    // (views 20). The or(...) forces Query.and onto its wrap path; the
+    // orderBy/limit must remain top-level siblings so the mock still sorts
+    // and limits, matching the equivalent pipeable add* form.
+    const mixedAndOr = () =>
+      post(
+        Query.and(
+          Query.where('status', '==', 'published'),
+          Query.or(
+            Query.where('tags', 'array-contains', 'news'),
+            Query.where('tags', 'array-contains', 'tech'),
+          ),
+          Query.orderBy('views', 'desc'),
+          Query.limit(1),
+        ),
+      );
+
+    const pipeableForm = () =>
+      pipe(
+        post(
+          Query.and(
+            Query.where('status', '==', 'published'),
+            Query.or(
+              Query.where('tags', 'array-contains', 'news'),
+              Query.where('tags', 'array-contains', 'tech'),
+            ),
+          ),
+        ),
+        Query.addOrderBy<typeof TestModel, 'views'>('views', 'desc'),
+        Query.addLimit(1),
+      );
+
+    it('filters, sorts and limits (non-filters kept as top-level siblings)', () => {
+      expect(ids(applyConstraints(posts, mixedAndOr()))).toEqual(['2']);
+    });
+
+    it('matches the equivalent pipeable add* form, shape and results', () => {
+      const wrapped = mixedAndOr();
+      const piped = pipeableForm();
+      // Same constraint-shape: [And([Where, Or]), OrderBy, Limit].
+      expect(wrapped.map((c) => c._tag)).toEqual(['And', 'OrderBy', 'Limit']);
+      expect(piped.map((c) => c._tag)).toEqual(['And', 'OrderBy', 'Limit']);
+      expect(ids(applyConstraints(posts, wrapped))).toEqual(
+        ids(applyConstraints(posts, piped)),
+      );
+    });
+
+    it('Query.and(where, orderBy, limit) on the flatten path also sorts and limits', () => {
+      const flat = post(
+        Query.and(
+          Query.where('status', '==', 'published'),
+          Query.orderBy('views', 'desc'),
+          Query.limit(1),
+        ),
+      );
+      expect(flat.map((c) => c._tag)).toEqual(['Where', 'OrderBy', 'Limit']);
+      expect(ids(applyConstraints(posts, flat))).toEqual(['2']);
+    });
+
+    it('keeps cursor constraints as top-level siblings alongside a nested or', () => {
+      const withCursor = post(
+        Query.and(
+          Query.where('status', '==', 'published'),
+          Query.or(
+            Query.where('tags', 'array-contains', 'news'),
+            Query.where('tags', 'array-contains', 'tech'),
+          ),
+          Query.orderBy('views', 'asc'),
+          Query.startAfter(10),
+          Query.limit(1),
+        ),
+      );
+      // [And([Where, Or]), OrderBy, StartAfter, Limit] — cursor honored.
+      expect(withCursor.map((c) => c._tag)).toEqual([
+        'And',
+        'OrderBy',
+        'StartAfter',
+        'Limit',
+      ]);
+      // views asc, startAfter(10): post 3 (views 20) and post 2 (views 30);
+      // limit 1 -> ['3'].
+      expect(ids(applyConstraints(posts, withCursor))).toEqual(['3']);
+    });
   });
 });

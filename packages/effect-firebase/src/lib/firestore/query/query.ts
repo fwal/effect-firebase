@@ -212,7 +212,18 @@ export const and = <S>(...queries: ReadonlyArray<Query<S>>): Query<S> => {
     (c) => c._tag === 'And' || c._tag === 'Or',
   );
   if (hasComposite) {
-    return [new And({ constraints })] as Query<S>;
+    // Only filter constraints (Where/And/Or) may live inside an `And`
+    // composite — the Client and Admin SDK builders route every child of an
+    // `And`/`Or` through filter-only conversion and throw on non-filter
+    // children (OrderBy, Limit, LimitToLast, and the cursor constraints).
+    // Keep non-filter constraints as top-level siblings of the composite so
+    // the documented mix of `where` with `orderBy`/`limit` inside a single
+    // `Query.and(...)` call keeps working when a nested `or(...)` is added.
+    const isFilter = (c: QueryConstraint) =>
+      c._tag === 'Where' || c._tag === 'And' || c._tag === 'Or';
+    const filters = constraints.filter(isFilter);
+    const others = constraints.filter((c) => !isFilter(c));
+    return [new And({ constraints: filters }), ...others] as Query<S>;
   }
   return constraints as Query<S>;
 };
