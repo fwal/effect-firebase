@@ -59,7 +59,7 @@ describe('WithArrayFields', () => {
       expect(result.tags.values).toEqual(['a']);
     });
 
-    it('should encode ArrayUnion sentinel as-is (for converter to handle)', () => {
+    it('should encode ArrayUnion sentinel values through the element schema', () => {
       const result = Schema.encodeSync(TestModel.update)({
         name: 'Post',
         tags: arrayUnion(['c']),
@@ -68,13 +68,49 @@ describe('WithArrayFields', () => {
       expect(result.tags.values).toEqual(['c']);
     });
 
-    it('should encode ArrayRemove sentinel as-is (for converter to handle)', () => {
+    it('should encode ArrayRemove sentinel values through the element schema', () => {
       const result = Schema.encodeSync(TestModel.update)({
         name: 'Post',
         tags: arrayRemove(['a']),
       });
       expect(result.tags).toBeInstanceOf(ArrayRemove);
       expect(result.tags.values).toEqual(['a']);
+    });
+  });
+
+  describe('update variant with a non-identity element encode', () => {
+    class NumberTagsModel extends Model.Class<NumberTagsModel>(
+      'NumberTagsModel',
+    )({
+      name: Schema.String,
+      tags: WithArrayFields(Schema.Array(Schema.NumberFromString)),
+    }) {}
+
+    it('encodes ArrayUnion sentinel values through the element schema', () => {
+      const result = Schema.encodeSync(NumberTagsModel.update)({
+        name: 'Post',
+        tags: arrayUnion([3, 4]),
+      });
+      expect(result.tags).toBeInstanceOf(ArrayUnion);
+      expect(result.tags.values).toEqual(['3', '4']);
+    });
+
+    it('encodes ArrayRemove sentinel values through the element schema', () => {
+      const result = Schema.encodeSync(NumberTagsModel.update)({
+        name: 'Post',
+        tags: arrayRemove([3]),
+      });
+      expect(result.tags).toBeInstanceOf(ArrayRemove);
+      expect(result.tags.values).toEqual(['3']);
+    });
+
+    it('decodes an ArrayUnion sentinel unchanged (values are app-domain)', () => {
+      const result = Schema.decodeUnknownSync(NumberTagsModel.update)({
+        name: 'Post',
+        tags: arrayUnion([3]),
+      });
+      expect(result.tags).toBeInstanceOf(ArrayUnion);
+      expect((result.tags as ArrayUnion).values).toEqual([3]);
     });
   });
 
