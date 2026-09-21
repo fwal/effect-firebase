@@ -34,6 +34,12 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
       if (value === undefined || !sameType(value, where.value)) {
         return false;
       }
+      // Firestore excludes a NaN field value from range filters entirely: it
+      // is never matched by <, <=, >, >= despite its defined total-order
+      // position below -Infinity (which only governs orderBy).
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return false;
+      }
       const diff = compare(value, where.value);
       switch (where.op) {
         case '<':
@@ -47,18 +53,28 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
       }
       break;
     }
-    case 'in':
-      return (
-        value !== undefined &&
-        Array.isArray(where.value) &&
-        where.value.some((candidate) => equals(value, candidate))
-      );
-    case 'not-in':
-      return (
-        value !== undefined &&
-        Array.isArray(where.value) &&
-        !where.value.some((candidate) => equals(value, candidate))
-      );
+    case 'in': {
+      if (value === undefined || !Array.isArray(where.value)) {
+        return false;
+      }
+      // `in` shares the range-scan NaN exclusion: a NaN field value never
+      // matches, even with a NaN candidate (unlike `== NaN`, which matches).
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return false;
+      }
+      return where.value.some((candidate) => equals(value, candidate));
+    }
+    case 'not-in': {
+      if (value === undefined || !Array.isArray(where.value)) {
+        return false;
+      }
+      // `not-in` is the complement of `in` over the same scan, so a NaN field
+      // value always matches (it is never considered "in" any candidate list).
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return true;
+      }
+      return !where.value.some((candidate) => equals(value, candidate));
+    }
     case 'array-contains':
       return (
         Array.isArray(value) && value.some((item) => equals(item, where.value))

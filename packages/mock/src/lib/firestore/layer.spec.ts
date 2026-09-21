@@ -82,6 +82,10 @@ const userComments = rawFixture('users/u1/comments', {
   c: { body: 'on user u1', likes: 9 },
 });
 
+const metricFixture = rawFixture('metrics', {
+  nan: { value: Number.NaN },
+});
+
 describe('layer', () => {
   describe('collection groups', () => {
     it('queries every collection with the ID, at any depth', () =>
@@ -551,6 +555,39 @@ describe('layer', () => {
           yield* Fiber.interrupt(fiber);
         }),
         { fixtures: [postFixture] },
+      ));
+
+    it('re-emits when a NaN field becomes a number', () =>
+      run(
+        Effect.gen(function* () {
+          const firestore = yield* FirestoreService;
+          const emissions: Array<Option.Option<Snapshot>> = [];
+
+          const fiber = yield* Effect.forkChild(
+            Stream.runForEach(firestore.streamDoc('metrics/nan'), (doc) =>
+              Effect.sync(() => {
+                emissions.push(doc);
+              }),
+            ),
+          );
+
+          yield* awaitLength(emissions, 1);
+          expect(
+            (emissions[0] as Option.Some<Snapshot>).value[1]['value'],
+          ).toBeNaN();
+
+          // A NaN -> number transition changes the snapshot real Firestore
+          // would deliver; the mock must not collapse it via the old
+          // NaN-equals-everything comparison.
+          yield* firestore.update('metrics/nan', { value: 5 });
+          yield* awaitLength(emissions, 2);
+          expect(
+            (emissions[1] as Option.Some<Snapshot>).value[1]['value'],
+          ).toBe(5);
+
+          yield* Fiber.interrupt(fiber);
+        }),
+        { fixtures: [metricFixture] },
       ));
   });
 
