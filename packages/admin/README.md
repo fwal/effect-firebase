@@ -238,6 +238,8 @@ Defaults when `onSetupError` is omitted:
 | `onRequestEffect`              | `400 { error: 'Invalid request body' }`      | `500`                |
 | Firestore / Pub/Sub / Tasks    | logged defect                               | —                    |
 
+`onCallStreamEffect` does not expose an `onSetupError` option, so its row above is unconditional; the other wrappers let `onSetupError` override these defaults.
+
 `onCallEffect` and `onCallStreamEffect` also propagate any `HttpsError` failed by the handler itself to the
 client with its code and message intact, so `Effect.catchTag(...)` chains that end in
 `Effect.fail(new HttpsError(...))` work as written.

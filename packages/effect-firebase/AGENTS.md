@@ -439,12 +439,13 @@ export const createPost = onCallEffect(
 );
 ```
 
-Without `onSetupError`: `onCallEffect` and `onCallStreamEffect` reject invalid input with
+Without `onSetupError`: `onCallEffect` rejects invalid input with
 `HttpsError('invalid-argument')` and an encode failure with
 `HttpsError('internal')`; `onRequestEffect` responds `400` then `500`;
-the Firestore/Pub/Sub/Tasks triggers log a defect. `onCallEffect` and
-`onCallStreamEffect` also propagate an `HttpsError` failed by the handler
-with its code intact.
+the Firestore/Pub/Sub/Tasks triggers log a defect. `onCallStreamEffect`
+does not expose an `onSetupError` option, so it uses the `onCallEffect`
+mappings unconditionally. `onCallEffect` and `onCallStreamEffect` also
+propagate an `HttpsError` failed by the handler with its code intact.
 Recovery wraps the boundary only, never the handler. An escaping error is
 logged as a defect unless it is an `HttpsError` or carries Effect's
 `ErrorReporter.ignore` annotation.
