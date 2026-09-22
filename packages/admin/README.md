@@ -234,10 +234,11 @@ Defaults when `onSetupError` is omitted:
 | Wrapper                        | Invalid incoming data                       | Encode failure       |
 | ------------------------------ | ------------------------------------------- | -------------------- |
 | `onCallEffect`                 | `HttpsError('invalid-argument', ...)`        | `HttpsError('internal')` |
+| `onCallStreamEffect`           | `HttpsError('invalid-argument', ...)`        | `HttpsError('internal')` |
 | `onRequestEffect`              | `400 { error: 'Invalid request body' }`      | `500`                |
 | Firestore / Pub/Sub / Tasks    | logged defect                               | —                    |
 
-`onCallEffect` also propagates any `HttpsError` failed by the handler itself to the
+`onCallEffect` and `onCallStreamEffect` also propagate any `HttpsError` failed by the handler itself to the
 client with its code and message intact, so `Effect.catchTag(...)` chains that end in
 `Effect.fail(new HttpsError(...))` work as written.
 
