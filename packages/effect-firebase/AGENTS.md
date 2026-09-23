@@ -129,7 +129,7 @@ export const PostRepository = Firestore.makeRepository(PostModel, {
 it as a layer input (`yield* PostRepository` inside effects, provide the
 service via `Admin.layer`/`Client.layer`/mock).
 
-Repository methods (all fail with `ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`):
+Repository methods (all fail with `Firestore.ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`, exported as a type alias):
 
 | Method                                | Returns                        | Notes                                                                   |
 | ------------------------------------- | ------------------------------ | ----------------------------------------------------------------------- |
@@ -562,6 +562,14 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
     schema, and the Firebase SDKs reject `undefined` as a value at write
     time. `optionalKey` fails with `SchemaError` instead. For a default,
     `Schema.optionalKey(s).pipe(Schema.withDecodingDefault(Effect.succeed(v)))`.
+12. JSON Schema (`Schema.toJsonSchemaDocument`): use the `json` variant
+    (`Model.json`) for LLM tool schemas. DB variants lower `GeoPoint`,
+    `Reference`, `Timestamp` and the sentinels through their `toCodecJson`
+    annotations. Date-time fields lower to
+    `{ type: 'string', format: 'date-time' }`; a `description` set via
+    `.annotate()` on `Schema.DateTimeUtcFromString` is dropped by Effect
+    (it lands on the `DateTime.Utc` side), so annotate the encoded `String`
+    side instead, as `FirestoreSchema.DateTimeUtcFromString` does.
 
 ## Where to look
 

@@ -140,7 +140,6 @@ Generic helpers that moved to `effect/unstable/schema`:
 | `Model.Override`         | `Model.Override`                                |
 | `Model.Field`            | `Model.Field` (variant keys renamed, see below) |
 | `Model.fields`           | `Model.fields`                                  |
-| `Model.FieldOption`      | `Model.FieldOption`                             |
 | `Model.JsonFromString`   | `Model.JsonFromString`                          |
 
 Firestore-specific helpers that moved from `Model.*` to `Firestore.*` in
@@ -150,6 +149,8 @@ Firestore-specific helpers that moved from `Model.*` to `Firestore.*` in
 - References: `Reference`, `ReferenceOptional`, `ReferencePath`,
   `ReferenceAsInstance`, `AnyIdReference`, `AnyPathReference`
 - Optionals: `Optional`, `OptionalNull`, `OptionalDeletable`
+  (0.11 had no `FieldOption`; Effect's `Model.FieldOption` is not a drop-in for
+  `Optional` — its database variants still require the key to be present)
 - Arrays: `Array`, `WithArrayFields`
 - Sentinels: `delete`, `arrayUnion`, `arrayRemove` (and the classes `Delete`,
   `ArrayUnion`, `ArrayRemove`)
