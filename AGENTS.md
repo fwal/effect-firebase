@@ -46,7 +46,7 @@ pnpm install
 pnpm nx run-many -t build          # tsc per package, dist/ next to each package
 pnpm nx run-many -t test           # vitest (@effect/vitest)
 pnpm nx run-many -t lint
-pnpm nx affected -t lint test build
+pnpm nx affected -t lint typecheck test build
 pnpm format                        # prettier (singleQuote), also formats markdown
 pnpm example:emulator              # Firebase emulator + backend
 pnpm example:hosting               # example app against the emulator
