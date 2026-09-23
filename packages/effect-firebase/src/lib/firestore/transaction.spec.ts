@@ -9,12 +9,13 @@ const makeLayer = (overrides: Partial<FirestoreServiceShape>) =>
 
 describe('withTransaction', () => {
   it('delegates to FirestoreService.withTransaction', async () => {
-    const withTransactionMock = vi.fn(
-      <A, E, R>(self: Effect.Effect<A, E, R>) => self,
-    );
+    // vitest's Mock type erases generic call signatures, so cast back.
+    const withTransactionMock = vi.fn((self: Effect.Effect<unknown>) => self);
+    const withTransaction_ =
+      withTransactionMock as unknown as FirestoreServiceShape['withTransaction'];
     const result = await Effect.runPromise(
       withTransaction(Effect.succeed(42)).pipe(
-        Effect.provide(makeLayer({ withTransaction: withTransactionMock })),
+        Effect.provide(makeLayer({ withTransaction: withTransaction_ })),
       ),
     );
 
@@ -25,12 +26,12 @@ describe('withTransaction', () => {
 
 describe('withBatch', () => {
   it('delegates to FirestoreService.withBatch', async () => {
-    const withBatchMock = vi.fn(
-      <A, E, R>(self: Effect.Effect<A, E, R>) => self,
-    );
+    const withBatchMock = vi.fn((self: Effect.Effect<unknown>) => self);
+    const withBatch_ =
+      withBatchMock as unknown as FirestoreServiceShape['withBatch'];
     const result = await Effect.runPromise(
       withBatch(Effect.succeed('ok')).pipe(
-        Effect.provide(makeLayer({ withBatch: withBatchMock })),
+        Effect.provide(makeLayer({ withBatch: withBatch_ })),
       ),
     );
 

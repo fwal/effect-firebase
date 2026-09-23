@@ -74,7 +74,7 @@ export function onCallEffect<R, I extends Schema.Top, O extends Schema.Top, E>(
     input: Schema.Schema.Type<I>,
     context: CallableContext,
   ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
-): CallableFunction<Schema.Codec.Encoded<O>, Schema.Codec.Encoded<I>>;
+): CallableFunction<Schema.Codec.Encoded<I>, Promise<Schema.Codec.Encoded<O>>>;
 
 // Overload: only input schema
 export function onCallEffect<R, T, I extends Schema.Top, E>(
@@ -83,7 +83,7 @@ export function onCallEffect<R, T, I extends Schema.Top, E>(
     input: Schema.Schema.Type<I>,
     context: CallableContext,
   ) => Effect.Effect<T, E, R>,
-): CallableFunction<T, Schema.Codec.Encoded<I>>;
+): CallableFunction<Schema.Codec.Encoded<I>, Promise<T>>;
 
 // Overload: only output schema
 export function onCallEffect<R, O extends Schema.Top, E>(
@@ -92,7 +92,7 @@ export function onCallEffect<R, O extends Schema.Top, E>(
     request: CallableRequest,
     response?: CallableResponse,
   ) => Effect.Effect<Schema.Schema.Type<O>, E, R>,
-): CallableFunction<Schema.Codec.Encoded<O>, unknown>;
+): CallableFunction<unknown, Promise<Schema.Codec.Encoded<O>>>;
 
 // Overload: no schemas
 export function onCallEffect<R, T, E>(
@@ -101,7 +101,7 @@ export function onCallEffect<R, T, E>(
     request: CallableRequest,
     response?: CallableResponse,
   ) => Effect.Effect<T, E, R>,
-): CallableFunction<T, unknown>;
+): CallableFunction<unknown, Promise<T>>;
 
 // Implementation
 export function onCallEffect<R>(
@@ -111,7 +111,7 @@ export function onCallEffect<R>(
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (...args: any[]) => Effect.Effect<unknown, unknown, R>,
-): CallableFunction<unknown, unknown> {
+): CallableFunction<unknown, Promise<unknown>> {
   const { inputSchema, outputSchema, onSetupError } = options;
 
   return onCall(options, async (request, response) => {

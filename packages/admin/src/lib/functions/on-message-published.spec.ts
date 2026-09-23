@@ -41,7 +41,9 @@ const ServiceBoundMessage = Schema.String.pipe(
 );
 
 /** Mirrors firebase-functions: `json` parses on access and throws on bad data. */
-const makeEvent = (raw: string): CloudEvent<MessagePublishedData<unknown>> =>
+const makeEvent = <T = unknown>(
+  raw: string,
+): CloudEvent<MessagePublishedData<T>> =>
   ({
     data: {
       message: {
@@ -56,7 +58,7 @@ const makeEvent = (raw: string): CloudEvent<MessagePublishedData<unknown>> =>
         },
       },
     },
-  }) as unknown as CloudEvent<MessagePublishedData<unknown>>;
+  }) as unknown as CloudEvent<MessagePublishedData<T>>;
 
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 

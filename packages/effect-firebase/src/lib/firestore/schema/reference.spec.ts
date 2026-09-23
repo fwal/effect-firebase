@@ -253,16 +253,15 @@ describe('ReferenceId (typed)', () => {
       // This test verifies the Type is branded, not just string
       type AuthorRefType = typeof AuthorRef.Type;
 
-      // Type-level assertion: AuthorRefType should be assignable to AuthorId
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _typeCheck: AuthorRefType = '' as AuthorId;
+      // Type-level assertion: AuthorId should be assignable to AuthorRefType
+      const typeCheck: AuthorRefType = 'author-1' as AuthorId;
 
       // If ReferenceId erased the type to string, this would be:
       // type AuthorRefType = string
       // And the above assignment would still work, but the reverse wouldn't
       // (can't assign string to branded type without cast)
 
-      expect(true).toBe(true); // Runtime passes, type check is compile-time
+      expect(typeCheck).toBe('author-1'); // Runtime passes, type check is compile-time
     });
   });
 
