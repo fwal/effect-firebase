@@ -37,7 +37,7 @@
   },
   "peerDependencies": {
     "@effect-firebase/mock": "workspace:*",
-    "effect": "catalog:",
+    "effect": "catalog:peer",
     "react": ">=18.0.0"
   },
   "publishConfig": {

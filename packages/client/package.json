@@ -34,7 +34,7 @@
     "firebase": "catalog:"
   },
   "peerDependencies": {
-    "effect": "catalog:",
+    "effect": "catalog:peer",
     "effect-firebase": "workspace:*",
     "firebase": "catalog:"
   },

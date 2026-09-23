@@ -34,7 +34,7 @@
     "effect": "catalog:"
   },
   "peerDependencies": {
-    "effect": "catalog:"
+    "effect": "catalog:peer"
   },
   "publishConfig": {
     "access": "public",
