@@ -4,10 +4,10 @@ packages:
   - tests
 
 catalog:
-  '@effect/atom-react': 4.0.0-rc.115
-  '@effect/platform-browser': 4.0.0-rc.115
-  '@effect/vitest': 4.0.0-rc.115
-  effect: 4.0.0-rc.115
+  '@effect/atom-react': 4.0.0-rc.117
+  '@effect/platform-browser': 4.0.0-rc.117
+  '@effect/vitest': 4.0.0-rc.117
+  effect: 4.0.0-rc.117
   express: ^5.2.1
   firebase: ^12.18.0
   firebase-admin: ^14.3.0
