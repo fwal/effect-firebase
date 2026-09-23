@@ -17,6 +17,20 @@ interface ReferenceShape {
   readonly parent?: ReferenceShape;
 }
 
+/** Filters shared by the `Reference` class and its JSON representation. */
+const referenceChecks = [
+  Schema.makeFilter(
+    ({ path }: { readonly path: string }) =>
+      isPathValid(path) ||
+      'Path must not be empty and must contain an even number of parts',
+  ),
+  Schema.makeFilter(
+    ({ id, path }: { readonly id: string; readonly path: string }) =>
+      id === (path.split('/').pop() ?? '') ||
+      'Id must match the last part of the path',
+  ),
+] as const;
+
 /** Type-level brand so `Reference` is matched nominally, not by field shape. */
 export const ReferenceTypeId: unique symbol = Symbol.for(
   'effect-firebase/Reference',
@@ -31,18 +45,7 @@ export class Reference extends Schema.Class<Reference>('Reference')(
     parent: Schema.optional(
       Schema.suspend((): Schema.Codec<ReferenceShape> => Reference),
     ),
-  }).check(
-    Schema.makeFilter(
-      ({ path }) =>
-        isPathValid(path) ||
-        'Path must not be empty and must contain an even number of parts',
-    ),
-    Schema.makeFilter(
-      ({ id, path }) =>
-        id === (path.split('/').pop() ?? '') ||
-        'Id must match the last part of the path',
-    ),
-  ),
+  }).check(...referenceChecks),
 ) {
   declare readonly [ReferenceTypeId]: typeof ReferenceTypeId;
 
@@ -75,8 +78,12 @@ export const ReferenceInstance = Schema.instanceOf(Reference, {
   representation: { id: 'effect-firebase/Reference', payload: null },
   toCodecJson: () =>
     Schema.link<Reference>()(
-      Schema.Struct({ id: Schema.String, path: Schema.String }),
+      Schema.Struct({ id: Schema.String, path: Schema.String }).check(
+        ...referenceChecks,
+      ),
       {
+        // `path` is validated by the checks above, so `makeFromPath` cannot
+        // throw here; `id` is guaranteed to equal the last path segment.
         decode: SchemaGetter.transform(({ path }) =>
           Reference.makeFromPath(path),
         ),

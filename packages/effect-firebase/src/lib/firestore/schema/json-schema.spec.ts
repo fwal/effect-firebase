@@ -97,4 +97,14 @@ describe('JSON Schema generation', () => {
     expect(decoded).toBeInstanceOf(FirestoreSchema.Reference);
     expect(decoded.parent?.path).toBe('a/b');
   });
+
+  it('reference json codec rejects an id that does not match the path', () => {
+    const ref = Schema.toCodecJson(FirestoreSchema.ReferenceInstance);
+    expect(() =>
+      Schema.decodeSync(ref)({ id: 'wrong', path: 'users/doc123' }),
+    ).toThrow(/Id must match the last part of the path/);
+    expect(() => Schema.decodeSync(ref)({ id: 'a', path: 'a' })).toThrow(
+      /even number of parts/,
+    );
+  });
 });
