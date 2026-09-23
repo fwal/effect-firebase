@@ -129,7 +129,7 @@ await runCallable(chat, { prompt: 'hi' }); // non-streaming client, final `data`
 // full control over auth/app/rawRequest
 streamCallable(
   chat,
-  makeCallableRequest({ prompt: 'hi' }, { auth: { uid: 'u1', token } }),
+  makeCallableRequest({ prompt: 'hi' }, { auth: { uid: 'u1', token, rawToken: 'raw' } }),
 );
 ```
 
@@ -261,7 +261,7 @@ import { Data, ErrorReporter } from 'effect';
 class RejectedError extends Data.TaggedError('RejectedError')<{
   readonly reason: string;
 }> {
-  readonly [ErrorReporter.ignore] = true;
+  override readonly [ErrorReporter.ignore] = true;
 }
 ```
 
