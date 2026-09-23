@@ -383,7 +383,7 @@ inside a transaction).
   fields now stays within Firestore's valid range (years 0001–9999), so
   property tests and generated fixtures produce storable dates.
 - **JSON Schema annotations.** The sentinel and Firestore type schemas carry
-  `jsonSchema` annotations, so models can be turned into JSON Schema and
+  `toCodecJson` annotations, so models can be turned into JSON Schema and
   their `json*` variants round-trip through `JSON.stringify`/`JSON.parse`.
 
 ### 10. Query additions
