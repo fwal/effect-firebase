@@ -72,14 +72,20 @@ export class Reference extends Schema.Class<Reference>('Reference')(
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
 export const ReferenceInstance = Schema.instanceOf(Reference, {
-  jsonSchema: {
-    type: 'object',
-    required: ['id', 'path'],
-    properties: {
-      id: { type: 'string' },
-      path: { type: 'string' },
-    },
-  },
+  representation: { id: 'effect-firebase/Reference', payload: null },
+  toCodecJson: () =>
+    Schema.link<Reference>()(
+      Schema.Struct({ id: Schema.String, path: Schema.String }),
+      {
+        decode: SchemaGetter.transform(({ path }) =>
+          Reference.makeFromPath(path),
+        ),
+        encode: SchemaGetter.transform((ref: Reference) => ({
+          id: ref.id,
+          path: ref.path,
+        })),
+      },
+    ),
 });
 
 /**

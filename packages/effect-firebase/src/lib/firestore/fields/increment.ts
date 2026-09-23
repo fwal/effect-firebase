@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Schema, SchemaGetter } from 'effect';
 
 /**
  * Represents an increment operation. This will atomically increment (or
@@ -16,12 +16,21 @@ export class Increment {
 }
 
 export const IncrementInstance = Schema.instanceOf(Increment, {
-  jsonSchema: {
-    type: 'object',
-    required: ['operand'],
-    properties: { operand: { type: 'number' } },
-    additionalProperties: false,
-  },
+  representation: { id: 'effect-firebase/Increment', payload: null },
+  toCodecJson: () =>
+    Schema.link<Increment>()(
+      Schema.Struct({
+        _tag: Schema.Literal('Increment'),
+        operand: Schema.Number,
+      }),
+      {
+        decode: SchemaGetter.transform(({ operand }) => new Increment(operand)),
+        encode: SchemaGetter.transform((i: Increment) => ({
+          _tag: 'Increment' as const,
+          operand: i.operand,
+        })),
+      },
+    ),
 });
 
 /** Atomically increment a numeric field by the given operand. */

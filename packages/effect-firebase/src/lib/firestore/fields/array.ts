@@ -13,12 +13,21 @@ export class ArrayUnion {
   constructor(public readonly values: readonly unknown[]) {}
 }
 export const ArrayUnionInstance = Schema.instanceOf(ArrayUnion, {
-  jsonSchema: {
-    type: 'object',
-    required: ['values'],
-    properties: { values: { type: 'array' } },
-    additionalProperties: false,
-  },
+  representation: { id: 'effect-firebase/ArrayUnion', payload: null },
+  toCodecJson: () =>
+    Schema.link<ArrayUnion>()(
+      Schema.Struct({
+        _tag: Schema.Literal('ArrayUnion'),
+        values: Schema.Array(Schema.Unknown),
+      }),
+      {
+        decode: SchemaGetter.transform(({ values }) => new ArrayUnion(values)),
+        encode: SchemaGetter.transform((s: ArrayUnion) => ({
+          _tag: 'ArrayUnion' as const,
+          values: s.values,
+        })),
+      },
+    ),
 });
 
 /**
@@ -35,12 +44,21 @@ export class ArrayRemove {
 }
 
 export const ArrayRemoveInstance = Schema.instanceOf(ArrayRemove, {
-  jsonSchema: {
-    type: 'object',
-    required: ['values'],
-    properties: { values: { type: 'array' } },
-    additionalProperties: false,
-  },
+  representation: { id: 'effect-firebase/ArrayRemove', payload: null },
+  toCodecJson: () =>
+    Schema.link<ArrayRemove>()(
+      Schema.Struct({
+        _tag: Schema.Literal('ArrayRemove'),
+        values: Schema.Array(Schema.Unknown),
+      }),
+      {
+        decode: SchemaGetter.transform(({ values }) => new ArrayRemove(values)),
+        encode: SchemaGetter.transform((s: ArrayRemove) => ({
+          _tag: 'ArrayRemove' as const,
+          values: s.values,
+        })),
+      },
+    ),
 });
 
 /**

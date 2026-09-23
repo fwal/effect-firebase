@@ -1,4 +1,11 @@
-import { DateTime, Effect, Schema, SchemaGetter, SchemaIssue } from 'effect';
+import {
+  DateTime,
+  Effect,
+  Schema,
+  SchemaGetter,
+  SchemaIssue,
+  SchemaTransformation,
+} from 'effect';
 
 /**
  * Class representing a Timestamp in Firestore.
@@ -44,15 +51,20 @@ export class Timestamp extends Schema.Class<Timestamp>('Timestamp')({
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
 export const TimestampInstance = Schema.instanceOf(Timestamp, {
-  jsonSchema: {
-    type: 'object',
-    required: ['seconds', 'nanoseconds'],
-    properties: {
-      seconds: { type: 'number' },
-      nanoseconds: { type: 'number' },
-    },
-    additionalProperties: false,
-  },
+  representation: { id: 'effect-firebase/Timestamp', payload: null },
+  toCodecJson: () =>
+    Schema.link<Timestamp>()(
+      Schema.Struct({ seconds: Schema.Number, nanoseconds: Schema.Number }),
+      {
+        decode: SchemaGetter.transform(
+          ({ seconds, nanoseconds }) => new Timestamp({ seconds, nanoseconds }),
+        ),
+        encode: SchemaGetter.transform((ts: Timestamp) => ({
+          seconds: ts.seconds,
+          nanoseconds: ts.nanoseconds,
+        })),
+      },
+    ),
 });
 
 /**
@@ -81,7 +93,17 @@ export class ServerTimestamp extends Schema.Class<ServerTimestamp>(
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
 export const ServerTimestampInstance = Schema.instanceOf(ServerTimestamp, {
-  jsonSchema: { type: 'object', additionalProperties: false },
+  representation: { id: 'effect-firebase/ServerTimestamp', payload: null },
+  toCodecJson: () =>
+    Schema.link<ServerTimestamp>()(
+      Schema.Struct({ _tag: Schema.Literal('ServerTimestamp') }),
+      {
+        decode: SchemaGetter.transform(() => new ServerTimestamp()),
+        encode: SchemaGetter.transform(() => ({
+          _tag: 'ServerTimestamp' as const,
+        })),
+      },
+    ),
 });
 
 export const AnyTimestampDateTimeUtc = Schema.Union([
@@ -105,4 +127,26 @@ export const AnyTimestampDateTimeUtc = Schema.Union([
       Timestamp.fromMillis(DateTime.toEpochMillis(dt)),
     ),
   }),
+);
+
+/**
+ * JSON-side schema for date-time fields: an ISO 8601 UTC string decoded to
+ * `DateTime.Utc`.
+ *
+ * Unlike `Schema.DateTimeUtcFromString`, the `format`/`description`
+ * annotations live on the encoded `String` side, so they survive
+ * `Schema.toJsonSchemaDocument` (which lowers to the encoded side and drops
+ * annotations placed on the `DateTime.Utc` declaration). To customise the
+ * description, annotate the encoded side too:
+ * `Schema.String.annotate({ description }).pipe(Schema.decodeTo(Schema.DateTimeUtc, SchemaTransformation.dateTimeUtcFromString))`.
+ */
+export const DateTimeUtcFromString = Schema.String.annotate({
+  format: 'date-time',
+  description: 'ISO 8601 UTC date-time',
+  expected: 'a string that will be decoded as a DateTime.Utc',
+}).pipe(
+  Schema.decodeTo(
+    Schema.DateTimeUtc,
+    SchemaTransformation.dateTimeUtcFromString,
+  ),
 );
