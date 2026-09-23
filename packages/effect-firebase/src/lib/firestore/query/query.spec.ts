@@ -124,7 +124,7 @@ describe('Query', () => {
   describe('addOrderByDocumentId', () => {
     it('appends after existing constraints for cursor tiebreaking', () => {
       const query = pipe(
-        Query.orderBy('createdAt', 'desc'),
+        Query.orderBy<typeof PostModel>('createdAt', 'desc'),
         Query.addOrderByDocumentId('desc'),
         Query.addStartAfter('ts-value', 'doc-id'),
         Query.addLimit(10),

@@ -1,5 +1,5 @@
 import type { Stream } from 'effect';
-import { AsyncResult, Atom } from 'effect/unstable/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/unstable/reactivity';
 
 /**
  * The value exposed by a paginated query atom.
@@ -47,7 +47,7 @@ export const makePaginatedQueryAtom = <R, ER, A, E>(
     readonly pageSize: number;
     readonly stream: (
       limit: number,
-    ) => Stream.Stream<ReadonlyArray<A>, E, R | Atom.AtomRegistry>;
+    ) => Stream.Stream<ReadonlyArray<A>, E, R | AtomRegistry.AtomRegistry>;
   },
 ) => {
   if (!Number.isSafeInteger(options.pageSize) || options.pageSize < 1) {

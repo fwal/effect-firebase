@@ -91,7 +91,7 @@ describe('onCallStreamEffect', () => {
 
     const request = makeCallableRequest(
       {},
-      { auth: { uid: 'user-1', token: {} as never } },
+      { auth: { uid: 'user-1', token: {} as never, rawToken: 'raw' } },
     );
     const result = await streamCallable(fn, request).data;
 
@@ -271,7 +271,7 @@ describe('onCallStreamEffect setup-error recovery', () => {
 class QuietError extends Data.TaggedError('QuietError')<{
   readonly reason: string;
 }> {
-  readonly [ErrorReporter.ignore] = true;
+  override readonly [ErrorReporter.ignore] = true;
 }
 
 class LoudError extends Data.TaggedError('LoudError')<{

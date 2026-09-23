@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import type { MockControllerShape } from '@effect-firebase/mock';
 import { MockDevtoolsPanel, type MockDevtoolsPanelProps } from './panel.js';
 
@@ -9,8 +9,8 @@ import { MockDevtoolsPanel, type MockDevtoolsPanelProps } from './panel.js';
  */
 export interface TanStackDevtoolsReactPlugin {
   readonly id?: string;
-  readonly name: ReactNode;
-  readonly render: ReactNode;
+  readonly name: string | ReactElement;
+  readonly render: ReactElement;
   readonly defaultOpen?: boolean;
 }
 

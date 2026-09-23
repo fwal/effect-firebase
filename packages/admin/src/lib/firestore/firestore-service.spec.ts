@@ -492,8 +492,8 @@ describe('FirestoreService (admin)', () => {
           Effect.flip(Stream.runCollect(fs.streamQueryGroup('a/b', []))),
         ),
       );
-      expect(fromEffect.code).toBe('invalid-argument');
-      expect(fromStream.code).toBe('invalid-argument');
+      expect(fromEffect).toMatchObject({ code: 'invalid-argument' });
+      expect(fromStream).toMatchObject({ code: 'invalid-argument' });
     });
 
     it('queries a collection group across parents', async () => {

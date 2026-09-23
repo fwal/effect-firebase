@@ -1,4 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from '@effect/vitest';
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+} from '@effect/vitest';
 import { Data, Effect, ErrorReporter, Layer, ManagedRuntime } from 'effect';
 import { logger } from 'firebase-functions';
 import { CallableRequest, HttpsError } from 'firebase-functions/https';
@@ -10,7 +17,7 @@ const runtime = ManagedRuntime.make(Layer.empty);
 class QuietError extends Data.TaggedError('QuietError')<{
   readonly reason: string;
 }> {
-  readonly [ErrorReporter.ignore] = true;
+  override readonly [ErrorReporter.ignore] = true;
 }
 
 class LoudError extends Data.TaggedError('LoudError')<{

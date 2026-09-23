@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "allowJs": false,
     "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,

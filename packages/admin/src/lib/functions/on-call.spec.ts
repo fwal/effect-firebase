@@ -83,9 +83,7 @@ describe('onCallEffect', () => {
           inputSchema: Input,
           outputSchema: Output,
           onSetupError: (error) =>
-            Effect.fail(
-              new HttpsError('failed-precondition', error.phase),
-            ),
+            Effect.fail(new HttpsError('failed-precondition', error.phase)),
         },
         (input) => Effect.succeed({ greeting: `Hello ${input.name}` }),
       );

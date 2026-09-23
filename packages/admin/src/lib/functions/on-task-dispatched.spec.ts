@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@effect/vitest';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { HttpsError } from 'firebase-functions/https';
-import { Request } from 'firebase-functions/v2/tasks';
+import { Request, TaskQueueFunction } from 'firebase-functions/v2/tasks';
 import { type Response } from 'express';
 import { onTaskDispatchedEffect } from './on-task-dispatched.js';
 import { FunctionSetupError } from './setup-error.js';
@@ -22,6 +22,17 @@ const Task = Schema.Struct({ amount: Schema.Number });
  * skips the SDK's bearer-token check inside `onDispatchHandler`, so the
  * fake request needs no `Authorization` header.
  */
+/**
+ * Drive the SDK's HTTP boundary. `TaskQueueFunction` is typed as an
+ * `HttpsFunction` taking an `https.Request`, but `onDispatchHandler` only
+ * reads the fields a task `Request` shares with it.
+ */
+const dispatch = (
+  fn: TaskQueueFunction,
+  request: Request,
+  response: Response,
+) => fn(request as unknown as Parameters<TaskQueueFunction>[0], response);
+
 const makeRequest = (data: unknown): Request => {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -92,7 +103,7 @@ describe('onTaskDispatchedEffect', () => {
     );
 
     const { response, sent } = makeResponse();
-    await fn(makeRequest({ amount: 5 }), response);
+    await dispatch(fn, makeRequest({ amount: 5 }), response);
 
     expect(handlerRan).toBe(true);
     expect(sent.status).toBe(204);
@@ -106,7 +117,7 @@ describe('onTaskDispatchedEffect', () => {
     );
 
     const { response, sent } = makeResponse();
-    await fn(makeRequest({ amount: 5 }), response);
+    await dispatch(fn, makeRequest({ amount: 5 }), response);
 
     // A plain Error (not an HttpsError) is wrapped as `internal` -> 500, a
     // 5XX retry-class failure under the Cloud Tasks HTTP-target contract.
@@ -121,7 +132,7 @@ describe('onTaskDispatchedEffect', () => {
     );
 
     const { response, sent } = makeResponse();
-    await fn(makeRequest({ amount: 5 }), response);
+    await dispatch(fn, makeRequest({ amount: 5 }), response);
 
     // `unavailable` -> 503, a 5XX retry-class failure -> retried.
     expect(sent.status).toBe(503);
@@ -147,7 +158,7 @@ describe('onTaskDispatchedEffect', () => {
     );
 
     const { response, sent } = makeResponse();
-    await fn(makeRequest({ amount: 'not-a-number' }), response);
+    await dispatch(fn, makeRequest({ amount: 'not-a-number' }), response);
 
     expect(handlerRan).toBe(false);
     expect(setupError?.phase).toBe('decode-task');
@@ -166,7 +177,7 @@ describe('onTaskDispatchedEffect', () => {
     );
 
     const { response, sent } = makeResponse();
-    await fn(makeRequest({ amount: 'not-a-number' }), response);
+    await dispatch(fn, makeRequest({ amount: 'not-a-number' }), response);
 
     expect(sent.status).toBe(500);
     expect(sent.ended).toBe(true);
