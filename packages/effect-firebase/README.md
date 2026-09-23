@@ -86,7 +86,7 @@ repo.getByQueryStream(constraints); // Stream<Option<Post>>
 repo.group.query(constraints); // same four query methods over the collection group
 ```
 
-All methods fail with `ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError`.
+All methods fail with `Firestore.ModelError = FirestoreError | UnknownError | NoSuchElementError | SchemaError` (exported as a type alias for use in your own signatures).
 
 ### Collection groups
 

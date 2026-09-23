@@ -13,14 +13,14 @@ export type DateTime = VariantSchema.Field<{
   select: typeof FirestoreSchema.TimestampDateTimeUtc;
   insert: typeof FirestoreSchema.TimestampDateTimeUtc;
   update: typeof FirestoreSchema.TimestampDateTimeUtc;
-  json: typeof Schema.DateTimeUtcFromString;
+  json: typeof FirestoreSchema.DateTimeUtcFromString;
 }>;
 
 export const DateTime: DateTime = Model.Field({
   select: FirestoreSchema.TimestampDateTimeUtc,
   insert: FirestoreSchema.TimestampDateTimeUtc,
   update: FirestoreSchema.TimestampDateTimeUtc,
-  json: Schema.DateTimeUtcFromString,
+  json: FirestoreSchema.DateTimeUtcFromString,
 });
 
 /**
@@ -70,20 +70,20 @@ export type ServerDateTime = VariantSchema.Field<{
   select: typeof FirestoreSchema.AnyTimestampDateTimeUtc;
   insert: typeof ServerDateTimeSchema;
   update: typeof ServerDateTimeSchema;
-  json: typeof Schema.DateTimeUtcFromString;
+  json: typeof FirestoreSchema.DateTimeUtcFromString;
 }>;
 
 export const ServerDateTime: ServerDateTime = Model.Field({
   select: FirestoreSchema.AnyTimestampDateTimeUtc,
   insert: ServerDateTimeSchema,
   update: ServerDateTimeSchema,
-  json: Schema.DateTimeUtcFromString,
+  json: FirestoreSchema.DateTimeUtcFromString,
 });
 
 export type DateTimeInsert = VariantSchema.Field<{
   select: typeof FirestoreSchema.TimestampDateTimeUtc;
   insert: typeof ServerDateTimeSchema;
-  json: typeof Schema.DateTimeUtcFromString;
+  json: typeof FirestoreSchema.DateTimeUtcFromString;
 }>;
 
 /**
@@ -92,7 +92,7 @@ export type DateTimeInsert = VariantSchema.Field<{
 export const DateTimeInsert: DateTimeInsert = Model.Field({
   select: FirestoreSchema.TimestampDateTimeUtc,
   insert: ServerDateTimeSchema,
-  json: Schema.DateTimeUtcFromString,
+  json: FirestoreSchema.DateTimeUtcFromString,
 });
 
 /**
@@ -165,7 +165,7 @@ export type DateTimeUpdate = VariantSchema.Field<{
   select: typeof FirestoreSchema.TimestampDateTimeUtc;
   insert: typeof ServerDateTimeSchema;
   update: typeof ServerDateTimeSchema;
-  json: typeof Schema.DateTimeUtcFromString;
+  json: typeof FirestoreSchema.DateTimeUtcFromString;
 }>;
 
 /**
@@ -175,5 +175,5 @@ export const DateTimeUpdate: DateTimeUpdate = Model.Field({
   select: FirestoreSchema.TimestampDateTimeUtc,
   insert: ServerDateTimeSchema,
   update: ServerDateTimeSchema,
-  json: Schema.DateTimeUtcFromString,
+  json: FirestoreSchema.DateTimeUtcFromString,
 });

@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Schema, SchemaGetter } from 'effect';
 
 /**
  * Class representing a GeoPoint in Firestore.
@@ -19,12 +19,18 @@ export class GeoPoint extends Schema.Class<GeoPoint>('GeoPoint')({
  * Using instanceOf ensures the class instance is preserved through Schema.encode.
  */
 export const GeoPointInstance = Schema.instanceOf(GeoPoint, {
-  jsonSchema: {
-    type: 'object',
-    required: ['latitude', 'longitude'],
-    properties: {
-      latitude: { type: 'number' },
-      longitude: { type: 'number' },
-    },
-  },
+  representation: { id: 'effect-firebase/GeoPoint', payload: null },
+  toCodecJson: () =>
+    Schema.link<GeoPoint>()(
+      Schema.Struct({ latitude: Schema.Number, longitude: Schema.Number }),
+      {
+        decode: SchemaGetter.transform(
+          ({ latitude, longitude }) => new GeoPoint({ latitude, longitude }),
+        ),
+        encode: SchemaGetter.transform((g: GeoPoint) => ({
+          latitude: g.latitude,
+          longitude: g.longitude,
+        })),
+      },
+    ),
 });

@@ -37,7 +37,7 @@
     "firebase-functions": "catalog:"
   },
   "peerDependencies": {
-    "effect": "catalog:",
+    "effect": "catalog:peer",
     "effect-firebase": "workspace:*",
     "express": "catalog:",
     "firebase-admin": "catalog:",

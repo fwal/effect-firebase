@@ -58,8 +58,11 @@ gets published (`dist/`, `README.md`, `AGENTS.md`, `MIGRATION.md`).
 
 ## Conventions
 
-- **Effect v4 only.** Peer dependency range lives in `pnpm-workspace.yaml`
-  (`catalog:`). `@effect/atom-react` must be bumped in lockstep with `effect`.
+- **Effect v4 only.** Effect versions live in `pnpm-workspace.yaml`: the
+  default catalog (`catalog:`) pins the exact version used for dev installs,
+  and the `peer` catalog (`catalog:peer`) holds the range published in
+  `peerDependencies`. Bump both together. `@effect/atom-react` must be
+  bumped in lockstep with `effect`.
 - **Model helpers split:** generic helpers (`Model.Class`, `GeneratedByDb`,
   `Field`, `fieldEvolve`) come from `effect/unstable/schema`; anything
   Firestore-specific lives under the `Firestore` namespace in
