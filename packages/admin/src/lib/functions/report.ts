@@ -19,7 +19,7 @@ import { HttpsError } from 'firebase-functions/https';
  * class RejectedError extends Data.TaggedError('RejectedError')<{
  *   readonly reason: string;
  * }> {
- *   readonly [ErrorReporter.ignore] = true;
+ *   override readonly [ErrorReporter.ignore] = true;
  * }
  * ```
  *
