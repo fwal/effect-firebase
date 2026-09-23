@@ -15,6 +15,7 @@ export * from './model/number.js';
 // Repository factory
 export {
   makeRepository,
+  type ModelError,
   type Repository,
   type RepositoryQueries,
   type RepositoryQuery,
