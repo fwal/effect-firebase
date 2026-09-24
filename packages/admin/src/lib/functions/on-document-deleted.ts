@@ -14,6 +14,7 @@ import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
 import { FunctionSetupError } from './setup-error.js';
 import { recoverSetupError } from './recover-setup-error.js';
+import { isExpectedRejection } from './report.js';
 
 interface DocumentDeletedEffectOptions<
   R,
@@ -33,7 +34,10 @@ interface DocumentDeletedEffectOptions<
    */
   onSetupError?: (
     error: FunctionSetupError,
-    event: FirestoreEvent<QueryDocumentSnapshot | undefined, ParamsOf<Document>>,
+    event: FirestoreEvent<
+      QueryDocumentSnapshot | undefined,
+      ParamsOf<Document>
+    >,
   ) => Effect.Effect<void, never, R>;
 }
 
@@ -85,10 +89,14 @@ export function onDocumentDeletedEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
-      logger.error('Defect in onDocumentDeleted', {
-        inner: error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      // Expected rejections (an HttpsError, or any error annotated with
+      // ErrorReporter.ignore) are not logged as defects.
+      if (!isExpectedRejection(error)) {
+        logger.error('Defect in onDocumentDeleted', {
+          inner: error,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     });
   });
 }
@@ -142,10 +150,14 @@ export function onDocumentDeletedWithAuthContextEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
-      logger.error('Defect in onDocumentDeletedWithAuthContext', {
-        inner: error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      // Expected rejections (an HttpsError, or any error annotated with
+      // ErrorReporter.ignore) are not logged as defects.
+      if (!isExpectedRejection(error)) {
+        logger.error('Defect in onDocumentDeletedWithAuthContext', {
+          inner: error,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     });
   });
 }

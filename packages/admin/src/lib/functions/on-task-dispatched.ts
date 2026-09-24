@@ -8,6 +8,7 @@ import {
 import { logger } from 'firebase-functions';
 import { run, Runtime } from './run.js';
 import { FunctionSetupError } from './setup-error.js';
+import { isExpectedRejection } from './report.js';
 
 interface TaskDispatchedEffectOptions<R> extends TaskQueueOptions {
   runtime: Runtime<R>;
@@ -109,10 +110,16 @@ export function onTaskDispatchedEffect<R>(
     // inert on the handler-failure path.
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
-        logger.error('Defect in onTaskDispatched', {
-          inner: error,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        // Expected rejections (an HttpsError, or any error annotated with
+        // ErrorReporter.ignore) are not logged as defects. The error is always
+        // rethrown so the SDK answers non-2xx and Cloud Tasks' retryConfig
+        // applies regardless of whether the log is suppressed.
+        if (!isExpectedRejection(error)) {
+          logger.error('Defect in onTaskDispatched', {
+            inner: error,
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        }
         throw error;
       },
     );
