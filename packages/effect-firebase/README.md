@@ -36,20 +36,21 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
 
 Built-in field helpers:
 
-| Helper                                          | Behaviour                                                       |
-| ----------------------------------------------- | --------------------------------------------------------------- |
-| `Model.GeneratedByDb(schema)`                   | Auto-generated (e.g. IDs). Excluded from `insert` and `update`. |
-| `Firestore.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.             |
-| `Firestore.DateTimeUpdate`                      | Server timestamp on every write.                                |
-| `Firestore.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.            |
-| `Firestore.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.         |
-| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Firestore.delete()`.   |
-| `Firestore.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`.    |
-| `Firestore.Number`                              | Number field. Accepts `increment(n)` in `update`.               |
-| `Firestore.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.       |
-| `Firestore.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `insert` and `update`.      |
-| `Firestore.GeoPoint`                            | Geographic point with latitude and longitude.                   |
-| `Model.Field({ select, insert, update, json })` | Fully custom per-variant schemas.                               |
+| Helper                                          | Behaviour                                                                                                                                              |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Model.GeneratedByDb(schema)`                   | Auto-generated (e.g. IDs). Excluded from `insert` and `update`.                                                                                        |
+| `Firestore.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.                                                                                                    |
+| `Firestore.DateTimeUpdate`                      | Server timestamp on every write.                                                                                                                       |
+| `Firestore.ServerDateTimeSchema`                | Schema backing `DateTimeUpdate`/`ServerDateTime`. Exported so `makeRepository` keeps stamping those fields when their key is omitted from an `update`. |
+| `Firestore.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.                                                                                                   |
+| `Firestore.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.                                                                                                |
+| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Firestore.delete()`.                                                                                          |
+| `Firestore.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`.                                                                                           |
+| `Firestore.Number`                              | Number field. Accepts `increment(n)` in `update`.                                                                                                      |
+| `Firestore.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.                                                                                              |
+| `Firestore.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `insert` and `update`.                                                                                             |
+| `Firestore.GeoPoint`                            | Geographic point with latitude and longitude.                                                                                                          |
+| `Model.Field({ select, insert, update, json })` | Fully custom per-variant schemas.                                                                                                                      |
 
 ## Repository
 

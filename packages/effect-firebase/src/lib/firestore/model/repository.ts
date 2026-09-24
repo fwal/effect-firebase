@@ -1,10 +1,19 @@
-import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
+import {
+  Array as Arr,
+  Effect,
+  Option,
+  Schema,
+  SchemaIssue,
+  Stream,
+  Struct,
+} from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { collectionIdOf, validateCollectionId } from '../path.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
+import { ServerDateTimeSchema } from './datetime.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
 import {
@@ -514,16 +523,48 @@ export const makeRepository = <
 
     // Request schema for update: required id + partial data fields (all
     // optional). Encoded strictly, so an undeclared key fails with a
-    // SchemaError naming it instead of being dropped from the payload. Uses
-    // `Schema.optionalKey` (not `Schema.optional`) so an explicit
-    // `{ field: undefined }` fails the encoder with a `SchemaError` naming
-    // the field instead of being forwarded to Firestore, where the SDKs
-    // reject `undefined` at write time (AGENTS.md gotcha #11).
+    // SchemaError naming it instead of being dropped from the payload.
+    //
+    // The wrapping is per field: `Schema.optional` for a plain field so a
+    // missing input key stays missing in the encoded payload — an omitted
+    // field is left untouched, matching the documented contract ("Omit the key
+    // to leave a field untouched instead"). `Schema.optionalKey` would instead
+    // fill a missing key for a field whose `update` schema encodes
+    // `Option.none()` as a present `null` (the `Firestore.Optional` helper's
+    // `OptionFromOptionalNullOr({ onNoneEncoding: null })` arm), which makes
+    // `repo.update(id, { sibling: v })` silently write `null` to the omitted
+    // `Optional` field — clearing whatever was stored there.
+    //
+    // The exception is an auto-stamped field whose `update` variant is
+    // `ServerDateTimeSchema` (`Firestore.DateTimeUpdate`,
+    // `Firestore.ServerDateTime`). Its encoder turns a missing key into a
+    // `ServerTimestamp`, which is how `updatedAt` is documented to stamp on
+    // every write. `Schema.optional` would skip the encoder and drop the
+    // stamp, so these fields keep `Schema.optionalKey` to stay filled when
+    // omitted, preserving the auto-stamp. They are matched by reference
+    // against the exported `ServerDateTimeSchema` (the same schema instance
+    // `DateTimeUpdate`/`ServerDateTime` use), so `WithServerTimestamp` —
+    // which only stamps when explicitly requested — is left on `optional`.
+    //
+    // `Schema.optional` accepts an explicit `{ field: undefined }` value
+    // (encoding it as a missing key), so an explicit-undefined pre-check below
+    // rejects it with a `SchemaError` naming the field before encoding, instead
+    // of letting the Firebase SDKs reject `undefined` at write time with a less
+    // helpful error (AGENTS.md gotcha #11).
     const PartialDataSchema = (
       Model.update as Schema.Struct<Schema.Struct.Fields>
     )
       .mapFields(Struct.omit([options.idField as string]))
-      .mapFields(Struct.map(Schema.optionalKey));
+      .mapFields((fields) => {
+        const wrapped: Record<string, Schema.Struct.Fields[PropertyKey]> = {};
+        for (const [key, field] of Object.entries(fields)) {
+          wrapped[key] =
+            field === (ServerDateTimeSchema as unknown as typeof field)
+              ? Schema.optionalKey(field)
+              : Schema.optional(field);
+        }
+        return wrapped as Schema.Struct.Fields;
+      });
 
     const updateFieldsSchema = Schema.Struct({
       [options.idField]: idSchema,
@@ -533,6 +574,19 @@ export const makeRepository = <
       updateFieldsSchema,
       Fetch.strictEncoding,
     );
+
+    // An explicit `{ field: undefined }` is rejected before encoding. The
+    // `Schema.optional` wrapping would otherwise accept it (encoding it as a
+    // missing key), and Firestore rejects `undefined` as a value at write time
+    // with a less helpful error. The issue points at the offending key so the
+    // caller sees which field was at fault; the message echoes the documented
+    // remedy ("Omit the key to leave a field untouched instead" — see the
+    // `update` doc above). Built once: it carries no per-call data, only the
+    // key path which is added per call via `SchemaIssue.Pointer`.
+    const undefinedFieldIssue = new SchemaIssue.InvalidValue({
+      message:
+        'must not be `undefined`; omit the key to leave the field untouched',
+    });
 
     // A dotted key ('metaData.deleted') names a nested field. It resolves to
     // its leaf schema in Model.update and is encoded on its own, wrapped in a
@@ -578,6 +632,13 @@ export const makeRepository = <
         const fields: Record<string, unknown> = { [options.idField]: id };
         const paths: Array<readonly [string, unknown, LeafEncoder]> = [];
         for (const [key, value] of Object.entries(entries)) {
+          if (value === undefined) {
+            return yield* Effect.fail(
+              new Schema.SchemaError(
+                new SchemaIssue.Pointer([key], undefinedFieldIssue),
+              ),
+            );
+          }
           const encoder = isFieldPath(key) ? leafEncoder(key) : Option.none();
           if (Option.isSome(encoder)) {
             paths.push([key, value, encoder.value]);

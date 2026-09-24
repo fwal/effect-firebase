@@ -30,8 +30,12 @@ export const DateTime: DateTime = Model.Field({
  *
  * The key is optional on the decoded side, so callers can omit the field to
  * request the server timestamp.
+ *
+ * Exported so `makeRepository` can identify auto-stamped `update` fields
+ * (`Firestore.DateTimeUpdate`, `Firestore.ServerDateTime`) by reference and
+ * keep stamping them when their key is omitted from an update payload.
  */
-const ServerDateTimeSchema = Schema.Union([
+export const ServerDateTimeSchema = Schema.Union([
   FirestoreSchema.TimestampInstance,
   FirestoreSchema.ServerTimestampInstance,
 ]).pipe(
