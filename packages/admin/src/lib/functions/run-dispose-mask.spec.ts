@@ -357,6 +357,35 @@ describe('exported wrappers with a failing factory-form finalizer', () => {
         expect.anything(),
       );
     });
+
+    it('surfaces the stream failure and logs the disposal error separately when both the stream and disposal fail', async () => {
+      const fn = onCallStreamEffect(
+        { runtime: () => ManagedRuntime.make(FailingFinalizerLayer.die()) },
+        () =>
+          Stream.make('a', 'b', 'c').pipe(
+            Stream.concat(Stream.die('stream-boom')),
+          ),
+      );
+
+      const { stream, data } = streamCallable(fn, null);
+      const chunks: unknown[] = [];
+      for await (const chunk of stream) chunks.push(chunk);
+
+      // Chunks emitted before the failure were still delivered.
+      expect(chunks).toEqual(['a', 'b', 'c']);
+      // The stream's own error reaches the client; disposal did not mask it.
+      await expect(data).rejects.toBe('stream-boom');
+      // The stream's failure is logged as a defect...
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onCallStream',
+        expect.objectContaining({ inner: 'stream-boom' }),
+      );
+      // ...and the disposal error is logged separately, not swallowed.
+      expect(errorSpy).toHaveBeenCalledWith(
+        'ManagedRuntime.dispose failed',
+        expect.objectContaining({ error: 'cleanup-boom' }),
+      );
+    });
   });
 
   describe('onRequestEffect', () => {
