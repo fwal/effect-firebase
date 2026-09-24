@@ -72,10 +72,10 @@ export class PostModel extends Model.Class<PostModel>('PostModel')({
   updatedAt: Firestore.DateTimeUpdate, // server timestamp on insert and update
   author: Firestore.Reference(AuthorId, 'authors'), // DocumentReference in DB, branded id in app
   title: Schema.String,
-  status: Schema.Literals(['draft', 'published']),
+  status: Schema.Literal('draft', 'published'),
   likes: Firestore.Number, // accepts Firestore.increment(n) in update
   tags: Firestore.Array(Schema.String), // accepts arrayUnion/arrayRemove in update
-  summary: Firestore.OptionalDeletable(Schema.String), // Option in app; Option.some(Firestore.delete()) removes it
+  summary: Firestore.OptionalDeletable(Schema.String), // Option in app; Firestore.delete() removes it
   subtitle: Schema.optionalKey(Schema.String), // plain `string | absent`; prefer over Schema.optional
   checked: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
@@ -91,20 +91,21 @@ Variants: `PostModel` (alias `.select`, what reads decode to), `.insert`,
 
 Field helpers (all under `Firestore.` unless noted):
 
-| Helper                                                   | Notes                                                                                                                                                                                                           |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/schema`. DB-generated ids vs app-generated ids.                                                                                                                                                    |
-| `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                                             |
-| `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                                                    |
-| `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                                             |
-| `Reference(id, path)`, `ReferenceOptional(id, path)`     | Typed reference exposed as branded id.                                                                                                                                                                          |
-| `ReferenceAsInstance(id, path)`, `ReferencePath(path)`   | Expose `FirestoreSchema.Reference` instance / full path string.                                                                                                                                                 |
-| `AnyIdReference`, `AnyPathReference`                     | Untyped references. `AnyIdReference` is read-only (id string on `select`/JSON; omitted from insert/update — a bare id has no collection path). Use `AnyPathReference` for untyped references you need to write. |
-| `Optional(s)`, `OptionalNull(s)`, `OptionalDeletable(s)` | `Option` in app. `Optional` reads a missing key/null/undefined and writes `null`; `OptionalNull` only null; `OptionalDeletable` omits the key and supports `Option.some(Firestore.delete())` in update.         |
-| `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                                                 |
-| `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                                             |
-| `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                                                  |
-| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/schema`).                                                                                                                                                        |
+| Helper                                                   | Notes                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/schema`. DB-generated ids vs app-generated ids.                                                                                                                                                                                         |
+| `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                                                                                  |
+| `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                                                                                         |
+| `ServerDateTimeSchema`                                   | The schema backing `DateTimeUpdate`/`ServerDateTime` `insert`/`update`; exported so `makeRepository` can keep stamping those fields when their key is omitted from `update`. User code rarely references it directly.                               |
+| `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                                                                                 |
+| `Reference(id, path)`, `ReferenceOptional(id, path)`     | Typed reference exposed as branded id.                                                                                                                                                                                                                |
+| `ReferenceAsInstance(id, path)`, `ReferencePath(path)`   | Expose `FirestoreSchema.Reference` instance / full path string.                                                                                                                                                                                      |
+| `AnyIdReference`, `AnyPathReference`                     | Untyped references. `AnyIdReference` is read-only (id string on `select`/JSON; omitted from insert/update — a bare id has no collection path). Use `AnyPathReference` for untyped references you need to write.                                    |
+| `Optional(s)`, `OptionalNull(s)`, `OptionalDeletable(s)` | `Option` in app. `Optional` reads a missing key/null/undefined and writes `null`; `OptionalNull` only null; `OptionalDeletable` omits the key and supports `Firestore.delete()` in update.                                                          |
+| `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                                                                                      |
+| `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                                                                                  |
+| `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                                                                                       |
+| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/schema`).                                                                                                                                                                                              |
 
 ## Create a repository
 
@@ -284,7 +285,7 @@ yield *
   repo.update(id, {
     likes: Firestore.increment(1),
     tags: Firestore.arrayUnion(['effect']),
-    summary: Option.some(Firestore.delete()),
+    summary: Firestore.delete(),
     lastSeenAt: Firestore.serverTimestamp(), // field declared with WithServerTimestamp
   });
 ```
@@ -345,11 +346,15 @@ const testLayer = mockLayer({
   states: { comments: 'loading' },
   latency: '200 millis',
 });
+
+// Compose with repositories
+const AppLayer = Layer.mergeAll(PostRepository, AuthorRepository).pipe(
+  Layer.provideMerge(adminLayer),
+);
 ```
 
-Repositories are `Effect`s, not `Layer`s: `yield* PostRepository` inside your
-program and provide only the `FirestoreService` layer (Admin, Client or mock).
-Wrap in `Layer.effect(Tag, PostRepository)` if you want a service tag.
+Repositories are `Effect`s, not `Layer`s: run them with `Effect.provide(PostRepository)`
+or wrap in `Layer.effect(Tag, PostRepository)` if you want a service tag.
 
 ## Cloud Functions (`@effect-firebase/admin`)
 
@@ -385,7 +390,7 @@ export const createPost = onCallEffect(
         status: 'draft',
       });
       return { id };
-    }),
+    }).pipe(Effect.provide(PostRepository)),
 );
 
 export const onPostCreated = onDocumentCreatedEffect(
@@ -463,7 +468,11 @@ it('lists posts', () =>
     const all = yield* repo.query(Query.empty());
     expect(all).toHaveLength(1);
     yield* (yield* MockController).setState('posts', 'error'); // reads now fail
-  }).pipe(Effect.provide(layer({ fixtures: [posts] })), Effect.runPromise));
+  }).pipe(
+    Effect.provide(PostRepository),
+    Effect.provide(layer({ fixtures: [posts] })),
+    Effect.runPromise,
+  ));
 ```
 
 - `layer()` builds a fresh store per layer build; Effect memoises layers, so
@@ -555,6 +564,11 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
     schema, and the Firebase SDKs reject `undefined` as a value at write
     time. `optionalKey` fails with `SchemaError` instead. For a default,
     `Schema.optionalKey(s).pipe(Schema.withDecodingDefault(Effect.succeed(v)))`.
+    (`makeRepository.update`'s own encoder is the exception: it wraps plain
+    update fields in `Schema.optional` so an omitted key stays missing from the
+    payload — the "omit the key to leave the field untouched" contract — and
+    rejects an explicit `undefined` itself before encoding. This gotcha is
+    about fields you author on your own models.)
 12. JSON Schema (`Schema.toJsonSchemaDocument`): use the `json` variant
     (`Model.json`) for LLM tool schemas. DB variants lower `GeoPoint`,
     `Reference`, `Timestamp` and the sentinels through their `toCodecJson`
