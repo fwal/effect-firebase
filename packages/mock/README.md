@@ -193,7 +193,7 @@ Firestore stores and normalizes `NaN`, and the mock follows its semantics:
 ## Limitations
 
 - In-memory only — no persistence between process restarts
-- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, `not-in`/`!=` null semantics are simplified, and a `NaN` query _operand_ such as `where('v', '<', NaN)` is not validated — real Firestore rejects it with `invalid-argument`, the mock returns an empty/ordered result; only `NaN` field-value semantics are emulated)
+- Queries are evaluated in-process — behaviour may differ from real Firestore for edge cases (composite index requirements are not enforced, and a `NaN` query _operand_ such as `where('v', '<', NaN)` is not validated — real Firestore rejects it with `invalid-argument`, the mock returns an empty/ordered result; only `NaN` field-value semantics are emulated)
 - Simulated states are keyed per collection path (or the `'*'` wildcard), not per query; collection group queries resolve their state by collection ID
 - No security rules evaluation
 - `withTransaction` and `withBatch` run the effect directly — no retries, no rollback, and no staged writes
