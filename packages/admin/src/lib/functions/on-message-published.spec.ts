@@ -1,16 +1,37 @@
-import { describe, expect, it } from '@effect/vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from '@effect/vitest';
 import {
   Context,
+  Data,
   Effect,
+  ErrorReporter,
   Layer,
   ManagedRuntime,
   Schema,
   SchemaGetter,
 } from 'effect';
 import { CloudEvent } from 'firebase-functions/v2';
+import { logger } from 'firebase-functions';
+import { HttpsError } from 'firebase-functions/https';
 import { MessagePublishedData } from 'firebase-functions/v2/pubsub';
 import { onMessagePublishedEffect } from './on-message-published.js';
 import { FunctionSetupError } from './setup-error.js';
+
+class QuietError extends Data.TaggedError('QuietError')<{
+  readonly reason: string;
+}> {
+  override readonly [ErrorReporter.ignore] = true;
+}
+
+class LoudError extends Data.TaggedError('LoudError')<{
+  readonly reason: string;
+}> {}
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
@@ -180,6 +201,53 @@ describe('onMessagePublishedEffect', () => {
         makeEvent(b64('"hello"')) as CloudEvent<MessagePublishedData<string>>,
       );
       expect(seen).toBe('HELLO');
+    });
+  });
+
+  describe('defect logging (expected rejections)', () => {
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      errorSpy.mockRestore();
+    });
+
+    it('does not log an HttpsError as a defect', async () => {
+      const fn = onMessagePublishedEffect({ runtime, topic: 't' }, () =>
+        Effect.fail(new HttpsError('unavailable', 'downstream 503')),
+      );
+
+      // The background-trigger wrapper swallows after (guarded) logging, so
+      // the call resolves rather than rejecting.
+      await fn.run(makeEvent(b64('{}')));
+
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not log an ErrorReporter.ignore-annotated error as a defect', async () => {
+      const fn = onMessagePublishedEffect({ runtime, topic: 't' }, () =>
+        Effect.fail(new QuietError({ reason: 'expected' })),
+      );
+
+      await fn.run(makeEvent(b64('{}')));
+
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('logs an unannotated error as a defect', async () => {
+      const fn = onMessagePublishedEffect({ runtime, topic: 't' }, () =>
+        Effect.fail(new LoudError({ reason: 'unexpected' })),
+      );
+
+      await fn.run(makeEvent(b64('{}')));
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onMessagePublished',
+        expect.objectContaining({ inner: expect.any(LoudError) }),
+      );
     });
   });
 });
