@@ -1,10 +1,37 @@
-import { afterAll, beforeAll, describe, expect, it } from '@effect/vitest';
-import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from '@effect/vitest';
+import {
+  Data,
+  Effect,
+  ErrorReporter,
+  Layer,
+  ManagedRuntime,
+  Schema,
+} from 'effect';
+import { logger } from 'firebase-functions';
 import { HttpsError } from 'firebase-functions/https';
 import { Request, TaskQueueFunction } from 'firebase-functions/v2/tasks';
 import { type Response } from 'express';
 import { onTaskDispatchedEffect } from './on-task-dispatched.js';
 import { FunctionSetupError } from './setup-error.js';
+
+class QuietError extends Data.TaggedError('QuietError')<{
+  readonly reason: string;
+}> {
+  override readonly [ErrorReporter.ignore] = true;
+}
+
+class LoudError extends Data.TaggedError('LoudError')<{
+  readonly reason: string;
+}> {}
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
@@ -181,5 +208,84 @@ describe('onTaskDispatchedEffect', () => {
 
     expect(sent.status).toBe(500);
     expect(sent.ended).toBe(true);
+  });
+
+  describe('defect logging (expected rejections)', () => {
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      errorSpy.mockRestore();
+    });
+
+    it('does not log an HttpsError as a defect but still rethrows it for retry', async () => {
+      const fn = onTaskDispatchedEffect(
+        { runtime, schema: Task, retryConfig: { maxAttempts: 5 } },
+        () => Effect.fail(new HttpsError('unavailable', 'downstream 503')),
+      );
+
+      const { response, sent } = makeResponse();
+      await dispatch(fn, makeRequest({ amount: 5 }), response);
+
+      // `unavailable` -> 503, a 5XX retry-class failure, rethrown for Cloud
+      // Tasks but no longer logged as a defect.
+      expect(sent.status).toBe(503);
+      expect(sent.ended).toBe(true);
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not log an ErrorReporter.ignore-annotated error as a defect but still rethrows it', async () => {
+      const fn = onTaskDispatchedEffect(
+        { runtime, schema: Task, retryConfig: { maxAttempts: 5 } },
+        () => Effect.fail(new QuietError({ reason: 'expected' })),
+      );
+
+      const { response, sent } = makeResponse();
+      await dispatch(fn, makeRequest({ amount: 5 }), response);
+
+      // Not an HttpsError: the SDK maps a plain Error to `internal` -> 500.
+      expect(sent.status).toBe(500);
+      expect(sent.ended).toBe(true);
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('logs an unannotated error as a defect and still rethrows it', async () => {
+      const fn = onTaskDispatchedEffect(
+        { runtime, schema: Task, retryConfig: { maxAttempts: 5 } },
+        () => Effect.fail(new LoudError({ reason: 'unexpected' })),
+      );
+
+      const { response, sent } = makeResponse();
+      await dispatch(fn, makeRequest({ amount: 5 }), response);
+
+      expect(sent.status).toBe(500);
+      expect(sent.ended).toBe(true);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onTaskDispatched',
+        expect.objectContaining({ inner: expect.any(LoudError) }),
+      );
+    });
+
+    it('logs a die defect as a defect and still rethrows it', async () => {
+      const fn = onTaskDispatchedEffect(
+        { runtime, schema: Task, retryConfig: { maxAttempts: 5 } },
+        () => Effect.die(new LoudError({ reason: 'crashed' })),
+      );
+
+      const { response, sent } = makeResponse();
+      await dispatch(fn, makeRequest({ amount: 5 }), response);
+
+      // A defect (`Effect.die` or a thrown handler error) reaches the catch
+      // as the raw error and is logged, with a 5XX retry-class response.
+      expect(sent.status).toBe(500);
+      expect(sent.ended).toBe(true);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onTaskDispatched',
+        expect.objectContaining({ inner: expect.any(LoudError) }),
+      );
+    });
   });
 });
