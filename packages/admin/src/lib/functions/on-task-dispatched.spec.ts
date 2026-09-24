@@ -268,5 +268,24 @@ describe('onTaskDispatchedEffect', () => {
         expect.objectContaining({ inner: expect.any(LoudError) }),
       );
     });
+
+    it('logs a die defect as a defect and still rethrows it', async () => {
+      const fn = onTaskDispatchedEffect(
+        { runtime, schema: Task, retryConfig: { maxAttempts: 5 } },
+        () => Effect.die(new LoudError({ reason: 'crashed' })),
+      );
+
+      const { response, sent } = makeResponse();
+      await dispatch(fn, makeRequest({ amount: 5 }), response);
+
+      // A defect (`Effect.die` or a thrown handler error) reaches the catch
+      // as the raw error and is logged, with a 5XX retry-class response.
+      expect(sent.status).toBe(500);
+      expect(sent.ended).toBe(true);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onTaskDispatched',
+        expect.objectContaining({ inner: expect.any(LoudError) }),
+      );
+    });
   });
 });

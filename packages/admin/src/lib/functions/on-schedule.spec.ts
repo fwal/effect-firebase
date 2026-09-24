@@ -86,6 +86,25 @@ describe('onScheduleEffect', () => {
       );
     });
 
+    it('logs a die defect as a defect and still rethrows it', async () => {
+      const fn = onScheduleEffect({ schedule: '* * * * *', runtime }, () =>
+        Effect.die(new LoudError({ reason: 'crashed' })),
+      );
+
+      const error = await (fn.run(makeEvent()) as Promise<void>).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+
+      // A defect (`Effect.die` or a thrown handler error) reaches the catch
+      // as the raw error and is logged, not silently rethrown.
+      expect(error).toBeInstanceOf(LoudError);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Defect in onSchedule',
+        expect.objectContaining({ inner: expect.any(LoudError) }),
+      );
+    });
+
     it('runs a succeeding handler without logging', async () => {
       let ran = false;
       const fn = onScheduleEffect({ schedule: '* * * * *', runtime }, () =>
