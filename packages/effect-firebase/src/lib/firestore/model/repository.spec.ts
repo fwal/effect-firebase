@@ -25,7 +25,11 @@ import {
 } from '../fields/array.js';
 import { Array as ArrayField, WithArrayFields } from './array.js';
 import * as FirestoreSchema from '../schema/schema.js';
-import { Timestamp, TimestampDateTimeUtc } from '../schema/timestamp.js';
+import {
+  Timestamp,
+  TimestampDateTimeUtc,
+  ServerTimestamp,
+} from '../schema/timestamp.js';
 import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
@@ -487,6 +491,79 @@ describe('Repository', () => {
       expect(error._tag).toBe('SchemaError');
       expect(String(error)).toContain('metaData.deleted');
       expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    // `Firestore.DateTimeUpdate`/`Firestore.ServerDateTime` are auto-managed:
+    // the encoder turns a missing key into a `ServerTimestamp`, so an update
+    // stamps the field on every write even when the caller omits it. This pins
+    // that the per-field wrapping keeps stamping fields on `Schema.optionalKey`
+    // (fill on omit → stamp) while plain/`Optional` fields stay on
+    // `Schema.optional` (omit → untouched). Regression for the case where the
+    // blanket `Schema.optional` wrapping dropped the stamp.
+    describe('Firestore.DateTimeUpdate field (omitted key still stamps)', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      it('stamps an omitted updatedAt field with a server timestamp', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { title: 'New' }),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(Object.keys(payload).sort()).toEqual(['title', 'updatedAt']);
+        expect(payload.title).toBe('New');
+        expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
+      });
+
+      it('stamps updatedAt even when every other field is omitted', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(repo.update(PostId.make('post-1'), {}));
+
+        const payload = payloadOf(updateMock);
+        expect(Object.keys(payload)).toEqual(['updatedAt']);
+        expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
+      });
+
+      it('encodes an explicit updatedAt value instead of stamping', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            title: 'New',
+            updatedAt: DateTime.makeUnsafe(1_000),
+          }),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(payload.updatedAt).toBeInstanceOf(Timestamp);
+        expect((payload.updatedAt as Timestamp).toMillis()).toBe(1_000);
+      });
+
+      it('still rejects an explicit undefined for the stamping field', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeStampedRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(PostId.make('post-1'), {
+            title: 'New',
+            updatedAt: undefined,
+          }),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('updatedAt');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
     });
 
     describe('field paths', () => {

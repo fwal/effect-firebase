@@ -13,6 +13,7 @@ import { collectionIdOf, validateCollectionId } from '../path.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
+import { ServerDateTimeSchema } from './datetime.js';
 import * as Fetch from './fetch.js';
 import type { QueryConstraint } from '../query/constraints.js';
 import {
@@ -524,15 +525,26 @@ export const makeRepository = <
     // optional). Encoded strictly, so an undeclared key fails with a
     // SchemaError naming it instead of being dropped from the payload.
     //
-    // Each field is wrapped with `Schema.optional` (not `Schema.optionalKey`)
-    // so a missing input key stays missing in the encoded payload: an omitted
+    // The wrapping is per field: `Schema.optional` for a plain field so a
+    // missing input key stays missing in the encoded payload — an omitted
     // field is left untouched, matching the documented contract ("Omit the key
-    // to leave a field untouched instead"). `Schema.optionalKey` instead fills
-    // a missing key for a field whose `update` schema encodes `Option.none()`
-    // as a present `null` (the `Firestore.Optional` helper's
+    // to leave a field untouched instead"). `Schema.optionalKey` would instead
+    // fill a missing key for a field whose `update` schema encodes
+    // `Option.none()` as a present `null` (the `Firestore.Optional` helper's
     // `OptionFromOptionalNullOr({ onNoneEncoding: null })` arm), which makes
     // `repo.update(id, { sibling: v })` silently write `null` to the omitted
     // `Optional` field — clearing whatever was stored there.
+    //
+    // The exception is an auto-stamped field whose `update` variant is
+    // `ServerDateTimeSchema` (`Firestore.DateTimeUpdate`,
+    // `Firestore.ServerDateTime`). Its encoder turns a missing key into a
+    // `ServerTimestamp`, which is how `updatedAt` is documented to stamp on
+    // every write. `Schema.optional` would skip the encoder and drop the
+    // stamp, so these fields keep `Schema.optionalKey` to stay filled when
+    // omitted, preserving the auto-stamp. They are matched by reference
+    // against the exported `ServerDateTimeSchema` (the same schema instance
+    // `DateTimeUpdate`/`ServerDateTime` use), so `WithServerTimestamp` —
+    // which only stamps when explicitly requested — is left on `optional`.
     //
     // `Schema.optional` accepts an explicit `{ field: undefined }` value
     // (encoding it as a missing key), so an explicit-undefined pre-check below
@@ -543,7 +555,16 @@ export const makeRepository = <
       Model.update as Schema.Struct<Schema.Struct.Fields>
     )
       .mapFields(Struct.omit([options.idField as string]))
-      .mapFields(Struct.map(Schema.optional));
+      .mapFields((fields) => {
+        const wrapped: Record<string, Schema.Struct.Fields[PropertyKey]> = {};
+        for (const [key, field] of Object.entries(fields)) {
+          wrapped[key] =
+            field === (ServerDateTimeSchema as unknown as typeof field)
+              ? Schema.optionalKey(field)
+              : Schema.optional(field);
+        }
+        return wrapped as Schema.Struct.Fields;
+      });
 
     const updateFieldsSchema = Schema.Struct({
       [options.idField]: idSchema,
