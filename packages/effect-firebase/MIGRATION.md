@@ -410,6 +410,16 @@ pipeable forms) are unchanged.
 
 - **`onScheduleEffect` is new** (`firebase-functions/v2/scheduler`). Failures
   are logged and rethrown so Cloud Scheduler's retry policy applies.
+- **`onMessagePublishedEffect` rejects handler failures instead of
+  acknowledging them.** A handler failure used to be logged as a defect and
+  the invocation resolved, so Pub/Sub acknowledged the message and retries
+  never applied. It is now rethrown so the invocation is recorded as failed
+  and Pub/Sub's retry configuration applies (messages are redelivered when
+  retries are enabled). Expected rejections (`HttpsError`, or any error
+  annotated with `ErrorReporter.ignore`) are no longer logged as defects.
+  `onTaskDispatchedEffect` and `onScheduleEffect` already rethrew, so their
+  retry behaviour is unchanged — only their defect logging is now gated on
+  `isExpectedRejection`.
 - **Schema failures at a function boundary are now recoverable.** Data that
   does not match a wrapper's schema raises `FunctionSetupError { phase, cause }`
   instead of an opaque defect, and every wrapper takes an `onSetupError` option
