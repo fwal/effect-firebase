@@ -7,6 +7,7 @@ import {
 } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { run, Runtime } from './run.js';
+import { isExpectedRejection } from './report.js';
 
 interface ScheduleEffectOptions<R> extends ScheduleOptions {
   runtime: Runtime<R>;
@@ -30,10 +31,16 @@ export function onScheduleEffect<R, E>(
     // Cloud Scheduler's retry configuration applies.
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
-        logger.error('Defect in onSchedule', {
-          inner: error,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        // Expected rejections (an HttpsError, or any error annotated with
+        // ErrorReporter.ignore) are not logged as defects. The error is always
+        // rethrown so the SDK answers non-2xx and Cloud Scheduler's retryConfig
+        // applies regardless of whether the log is suppressed.
+        if (!isExpectedRejection(error)) {
+          logger.error('Defect in onSchedule', {
+            inner: error,
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        }
         throw error;
       },
     );
