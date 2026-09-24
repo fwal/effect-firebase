@@ -30,6 +30,7 @@ import { FirestoreService } from '../firestore-service.js';
 import type { FirestoreServiceShape } from '../firestore-service.js';
 import type { Snapshot } from '../snapshot.js';
 import { Reference as SchemaReference } from '../schema/reference.js';
+import { validateCollectionPath } from '../path.js';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));
 
@@ -931,6 +932,20 @@ describe('Repository', () => {
         spanPrefix: 'test',
       }).pipe(Effect.provide(makeLayer(overrides)));
 
+    // A document-parity `collectionPath` (even segment count): the misroute
+    // case from the bug report. Its last segment `'p1'` is a valid-looking
+    // collection-group id, so it passes the construction-time
+    // `validateCollectionId` guard, but it is not a collection path. The
+    // `group` view must fail with a typed `FirestoreError` instead of
+    // forwarding `'p1'` to `queryGroup`. Non-group methods still forward the
+    // path to the backend, which validates parity there.
+    const makeDocParityRepo = (overrides: Partial<FirestoreServiceShape>) =>
+      makeRepository(CommentModel, {
+        collectionPath: 'posts/p1',
+        idField: 'id',
+        spanPrefix: 'test',
+      }).pipe(Effect.provide(makeLayer(overrides)));
+
     it('queries the collection group with the last path segment', async () => {
       const queryGroupMock = vi.fn(() =>
         Effect.succeed([
@@ -1010,6 +1025,58 @@ describe('Repository', () => {
       if (Exit.isFailure(exit)) {
         expect(Cause.hasDies(exit.cause)).toBe(true);
       }
+    });
+
+    describe('collectionPath parity (group view)', () => {
+      it('does not die at construction on a document-parity collectionPath (non-group methods validate at the backend)', async () => {
+        const repo = await Effect.runPromise(makeDocParityRepo({}));
+        expect(repo).toBeDefined();
+      });
+
+      it('fails group.query with a typed FirestoreError on a document-parity collectionPath and never reaches queryGroup', async () => {
+        const queryGroupMock = vi.fn(() => Effect.succeed([]));
+        const repo = await Effect.runPromise(
+          makeDocParityRepo({ queryGroup: queryGroupMock }),
+        );
+        const error = await failureOf(repo.group.query([]));
+
+        expect(error).toMatchObject({
+          _tag: 'FirestoreError',
+          code: 'invalid-argument',
+        });
+        // Same message the backend emits for repo.query on the same
+        // misconfiguration, so a developer sees one consistent error.
+        expect((error as { message: string }).message).toBe(
+          validateCollectionPath('posts/p1'),
+        );
+        expect(queryGroupMock).not.toHaveBeenCalled();
+      });
+
+      it('fails group.queryStream with a typed FirestoreError on a document-parity collectionPath and never reaches streamQueryGroup', async () => {
+        const streamQueryGroupMock = vi.fn(() => Stream.succeed([]));
+        const repo = await Effect.runPromise(
+          makeDocParityRepo({ streamQueryGroup: streamQueryGroupMock }),
+        );
+        const error = await Effect.runPromise(
+          Effect.flip(Stream.runHead(repo.group.queryStream([]))),
+        );
+
+        expect(error).toMatchObject({
+          _tag: 'FirestoreError',
+          code: 'invalid-argument',
+        });
+        expect(streamQueryGroupMock).not.toHaveBeenCalled();
+      });
+
+      it('does not add a parity check to non-group methods (they still forward the path to the backend)', async () => {
+        const queryMock = vi.fn(() => Effect.succeed([]));
+        const repo = await Effect.runPromise(
+          makeDocParityRepo({ query: queryMock }),
+        );
+        await Effect.runPromise(repo.query([]));
+
+        expect(queryMock).toHaveBeenCalledWith('posts/p1', []);
+      });
     });
   });
 

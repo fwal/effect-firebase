@@ -1,7 +1,11 @@
 import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
 import { Model } from 'effect/unstable/schema';
 import { FirestoreService } from '../firestore-service.js';
-import { collectionIdOf, validateCollectionId } from '../path.js';
+import {
+  collectionIdOf,
+  validateCollectionId,
+  validateCollectionPath,
+} from '../path.js';
 import { Snapshot } from '../snapshot.js';
 import { NoSuchElementError, UnknownError } from 'effect/Cause';
 import { FirestoreError } from '../errors.js';
@@ -415,6 +419,19 @@ export const makeRepository = <
       );
     }
 
+    // The `group` view is the lone repository method that never sends
+    // `collectionPath` to a backend that parity-checks it — it forwards only
+    // the derived `collectionId`, a single segment that is valid by
+    // construction. Every other method passes `collectionPath` (or
+    // `${collectionPath}/${id}`) to `FirestoreService`, where wrong parity is
+    // rejected as a typed `FirestoreError`. Validate the path's parity here so
+    // a document-parity `collectionPath` (e.g. `'posts/p1'`, whose last segment
+    // `'p1'` is a valid-looking collection-group id) fails the `group` view
+    // with the same typed `FirestoreError` the backend emits for the other
+    // methods, instead of silently misrouting the document-id segment to
+    // `queryGroup('p1', …)`.
+    const invalidGroupPath = validateCollectionPath(options.collectionPath);
+
     const idSchema = Model.fields[options.idField] as unknown as IdSchema;
 
     const structFromSnapshot = (snapshot: Snapshot) => {
@@ -692,9 +709,26 @@ export const makeRepository = <
       Model,
       spanPrefix: `${options.spanPrefix}.group`,
       structFromSnapshot,
-      query: (constraints) => firestore.queryGroup(collectionId, constraints),
+      query: (constraints) =>
+        invalidGroupPath !== undefined
+          ? Effect.fail(
+              new FirestoreError({
+                code: 'invalid-argument',
+                name: 'FirestoreError',
+                message: invalidGroupPath,
+              }),
+            )
+          : firestore.queryGroup(collectionId, constraints),
       streamQuery: (constraints) =>
-        firestore.streamQueryGroup(collectionId, constraints),
+        invalidGroupPath !== undefined
+          ? Stream.fail(
+              new FirestoreError({
+                code: 'invalid-argument',
+                name: 'FirestoreError',
+                message: invalidGroupPath,
+              }),
+            )
+          : firestore.streamQueryGroup(collectionId, constraints),
     });
 
     return {
