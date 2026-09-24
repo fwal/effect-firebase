@@ -1,4 +1,5 @@
 import { Schema, SchemaGetter } from 'effect';
+import { validateDocPath } from '../path.js';
 
 const isPathValid = (path: string) => {
   const parts = path.split('/').filter(Boolean);
@@ -21,7 +22,7 @@ interface ReferenceShape {
 const referenceChecks = [
   Schema.makeFilter(
     ({ path }: { readonly path: string }) =>
-      isPathValid(path) ||
+      validateDocPath(path) === undefined ||
       'Path must not be empty and must contain an even number of parts',
   ),
   Schema.makeFilter(
