@@ -15,7 +15,7 @@ import { makeRepository } from './repository.js';
 import { AnyIdReference } from './reference.js';
 import * as FirestoreModel from './datetime.js';
 import * as FirestoreNumber from './number.js';
-import { OptionalDeletable } from './optional.js';
+import { OptionalDeletable, Optional } from './optional.js';
 import { increment } from '../fields/increment.js';
 import {
   ArrayUnion,
@@ -59,6 +59,30 @@ class NestedModel extends Model.Class<NestedModel>('NestedModel')({
     Schema.Struct({ lastSeenAt: TimestampDateTimeUtc }),
   ),
   counters: Schema.Record(Schema.String, Schema.Number),
+}) {}
+
+/**
+ * Top-level `Firestore.Optional` field: reads a missing key/null/`undefined`
+ * as `Option.none()` and encodes `Option.none()` as a present `null` key.
+ * Used to pin `Repository.update`'s omit-on-missing-key contract for this
+ * helper (the regression in b070c6f, where `Schema.optionalKey` filled an
+ * omitted `Optional` field with `null`, clearing the stored value).
+ */
+class OptionalFieldModel extends Model.Class<OptionalFieldModel>(
+  'OptionalFieldModel',
+)({
+  id: Model.GeneratedByDb(PostId),
+  views: Schema.Number,
+  bio: Optional(Schema.String),
+}) {}
+
+/** Nested `Firestore.Optional` leaf reachable via a dotted field path. */
+class NestedOptionalModel extends Model.Class<NestedOptionalModel>(
+  'NestedOptionalModel',
+)({
+  id: Model.GeneratedByDb(PostId),
+  title: Schema.String,
+  profile: Model.Struct({ bio: Optional(Schema.String) }),
 }) {}
 
 /**
@@ -119,6 +143,20 @@ const makeStampedRepo = (overrides: Partial<FirestoreServiceShape>) =>
 
 const makeNestedRepo = (overrides: Partial<FirestoreServiceShape>) =>
   makeRepository(NestedModel, {
+    collectionPath: 'posts',
+    idField: 'id',
+    spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
+const makeOptionalFieldRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(OptionalFieldModel, {
+    collectionPath: 'posts',
+    idField: 'id',
+    spanPrefix: 'test',
+  }).pipe(Effect.provide(makeLayer(overrides)));
+
+const makeNestedOptionalRepo = (overrides: Partial<FirestoreServiceShape>) =>
+  makeRepository(NestedOptionalModel, {
     collectionPath: 'posts',
     idField: 'id',
     spanPrefix: 'test',
@@ -756,6 +794,154 @@ describe('Repository', () => {
           'title.length': 1,
         });
         expect(write).toBeDefined();
+      });
+    });
+
+    describe('Firestore.Optional field (omit leaves the field untouched)', () => {
+      const payloadOf = (mock: ReturnType<typeof vi.fn>) =>
+        (mock.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+
+      // Regression for b070c6f: with `Schema.optionalKey` an omitted
+      // `Firestore.Optional` field was encoded as a present `null`, so an
+      // update that touched a sibling silently wiped the stored value. The
+      // fix restores `Schema.optional`, so an omitted key stays absent from
+      // the write payload and the field is left untouched.
+      it('omitting an Optional field while updating a sibling leaves it out of the payload', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), { views: 5 }),
+        );
+
+        const payload = payloadOf(updateMock);
+        expect(payload).toEqual({ views: 5 });
+        expect(Object.keys(payload).sort()).toEqual(['views']);
+        expect(payload).not.toHaveProperty('bio');
+        expect(Object.prototype.hasOwnProperty.call(payload, 'bio')).toBe(
+          false,
+        );
+      });
+
+      it('omitting every field fails invalid-argument rather than injecting a phantom Optional null', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        const error = await failureOf(repo.update(PostId.make('post-1'), {}));
+
+        expect(error).toMatchObject({
+          _tag: 'FirestoreError',
+          code: 'invalid-argument',
+        });
+        // No payload was ever built — Firestore is never reached.
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      // The documented behaviour of `Firestore.Optional` is preserved:
+      // `Option.none()` is encoded as a present `null` key.
+      it('encodes an explicit Option.none() for an Optional field as null', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            views: 5,
+            bio: Option.none(),
+          }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({ views: 5, bio: null });
+      });
+
+      it('encodes an explicit Option.some(value) for an Optional field as the value', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            views: 5,
+            bio: Option.some('hi'),
+          }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({ views: 5, bio: 'hi' });
+      });
+
+      // The other half of the contract restored by the fix: an explicit
+      // `{ field: undefined }` must still fail with a `SchemaError` naming
+      // the field, instead of leaking through (which `Schema.optional`
+      // would otherwise allow) and being rejected by Firestore at write time.
+      it('rejects an explicit undefined for an Optional field with SchemaError, naming the field', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(PostId.make('post-1'), {
+            views: 5,
+            bio: undefined,
+          }),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('bio');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('rejects an explicit undefined for an Optional field under merge', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeOptionalFieldRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(
+            PostId.make('post-1'),
+            { views: 5, bio: undefined },
+            { merge: true },
+          ),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('bio');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it('rejects an explicit undefined inside a nested Optional object under merge, naming the flattened path', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedOptionalRepo({ update: updateMock }),
+        );
+        const error = await failureOf(
+          repo.update(
+            PostId.make('post-1'),
+            { title: 'Updated', profile: { bio: undefined } },
+            { merge: true },
+          ),
+        );
+
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('profile.bio');
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      // `Option.none()` for a nested Optional leaf still writes `null`
+      // (documented `Firestore.Optional` behaviour, preserved by the fix).
+      it('encodes a nested Optional Option.none() leaf as null', async () => {
+        const updateMock = vi.fn(() => Effect.succeed(undefined));
+        const repo = await Effect.runPromise(
+          makeNestedOptionalRepo({ update: updateMock }),
+        );
+        await Effect.runPromise(
+          repo.update(PostId.make('post-1'), {
+            'profile.bio': Option.none(),
+          }),
+        );
+
+        expect(payloadOf(updateMock)).toEqual({ 'profile.bio': null });
       });
     });
 
