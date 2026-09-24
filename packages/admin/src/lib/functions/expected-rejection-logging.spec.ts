@@ -143,7 +143,7 @@ const makeWrittenEvent = <
   }) as unknown as FirestoreEvent<Data, { postId: string }>;
 
 const makePubSubEvent = <T = unknown>(
-  raw = '{"x":1}',
+  raw = Buffer.from('{"x":1}', 'utf8').toString('base64'),
 ): CloudEvent<MessagePublishedData<T>> =>
   ({
     data: {
