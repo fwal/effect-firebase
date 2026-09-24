@@ -280,6 +280,7 @@ const make = (db: Firestore) => {
   return FirestoreService.of({
     get: (path, options) =>
       Effect.gen(function* () {
+        yield* checkDocPath(path);
         const tx = yield* CurrentTransaction;
         const snapshot = yield* Effect.tryPromise({
           try: () =>
@@ -290,9 +291,9 @@ const make = (db: Firestore) => {
       }),
     add: (path, data) =>
       Effect.gen(function* () {
+        yield* checkCollectionPath(path);
         const writer = yield* currentWriter;
         if (Option.isSome(writer)) {
-          yield* checkCollectionPath(path);
           const ref = db.collection(path).withConverter(converter).doc();
           yield* Effect.try({
             try: () => writer.value.create(ref, data),
@@ -330,6 +331,7 @@ const make = (db: Firestore) => {
       }),
     update: (path, data) =>
       Effect.gen(function* () {
+        yield* checkDocPath(path);
         const writer = yield* currentWriter;
         if (Option.isSome(writer)) {
           yield* Effect.try({
@@ -363,6 +365,7 @@ const make = (db: Firestore) => {
       }),
     deleteRecursive: (path) =>
       assertNoWriter('deleteRecursive').pipe(
+        Effect.flatMap(() => checkDocPath(path)),
         Effect.flatMap(() =>
           Effect.tryPromise({
             try: () => db.recursiveDelete(db.doc(path)),
@@ -371,7 +374,11 @@ const make = (db: Firestore) => {
         ),
       ),
     query: (collectionPath, constraints) =>
-      runQuery(() => buildQuery(db, collectionPath, constraints)),
+      checkCollectionPath(collectionPath).pipe(
+        Effect.flatMap(() =>
+          runQuery(() => buildQuery(db, collectionPath, constraints)),
+        ),
+      ),
     queryGroup: (collectionId, constraints) =>
       checkCollectionId(collectionId).pipe(
         Effect.flatMap(() =>
