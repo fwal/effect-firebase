@@ -4,15 +4,6 @@ import { FirestoreError, FirestoreService } from 'effect-firebase';
 import type { Firestore } from 'firebase-admin/firestore';
 import { layerFromFirestore } from './firestore-service.js';
 
-class FirebaseError extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-    this.name = 'FirebaseError';
-  }
-}
-
 const segments = (path: string) => path.split('/');
 const allNonEmpty = (path: string) => segments(path).every((s) => s.length > 0);
 const docPathValid = (path: string) =>
@@ -102,18 +93,16 @@ const makeFakeDb = () => {
   const db = {
     doc: (path: string) => {
       if (!docPathValid(path)) {
-        throw new FirebaseError(
-          'invalid-argument',
-          `Invalid document reference. Document references must have an even number of segments, but ${path} has ${path.split('/').length}.`,
+        throw new Error(
+          `Value for argument "documentPath" must point to a document, but was "${path}". Your path does not have an even number of segments.`,
         );
       }
       return fakeDocRef(path);
     },
     collection: (path: string) => {
       if (!collectionPathValid(path)) {
-        throw new FirebaseError(
-          'invalid-argument',
-          `Invalid collection reference. Collection references must have an odd number of segments, but ${path} has ${path.split('/').length}.`,
+        throw new Error(
+          `Value for argument "collectionPath" must point to a collection, but was "${path}". Your path does not have an odd number of segments.`,
         );
       }
       return fakeCollection(path);
@@ -227,7 +216,7 @@ describe('FirestoreService (admin) path parity', () => {
     });
   });
 
-  describe('already safe: get / update / add-direct / query catch the throw', () => {
+  describe('get / update / add-direct / query / deleteRecursive fail with a typed FirestoreError', () => {
     it('get on a collection-parity path fails with a typed FirestoreError', async () => {
       const { db } = makeFakeDb();
       const exit = await runExit(
@@ -264,6 +253,15 @@ describe('FirestoreService (admin) path parity', () => {
       expectTypedInvalidArgument(exit);
     });
 
+    it('deleteRecursive on a collection-parity path fails with a typed FirestoreError', async () => {
+      const { db } = makeFakeDb();
+      const exit = await runExit(
+        db,
+        withService((fs) => fs.deleteRecursive('posts/1/comments')),
+      );
+      expectTypedInvalidArgument(exit);
+    });
+
     it('streamQueryGroup on a slash-containing collection id fails typed (existing guard)', async () => {
       const { db } = makeFakeDb();
       const exit = await runExit(
@@ -280,7 +278,7 @@ describe('FirestoreService (admin) path parity', () => {
   });
 
   describe('valid paths are not falsely rejected', () => {
-    it('set / delete / add / get / query reach the SDK for correctly-paritied paths', async () => {
+    it('set / delete / add / get / query / deleteRecursive reach the SDK for correctly-paritied paths', async () => {
       const { db, state } = makeFakeDb();
       await run(
         db,
@@ -292,6 +290,7 @@ describe('FirestoreService (admin) path parity', () => {
             expect(added).toEqual({ id: 'added-id', path: 'posts/added-id' });
             yield* fs.get('posts/1');
             yield* fs.query('posts', []);
+            yield* fs.deleteRecursive('posts/3');
           }),
         ),
       );
@@ -301,6 +300,7 @@ describe('FirestoreService (admin) path parity', () => {
         'add',
         'get',
         'query',
+        'recursiveDelete',
       ]);
     });
 
