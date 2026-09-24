@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
 import { Schema } from 'effect';
 import { Reference, ReferenceInstance } from './reference.js';
 
@@ -19,6 +19,12 @@ describe('referenceChecks: empty-segment paths', () => {
   it('rejects a leading-slash path through the codec (filter 1)', () => {
     expect(() =>
       decodeCodec({ id: 'def', path: '/users/abc/posts/def' }),
+    ).toThrow();
+  });
+
+  it('rejects a consecutive-slash path through the codec (filter 1)', () => {
+    expect(() =>
+      decodeCodec({ id: 'doc123', path: 'users//doc123' }),
     ).toThrow();
   });
 
