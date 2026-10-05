@@ -30,7 +30,7 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
   author: Firestore.Reference(AuthorId, 'authors'), // stored as DocumentReference
   title: Schema.String,
   content: Schema.String,
-  status: Schema.Literal('draft', 'published'),
+  status: Schema.Literals(['draft', 'published']),
 }) {}
 ```
 
@@ -44,7 +44,7 @@ Built-in field helpers:
 | `Firestore.ServerDateTimeSchema`                | Schema backing `DateTimeUpdate`/`ServerDateTime`. Exported so `makeRepository` keeps stamping those fields when their key is omitted from an `update`. |
 | `Firestore.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.                                                                                                   |
 | `Firestore.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.                                                                                                |
-| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Firestore.delete()`.                                                                                          |
+| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Option.some(Firestore.delete())` in `update`.                                                                 |
 | `Firestore.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`.                                                                                           |
 | `Firestore.Number`                              | Number field. Accepts `increment(n)` in `update`.                                                                                                      |
 | `Firestore.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.                                                                                              |
@@ -126,31 +126,38 @@ The underlying service methods are `FirestoreService.queryGroup` and `streamQuer
 import { pipe } from 'effect';
 import { Query } from 'effect-firebase';
 
-Query.where('status', '==', 'published');
-Query.orderBy('createdAt', 'desc');
-Query.limit(20);
-Query.startAfter(lastCreatedAt);
+// Field names and operators are checked against the model at compile time
+// when the query is passed to a repository method (repo.query, repo.queryStream, ...).
+repo.query(Query.where('status', '==', 'published'));
+repo.query(Query.orderBy('createdAt', 'desc'));
+repo.query(Query.limit(20));
+repo.query(Query.startAfter(lastCreatedAt));
 
 // Cursor pagination with a document ID tiebreaker, so pages never skip
 // or repeat documents when the order field has duplicate values
-pipe(
-  Query.orderBy('createdAt', 'desc'),
-  Query.addOrderByDocumentId('desc'),
-  Query.addStartAfter(lastCreatedAt, lastDocId),
-  Query.addLimit(20),
+repo.query(
+  pipe(
+    Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+    Query.addOrderByDocumentId('desc'),
+    Query.addStartAfter(lastCreatedAt, lastDocId),
+    Query.addLimit(20),
+  ),
 );
 
 // Combine
-Query.and(
-  Query.where('status', '==', 'published'),
-  Query.where('likes', '>=', 10),
-  Query.orderBy('createdAt', 'desc'),
-  Query.limit(20),
+repo.query(
+  Query.and(
+    Query.where('status', '==', 'published'),
+    Query.orderBy('createdAt', 'desc'),
+    Query.limit(20),
+  ),
 );
 
-Query.or(
-  Query.where('status', '==', 'published'),
-  Query.where('status', '==', 'featured'),
+repo.query(
+  Query.or(
+    Query.where('status', '==', 'published'),
+    Query.where('status', '==', 'draft'),
+  ),
 );
 ```
 
@@ -169,7 +176,7 @@ Firestore.withTransaction(
     const repo = yield* PostRepository;
     const post = yield* repo.getById(postId); // transactional read
     // ... all reads must happen before the first write
-    yield* repo.update(postId, { likes: likes + 1 }); // transactional write
+    yield* repo.update(postId, { status: 'published' }); // transactional write
   }),
 );
 ```
@@ -185,7 +192,7 @@ Firestore.withTransaction(
 Firestore.withBatch(
   Effect.gen(function* () {
     const repo = yield* PostRepository;
-    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'published' }));
   }),
 );
 ```
