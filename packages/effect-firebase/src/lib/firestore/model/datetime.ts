@@ -6,7 +6,7 @@ import {
   SchemaGetter,
   SchemaIssue,
 } from 'effect';
-import { Model, VariantSchema } from 'effect/unstable/schema';
+import { Model, VariantSchema } from 'effect/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
 export type DateTime = VariantSchema.Field<{

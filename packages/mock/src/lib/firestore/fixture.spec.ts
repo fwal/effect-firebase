@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DateTime, Effect, Option, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore, Query } from 'effect-firebase';
 import { fixture, type Fixture } from './fixture.js';
 import { layer } from './layer.js';

@@ -2,12 +2,9 @@
 
 Firebase integration for [Effect](https://effect.website). Provides schemas, models, repositories, and Cloud Functions helpers built on Effect's type system.
 
-[![npm version](https://badgen.net/npm/v/effect-firebase/beta)](https://www.npmjs.com/package/effect-firebase)
+[![npm version](https://badgen.net/npm/v/effect-firebase)](https://www.npmjs.com/package/effect-firebase)
 [![Effect: v4](https://badgen.net/static/effect/v4/orange?icon=effect)](https://effect.website)
 [![License: MIT](https://badgen.net/github/license/fwal/effect-firebase)](https://opensource.org/licenses/MIT)
-
-> [!WARNING]
-> Main contains the beta for 1.0, currently in active development.
 
 ## Packages
 
@@ -42,7 +39,7 @@ npm install --save-dev @effect-firebase/mock @effect-firebase/devtools
 
 ```typescript
 import { Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));

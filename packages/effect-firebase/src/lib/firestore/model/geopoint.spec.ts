@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { GeoPoint } from './geopoint.js';
 import { GeoPoint as GeoPointClass } from '../schema/geopoint.js';
 

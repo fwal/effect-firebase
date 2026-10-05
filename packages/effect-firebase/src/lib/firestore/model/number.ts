@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { Model, VariantSchema } from 'effect/unstable/schema';
+import { Model, VariantSchema } from 'effect/schema';
 import { IncrementInstance } from '../fields/increment.js';
 
 /**

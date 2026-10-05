@@ -7,35 +7,45 @@ usage; this file only covers what changed.
 
 ## v0.x → v1.0 (Effect v4)
 
-v1.0 (published as `1.0.0-beta.*` under the npm `beta` dist-tag) moves the
-peer dependency from Effect v3 to Effect v4 and reorganises the public API
-around the `Firestore` namespace. Work through the sections in order; steps
+v1.0 moves the peer dependency from Effect v3 to Effect v4 and reorganises
+the public API around the `Firestore` namespace. Work through the sections in order; steps
 1–6 are required for every project, 7–13 depend on which APIs you use.
 
 ### 1. Update dependencies
 
 Remove `@effect/experimental` — it has been merged into the core `effect`
-package — and install the `beta` tag of every `effect-firebase` package you
-use, together with Effect v4.
+package — and install v1 of every `effect-firebase` package you use,
+together with Effect v4.
 
 ```bash
 npm uninstall @effect/experimental
-npm install effect@^4.0.0 effect-firebase@beta
-npm install @effect-firebase/admin@beta      # if used
-npm install @effect-firebase/client@beta     # if used
-npm install --save-dev @effect-firebase/mock@beta @effect-firebase/devtools@beta
+npm install effect@^4.0.0 effect-firebase@^1.0.0
+npm install @effect-firebase/admin@^1.0.0      # if used
+npm install @effect-firebase/client@^1.0.0     # if used
+npm install --save-dev @effect-firebase/mock@^1.0.0 @effect-firebase/devtools@^1.0.0
 ```
 
 Or with pnpm:
 
 ```bash
 pnpm remove @effect/experimental
-pnpm add effect@^4.0.0 effect-firebase@beta
+pnpm add effect@^4.0.0 effect-firebase@^1.0.0
 ```
 
 Keep all `@effect-firebase/*` packages on the same version. If you use
-`@effect/atom-react`, it peer-depends on the exact Effect prerelease it was
-built against — bump it together with `effect`.
+`@effect/atom-react`, it peer-depends on the Effect version it was built
+against — bump it together with `effect`.
+
+The peer range is `effect@^4.0.0` (stable). Effect `4.0.0-rc.*` / `beta.*`
+prereleases no longer satisfy it. Stable Effect also promoted the former
+`effect/unstable/*` modules to top-level entry points, so rewrite those
+imports:
+
+| Before (Effect 4 prerelease) | After (Effect 4 stable) |
+| ---------------------------- | ----------------------- |
+| `effect/unstable/schema`     | `effect/schema`         |
+| `effect/unstable/reactivity` | `effect/reactivity`     |
+| `effect/unstable/<module>`   | `effect/<module>`       |
 
 ### 2. Update error tag strings
 
@@ -83,7 +93,7 @@ The sync variants are **unchanged**: `Schema.encodeSync`,
 
 The `Model` namespace is no longer exported from `effect-firebase`. The model
 class and the generic field helpers now come from Effect itself
-(`effect/unstable/schema`), and `effect-firebase` exports only the
+(`effect/schema`), and `effect-firebase` exports only the
 Firestore-specific pieces under the `Firestore` namespace.
 
 **Before:**
@@ -110,7 +120,7 @@ const AuthorRepository = Model.makeRepository(AuthorModel, {
 **After:**
 
 ```ts
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
@@ -129,9 +139,9 @@ const AuthorRepository = Firestore.makeRepository(AuthorModel, {
 });
 ```
 
-Generic helpers that moved to `effect/unstable/schema`:
+Generic helpers that moved to `effect/schema`:
 
-| v0.x (`effect-firebase`) | v1.0 (`effect/unstable/schema`)                 |
+| v0.x (`effect-firebase`) | v1.0 (`effect/schema`)                          |
 | ------------------------ | ----------------------------------------------- |
 | `Model.Class`            | `Model.Class`                                   |
 | `Model.Generated`        | `Model.GeneratedByDb` (**renamed**)             |
@@ -294,7 +304,7 @@ import path:
 import { VariantSchema } from '@effect/experimental';
 
 // After (v4)
-import { VariantSchema } from 'effect/unstable/schema';
+import { VariantSchema } from 'effect/schema';
 ```
 
 ### 7. Repository API additions

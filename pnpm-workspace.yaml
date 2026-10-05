@@ -4,20 +4,20 @@ packages:
   - tests
 
 catalog:
-  '@effect/atom-react': 4.0.0-rc.117
-  '@effect/platform-browser': 4.0.0-rc.117
-  '@effect/vitest': 4.0.0-rc.117
-  effect: 4.0.0-rc.117
+  '@effect/atom-react': 4.0.1
+  '@effect/platform-browser': 4.0.1
+  '@effect/vitest': 4.0.1
+  effect: 4.0.1
   express: ^5.2.1
   firebase: ^12.18.0
   firebase-admin: ^14.3.0
   firebase-functions: ^7.3.2
 
 # Ranges used only in published peerDependencies, so consumers can track
-# Effect rc bumps without waiting for a release. Dev installs stay exact.
+# Effect patch/minor bumps without waiting for a release. Dev installs stay exact.
 catalogs:
   peer:
-    effect: ^4.0.0-rc.117
+    effect: ^4.0.0
 
 ignoredBuiltDependencies:
   - msgpackr-extract

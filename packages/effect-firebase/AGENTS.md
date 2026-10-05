@@ -22,9 +22,8 @@ and an in-memory mock, so domain code is SDK-agnostic.
 | `@effect-firebase/mock`     | In-memory backend for tests and local dev (dev-only)   | —                                      |
 | `@effect-firebase/devtools` | TanStack Devtools panel for the mock (dev-only)        | `react`                                |
 
-All packages are published under the npm `beta` dist-tag and must share one
-version. `effect` is a peer dependency; `@effect/atom-react` (if used) must
-match the installed Effect prerelease exactly.
+All packages must share one version. `effect` is a peer dependency;
+`@effect/atom-react` (if used) must match the installed Effect version.
 
 ## Import map — read this first
 
@@ -33,7 +32,7 @@ not exported there.
 
 ```ts
 import { Effect, Schema, Option, Stream, pipe } from 'effect';
-import { Model } from 'effect/unstable/schema'; // Model.Class, GeneratedByDb, Field, ...
+import { Model } from 'effect/schema'; // Model.Class, GeneratedByDb, Field, ...
 import {
   Firestore, //       field helpers, sentinels, makeRepository, withTransaction/withBatch
   FirestoreSchema, // Timestamp, GeoPoint, Reference schemas
@@ -61,7 +60,7 @@ on import when two meet in one file.
 
 ```ts
 import { Effect, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 export const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -94,7 +93,7 @@ Field helpers (all under `Firestore.` unless noted):
 
 | Helper                                                   | Notes                                                                                                                                                                                                           |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/unstable/schema`. DB-generated ids vs app-generated ids.                                                                                                                                           |
+| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/schema`. DB-generated ids vs app-generated ids.                                                                                                                                                    |
 | `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                                             |
 | `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                                                    |
 | `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                                             |
@@ -105,7 +104,7 @@ Field helpers (all under `Firestore.` unless noted):
 | `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                                                 |
 | `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                                             |
 | `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                                                  |
-| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/unstable/schema`).                                                                                                                                               |
+| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/schema`).                                                                                                                                                        |
 
 ## Create a repository
 
@@ -537,7 +536,7 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
 
 ## Gotchas checklist
 
-1. `Model` comes from `effect/unstable/schema`; Firestore field helpers and
+1. `Model` comes from `effect/schema`; Firestore field helpers and
    `makeRepository` come from `Firestore` in `effect-firebase`.
 2. Variants are `select`/`insert`/`update`/`json`/`jsonCreate`/`jsonUpdate`
    (not `get`/`add`).
@@ -548,7 +547,7 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
 6. Cursor pagination: add `Query.addOrderByDocumentId()` and pass the doc id
    as the second cursor value when the order field can have duplicates.
 7. Keep `effect`, all `@effect-firebase/*` and `@effect/atom-react` versions
-   aligned; install with the `@beta` tag.
+   aligned.
 8. Sentinels (`increment`, `arrayUnion`, `delete`, `serverTimestamp`) are only
    valid on fields declared with the matching helper, and only in the
    variants that helper allows.

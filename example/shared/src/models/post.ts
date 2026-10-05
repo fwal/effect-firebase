@@ -1,5 +1,5 @@
 import { Effect, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 import { AuthorRef } from './author.js';
 

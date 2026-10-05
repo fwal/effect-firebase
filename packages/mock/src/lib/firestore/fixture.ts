@@ -1,5 +1,5 @@
 import { Effect, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { validateCollectionPath } from './store.js';
 import type { DocData } from './value.js';
 

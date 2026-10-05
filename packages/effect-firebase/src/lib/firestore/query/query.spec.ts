@@ -1,5 +1,5 @@
 import { DateTime, Option, Schema, pipe } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { describe, expect, it } from '@effect/vitest';
 import * as FirestoreModel from '../model/datetime.js';
 import { OptionalDeletable } from '../model/optional.js';

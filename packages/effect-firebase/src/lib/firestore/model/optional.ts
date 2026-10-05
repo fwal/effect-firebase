@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { Model, VariantSchema } from 'effect/unstable/schema';
+import { Model, VariantSchema } from 'effect/schema';
 import { DeleteInstance } from '../fields/delete.js';
 
 /**

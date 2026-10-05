@@ -138,7 +138,7 @@ takes a bare ID.
 
 ```typescript
 import { Effect } from 'effect';
-import { Atom } from 'effect/unstable/reactivity';
+import { Atom } from 'effect/reactivity';
 import { make } from '@effect-firebase/mock';
 
 const mock = make({ fixtures: [posts] });

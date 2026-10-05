@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Cause, DateTime, Option, Schema } from 'effect';
-import { AsyncResult } from 'effect/unstable/reactivity';
+import { AsyncResult } from 'effect/reactivity';
 import { useForm } from '@tanstack/react-form';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { PostModel, AuthorId } from '@example/shared';

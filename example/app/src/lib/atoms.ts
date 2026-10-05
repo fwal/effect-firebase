@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream, pipe } from 'effect';
-import { Atom } from 'effect/unstable/reactivity';
+import { Atom } from 'effect/reactivity';
 import { FirestoreService, Query } from 'effect-firebase';
 import { PostId, PostModel, PostRepository } from '@example/shared';
 import { makePaginatedQueryAtom } from './pagination.js';

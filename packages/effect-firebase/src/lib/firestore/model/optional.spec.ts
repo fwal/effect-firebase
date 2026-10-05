@@ -1,6 +1,6 @@
 import { DateTime as EffectDateTime, Option, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 
 import { Optional, OptionalNull, OptionalDeletable } from './optional.js';
 import { DateTime } from './datetime.js';

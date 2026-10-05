@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@effect/vitest';
 import { Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import * as Firestore from '../firestore.js';
 import * as FirestoreSchema from './schema.js';
 

@@ -1,5 +1,5 @@
 import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { FirestoreService } from '../firestore-service.js';
 import { collectionIdOf, validateCollectionId } from '../path.js';
 import { Snapshot } from '../snapshot.js';
@@ -340,7 +340,7 @@ export type StringFieldKey<S extends Model.Any> = {
  *
  * @example
  * ```ts
- * import { Model } from 'effect/unstable/schema';
+ * import { Model } from 'effect/schema';
  * import { Firestore } from 'effect-firebase';
  * import { PostModel } from './post.js';
  *
