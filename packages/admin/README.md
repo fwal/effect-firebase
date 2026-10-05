@@ -265,8 +265,8 @@ error annotated with Effect's `ErrorReporter.ignore` (the convention
 `HttpApiError.BadRequest` and friends use). `onRequestEffect` still responds `500`; only
 the log line is skipped. Trigger wrappers (Firestore, Pub/Sub, Tasks, Schedule) log every
 escaping error. Task and scheduled handlers rethrow after logging, so their retry
-configuration applies. Annotate your own errors to keep them out of the defect logs while
-still failing the call:
+configuration applies. For callable and HTTP handlers, annotate your own errors to keep them
+out of the defect logs while still failing the call:
 
 ```typescript
 import { Data, ErrorReporter } from 'effect';
