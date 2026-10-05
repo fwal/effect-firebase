@@ -1283,7 +1283,7 @@ describe('Repository', () => {
                 );
               },
             ),
-            encode: new SchemaGetter.Getter<
+            encode: SchemaGetter.transformOptionalEffect<
               FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
               DateTime.Utc | undefined,
               StamperService
@@ -1388,7 +1388,7 @@ describe('Repository', () => {
                 );
               },
             ),
-            encode: new SchemaGetter.Getter<
+            encode: SchemaGetter.transformOptionalEffect<
               FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
               DateTime.Utc | undefined,
               StamperService
@@ -1532,7 +1532,7 @@ describe('Repository', () => {
                 );
               },
             ),
-            encode: new SchemaGetter.Getter<
+            encode: SchemaGetter.transformOptionalEffect<
               FirestoreSchema.Timestamp | FirestoreSchema.ServerTimestamp,
               DateTime.Utc | undefined,
               StamperService
