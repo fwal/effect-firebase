@@ -23,8 +23,8 @@ Do not rely on memorised API shapes — read these files first:
    simulated states), `node_modules/effect-firebase/README.md`.
 
 If the files are missing, install/upgrade first:
-`npm install effect-firebase@beta @effect-firebase/admin@beta` (add
-`@effect-firebase/client@beta`, `--save-dev @effect-firebase/mock@beta` as needed).
+`npm install effect-firebase@^1.0.0 @effect-firebase/admin@^1.0.0` (add
+`@effect-firebase/client@^1.0.0`, `--save-dev @effect-firebase/mock@^1.0.0` as needed).
 
 ## Procedure
 

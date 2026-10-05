@@ -22,9 +22,8 @@ and an in-memory mock, so domain code is SDK-agnostic.
 | `@effect-firebase/mock`     | In-memory backend for tests and local dev (dev-only)   | —                                      |
 | `@effect-firebase/devtools` | TanStack Devtools panel for the mock (dev-only)        | `react`                                |
 
-All packages are published under the npm `beta` dist-tag and must share one
-version. `effect` is a peer dependency; `@effect/atom-react` (if used) must
-match the installed Effect prerelease exactly.
+All packages must share one version. `effect` is a peer dependency;
+`@effect/atom-react` (if used) must match the installed Effect version.
 
 ## Import map — read this first
 
@@ -548,7 +547,7 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
 6. Cursor pagination: add `Query.addOrderByDocumentId()` and pass the doc id
    as the second cursor value when the order field can have duplicates.
 7. Keep `effect`, all `@effect-firebase/*` and `@effect/atom-react` versions
-   aligned; install with the `@beta` tag.
+   aligned.
 8. Sentinels (`increment`, `arrayUnion`, `delete`, `serverTimestamp`) are only
    valid on fields declared with the matching helper, and only in the
    variants that helper allows.

@@ -7,30 +7,29 @@ usage; this file only covers what changed.
 
 ## v0.x → v1.0 (Effect v4)
 
-v1.0 (published as `1.0.0-beta.*` under the npm `beta` dist-tag) moves the
-peer dependency from Effect v3 to Effect v4 and reorganises the public API
-around the `Firestore` namespace. Work through the sections in order; steps
+v1.0 moves the peer dependency from Effect v3 to Effect v4 and reorganises
+the public API around the `Firestore` namespace. Work through the sections in order; steps
 1–6 are required for every project, 7–13 depend on which APIs you use.
 
 ### 1. Update dependencies
 
 Remove `@effect/experimental` — it has been merged into the core `effect`
-package — and install the `beta` tag of every `effect-firebase` package you
-use, together with Effect v4.
+package — and install v1 of every `effect-firebase` package you use,
+together with Effect v4.
 
 ```bash
 npm uninstall @effect/experimental
-npm install effect@^4.0.0 effect-firebase@beta
-npm install @effect-firebase/admin@beta      # if used
-npm install @effect-firebase/client@beta     # if used
-npm install --save-dev @effect-firebase/mock@beta @effect-firebase/devtools@beta
+npm install effect@^4.0.0 effect-firebase@^1.0.0
+npm install @effect-firebase/admin@^1.0.0      # if used
+npm install @effect-firebase/client@^1.0.0     # if used
+npm install --save-dev @effect-firebase/mock@^1.0.0 @effect-firebase/devtools@^1.0.0
 ```
 
 Or with pnpm:
 
 ```bash
 pnpm remove @effect/experimental
-pnpm add effect@^4.0.0 effect-firebase@beta
+pnpm add effect@^4.0.0 effect-firebase@^1.0.0
 ```
 
 Keep all `@effect-firebase/*` packages on the same version. If you use
