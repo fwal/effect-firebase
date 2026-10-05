@@ -1,9 +1,6 @@
 # effect-firebase
 
-Core library for Effect Firebase. Provides Firestore schemas, a model/repository pattern, and a type-safe query builder. Works with both the Admin and Client SDKs via a platform-agnostic `FirestoreService` interface.
-
-> [!WARNING]
-> Under heavy development. APIs may change.
+Core library for Effect Firebase. Provides Firestore schemas, a model/repository pattern, and a type-safe query builder. Works with the Admin SDK, the Client SDK and the in-memory mock via a platform-agnostic `FirestoreService` interface.
 
 ## Installation
 
@@ -30,26 +27,30 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
   author: Firestore.Reference(AuthorId, 'authors'), // stored as DocumentReference
   title: Schema.String,
   content: Schema.String,
-  status: Schema.Literal('draft', 'published'),
+  status: Schema.Literals(['draft', 'published']),
+  likes: Firestore.Number, // accepts Firestore.increment(n) in update
+  tags: Firestore.Array(Schema.String), // accepts arrayUnion/arrayRemove in update
+  summary: Firestore.OptionalDeletable(Schema.String), // Option.some(Firestore.delete()) removes it
+  metaData: Schema.Struct({ type: Schema.String, deleted: Schema.Boolean }),
 }) {}
 ```
 
-Built-in field helpers:
+Built-in field helpers (all under `Firestore.` unless noted):
 
-| Helper                                          | Behaviour                                                       |
-| ----------------------------------------------- | --------------------------------------------------------------- |
-| `Model.GeneratedByDb(schema)`                   | Auto-generated (e.g. IDs). Excluded from `insert` and `update`. |
-| `Firestore.DateTimeInsert`                      | Server timestamp on create. Excluded from `update`.             |
-| `Firestore.DateTimeUpdate`                      | Server timestamp on every write.                                |
-| `Firestore.Reference(id, collection)`           | Branded ID in app, `DocumentReference` in Firestore.            |
-| `Firestore.ReferenceAsInstance(id, collection)` | Same, but exposes `DocumentReference` in the app layer.         |
-| `Firestore.OptionalDeletable(schema)`           | Optional field that can be deleted with `Firestore.delete()`.   |
-| `Firestore.Array(schema)`                       | Array field. Accepts `arrayUnion`/`arrayRemove` in `update`.    |
-| `Firestore.Number`                              | Number field. Accepts `increment(n)` in `update`.               |
-| `Firestore.WithIncrementField(field)`           | Adds `increment(n)` support to a number field's `update`.       |
-| `Firestore.WithServerTimestamp(field)`          | Adds `serverTimestamp()` support to `insert` and `update`.      |
-| `Firestore.GeoPoint`                            | Geographic point with latitude and longitude.                   |
-| `Model.Field({ select, insert, update, json })` | Fully custom per-variant schemas.                               |
+| Helper                                                   | Notes                                                                                                                                                                                                           |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/schema`. DB-generated ids vs app-generated ids.                                                                                                                                                    |
+| `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                                             |
+| `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                                                    |
+| `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                                             |
+| `Reference(id, path)`, `ReferenceOptional(id, path)`     | Typed reference exposed as branded id.                                                                                                                                                                          |
+| `ReferenceAsInstance(id, path)`, `ReferencePath(path)`   | Expose `FirestoreSchema.Reference` instance / full path string.                                                                                                                                                 |
+| `AnyIdReference`, `AnyPathReference`                     | Untyped references. `AnyIdReference` is read-only (id string on `select`/JSON; omitted from insert/update — a bare id has no collection path). Use `AnyPathReference` for untyped references you need to write. |
+| `Optional(s)`, `OptionalNull(s)`, `OptionalDeletable(s)` | `Option` in app. `Optional` reads a missing key/null/undefined and writes `null`; `OptionalNull` only null; `OptionalDeletable` omits the key and supports `Option.some(Firestore.delete())` in update.         |
+| `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                                                 |
+| `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                                             |
+| `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                                                  |
+| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/schema`).                                                                                                                                                        |
 
 ## Repository
 
@@ -74,7 +75,7 @@ Available methods on every repository:
 ```typescript
 repo.add(data); // Effect<PostId>
 repo.set(id, { data, variant?, merge? }); // Effect<void> — upsert at a known ID
-repo.update(id, partial); // Effect<void>
+repo.update(id, data, { merge? }); // Effect<void> — fails 'not-found' if absent
 repo.delete(id); // Effect<void>
 repo.deleteRecursive(id); // Effect<void> — Admin SDK only
 repo.getById(id); // Effect<Option<Post>>
@@ -119,41 +120,61 @@ const program = Effect.gen(function* () {
 
 The underlying service methods are `FirestoreService.queryGroup` and `streamQueryGroup`. Firestore needs a collection-group index for the fields a group query filters or orders on.
 
+## Writes
+
+```typescript
+// Sentinels — only accepted on fields declared with the matching helper
+yield *
+  repo.update(id, {
+    likes: Firestore.increment(1),
+    tags: Firestore.arrayUnion(['effect']),
+    summary: Option.some(Firestore.delete()),
+  });
+
+// Nested fields: a dotted key touches only that field
+yield * repo.update(id, { 'metaData.deleted': true });
+// { merge: true } takes a deep partial and flattens it into dotted paths
+yield * repo.update(id, { metaData: { deleted: true } }, { merge: true });
+```
+
+`set(id, { data, variant })` upserts at a known ID. With `variant: 'insert'` (the default) `DateTimeInsert` fields are re-stamped on every write; with `variant: 'update'` they are omitted (and preserved with `merge: true`). Keys the model does not declare fail with `SchemaError`; they are never silently dropped.
+
 ## Queries
 
 ```typescript
 import { pipe } from 'effect';
 import { Query } from 'effect-firebase';
 
-Query.where('status', '==', 'published');
-Query.orderBy('createdAt', 'desc');
-Query.limit(20);
-Query.startAfter(lastCreatedAt);
-
-// Cursor pagination with a document ID tiebreaker, so pages never skip
-// or repeat documents when the order field has duplicate values
-pipe(
-  Query.orderBy('createdAt', 'desc'),
-  Query.addOrderByDocumentId('desc'),
-  Query.addStartAfter(lastCreatedAt, lastDocId),
-  Query.addLimit(20),
+repo.query(
+  Query.and(
+    Query.where('status', '==', 'published'),
+    Query.where('likes', '>=', 10),
+    Query.where('metaData.type', '==', 'post'), // dotted paths into nested maps
+    Query.orderBy('createdAt', 'desc'),
+    Query.limit(20),
+  ),
 );
 
-// Combine
-Query.and(
-  Query.where('status', '==', 'published'),
-  Query.where('likes', '>=', 10),
-  Query.orderBy('createdAt', 'desc'),
-  Query.limit(20),
+repo.query(
+  Query.or(
+    Query.where('status', '==', 'published'),
+    Query.where('status', '==', 'draft'),
+  ),
 );
 
-Query.or(
-  Query.where('status', '==', 'published'),
-  Query.where('status', '==', 'featured'),
+// Pipeable form + cursor pagination with a document ID tiebreaker, so pages
+// never skip or repeat documents when the order field has duplicate values
+repo.query(
+  pipe(
+    Query.orderBy<typeof PostModel, 'createdAt'>('createdAt', 'desc'),
+    Query.addOrderByDocumentId('desc'),
+    Query.addStartAfter(lastPost.createdAt, lastPost.id),
+    Query.addLimit(20),
+  ),
 );
 ```
 
-Fields and operators are validated at compile time against the model.
+Constructors: `where`, `orderBy`, `orderByDocumentId`, `limit`, `limitToLast`, `startAt`, `startAfter`, `endAt`, `endBefore`, `and`, `or`, `empty`, plus `add*` pipeable variants. Field names (including dotted paths into nested maps) are checked against the model at compile time.
 
 ## Transactions and batches
 
@@ -168,7 +189,7 @@ Firestore.withTransaction(
     const repo = yield* PostRepository;
     const post = yield* repo.getById(postId); // transactional read
     // ... all reads must happen before the first write
-    yield* repo.update(postId, { likes: likes + 1 }); // transactional write
+    yield* repo.update(postId, { likes: Firestore.increment(1) }); // transactional write
   }),
 );
 ```
@@ -176,7 +197,7 @@ Firestore.withTransaction(
 - The SDK retries the transaction on contention, so the effect may run more than once.
 - Firestore requires all transactional reads to happen before the first write.
 - Nested `withTransaction` calls join the ambient transaction.
-- `streamDoc`, `streamQuery`, `streamQueryGroup`, and `deleteRecursive` cannot be used inside a transaction; the client SDK additionally disallows `query` and `queryGroup`.
+- `streamDoc`, `streamQuery`, `streamQueryGroup`, and `deleteRecursive` die (defect) inside a transaction; the client SDK additionally disallows `query` and `queryGroup`.
 
 `Firestore.withBatch` stages writes on a write batch and commits them atomically when the effect succeeds. When the effect fails, nothing is committed:
 
@@ -184,12 +205,14 @@ Firestore.withTransaction(
 Firestore.withBatch(
   Effect.gen(function* () {
     const repo = yield* PostRepository;
-    yield* Effect.forEach(ids, (id) => repo.update(id, { status: 'archived' }));
+    yield* Effect.forEach(ids, (id) =>
+      repo.update(id, { status: 'published' }),
+    );
   }),
 );
 ```
 
-Batches are write-only: reads inside the effect execute immediately against the database and do not see the staged writes. A batch supports at most 500 writes.
+Batches are write-only: reads inside the effect execute immediately against the database and do not see the staged writes. A batch supports at most 500 writes. Nested `withBatch` calls join the ambient batch; `withTransaction` and `deleteRecursive` inside a batch die.
 
 ## Schemas
 
@@ -198,11 +221,13 @@ Batches are write-only: reads inside the effect execute immediately against the 
 ```typescript
 import { FirestoreSchema } from 'effect-firebase';
 
-FirestoreSchema.Timestamp; // { seconds, nanoseconds } <-> Timestamp instance
+FirestoreSchema.Timestamp; // { seconds, nanoseconds }
 FirestoreSchema.ServerTimestamp; // sentinel for FieldValue.serverTimestamp()
-FirestoreSchema.GeoPoint; // { latitude, longitude } <-> GeoPoint instance
-FirestoreSchema.Reference; // DocumentReference schema
+FirestoreSchema.GeoPoint; // { latitude, longitude }
+FirestoreSchema.Reference; // { id, path, parent? }; Reference.makeFromPath(path)
 ```
+
+Each has an `*Instance` variant (`TimestampInstance`, `GeoPointInstance`, …) that keeps the class instance through encoding, for use on the database side. `TimestampDateTimeUtc` converts between Firestore timestamps and `DateTime.Utc`.
 
 ## Error handling
 

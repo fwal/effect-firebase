@@ -52,7 +52,7 @@ class PostModel extends Model.Class<PostModel>('PostModel')({
   author: Firestore.Reference(AuthorId, 'authors'),
   title: Schema.String,
   content: Schema.String,
-  status: Schema.Literal('draft', 'published'),
+  status: Schema.Literals(['draft', 'published']),
 }) {}
 ```
 
@@ -189,7 +189,6 @@ const program = Effect.gen(function* () {
   );
   return { postId, posts };
 }).pipe(
-  Effect.provide(PostRepository),
   Effect.provide(
     Client.layer({ app: initializeApp({ projectId: 'my-project' }) }),
   ),
@@ -223,13 +222,11 @@ Firestore.withBatch(
 ### Cloud Function
 
 ```typescript
-import { Effect, Layer } from 'effect';
+import { Effect } from 'effect';
 import { initializeApp } from 'firebase-admin/app';
 import { Admin, FunctionsRuntime, onCallEffect } from '@effect-firebase/admin';
 
-const runtime = FunctionsRuntime.make(
-  Layer.mergeAll(Admin.layer({ app: initializeApp() }), PostRepository),
-);
+const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 
 export const createPost = onCallEffect({ runtime }, (request) =>
   Effect.gen(function* () {
@@ -248,7 +245,7 @@ export const createPost = onCallEffect({ runtime }, (request) =>
 ### Testing
 
 ```typescript
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { layer as mockFirestore } from '@effect-firebase/mock';
 
 await Effect.runPromise(
@@ -260,8 +257,8 @@ await Effect.runPromise(
       status: 'draft',
     });
     const post = yield* repo.getById(postId);
-    expect(post.title).toBe('Test');
-  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore)),
+    expect(Option.getOrThrow(post).title).toBe('Test');
+  }).pipe(Effect.provide(mockFirestore())),
 );
 ```
 
