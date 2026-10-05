@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 export const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));

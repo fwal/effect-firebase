@@ -8,8 +8,8 @@ adapt the rest.
 The patterns are built on
 [`@effect/atom-react`](https://www.npmjs.com/package/@effect/atom-react)
 (official Effect-TS React binding) and `effect`'s built-in
-`unstable/reactivity/Atom` module. Both are part of Effect v4 and ship in
-lockstep — the `react` binding peer-depends on the exact Effect beta it was
+`effect/reactivity` `Atom` module. Both are part of Effect v4 and ship in
+lockstep — the `react` binding peer-depends on the Effect version it was
 released against.
 
 ## Contents
@@ -39,7 +39,7 @@ The runtime is composed from two atoms:
 
 ```ts
 // example/app/src/lib/atoms.ts
-import { Atom } from 'effect/unstable/reactivity';
+import { Atom } from 'effect/reactivity';
 import { Effect, Layer } from 'effect';
 import { FirestoreService } from 'effect-firebase';
 
@@ -106,7 +106,7 @@ across components opens a single Firestore subscription.
 ```ts
 // example/app/src/lib/atoms.ts
 import { Effect, Stream } from 'effect';
-import { Atom } from 'effect/unstable/reactivity';
+import { Atom } from 'effect/reactivity';
 import { PostId, PostRepository, PostModel } from '@example/shared';
 
 // One-shot by id — keyed atom, one Effect per id. `withReactivity` re-runs
@@ -172,7 +172,7 @@ Notes:
 ## 3. Reading data
 
 ```tsx
-import { AsyncResult } from 'effect/unstable/reactivity';
+import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue } from '@effect/atom-react';
 import { Cause } from 'effect';
 import { latestPostsAtom } from '../lib/atoms.js';
@@ -529,9 +529,9 @@ and open the devtools panel on the Firestore page. See
 
 ## 9. Caveats
 
-- **`@effect/atom-react` is lockstep with `effect` betas.** Each release of
-  `@effect/atom-react@4.0.0-beta.N` peer-depends on `effect@^4.0.0-beta.N`. Bump
-  them together.
+- **`@effect/atom-react` is lockstep with `effect`.** Each release of
+  `@effect/atom-react@4.x.y` peer-depends on `effect@^4.x.y`. Bump them
+  together.
 - **The layer atom's value drives the runtime.** The runtime is rebuilt —
   tearing down every subscription — whenever the layer atom's value changes
   in the registry (`registry.set` / `useAtomSet`). `initialValues` is read
@@ -546,6 +546,3 @@ and open the devtools panel on the Firestore page. See
   or set a registry-wide `defaultIdleTTL` on `RegistryProvider`. During a TTL
   window the subscription stays live (not paused), and a remount reattaches
   to it; after the TTL nothing is cached.
-- **`unstable/reactivity` is unstable.** The Atom module lives in Effect's
-  `unstable/` namespace until v4 stable. Treat API churn between betas as
-  possible — pin tightly and update intentionally.

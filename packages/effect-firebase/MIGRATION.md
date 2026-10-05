@@ -34,8 +34,19 @@ pnpm add effect@^4.0.0 effect-firebase@beta
 ```
 
 Keep all `@effect-firebase/*` packages on the same version. If you use
-`@effect/atom-react`, it peer-depends on the exact Effect prerelease it was
-built against — bump it together with `effect`.
+`@effect/atom-react`, it peer-depends on the Effect version it was built
+against — bump it together with `effect`.
+
+The peer range is `effect@^4.0.0` (stable). Effect `4.0.0-rc.*` / `beta.*`
+prereleases no longer satisfy it. Stable Effect also promoted the former
+`effect/unstable/*` modules to top-level entry points, so rewrite those
+imports:
+
+| Before (Effect 4 prerelease) | After (Effect 4 stable) |
+| ---------------------------- | ----------------------- |
+| `effect/unstable/schema`     | `effect/schema`         |
+| `effect/unstable/reactivity` | `effect/reactivity`     |
+| `effect/unstable/<module>`   | `effect/<module>`       |
 
 ### 2. Update error tag strings
 
@@ -83,7 +94,7 @@ The sync variants are **unchanged**: `Schema.encodeSync`,
 
 The `Model` namespace is no longer exported from `effect-firebase`. The model
 class and the generic field helpers now come from Effect itself
-(`effect/unstable/schema`), and `effect-firebase` exports only the
+(`effect/schema`), and `effect-firebase` exports only the
 Firestore-specific pieces under the `Firestore` namespace.
 
 **Before:**
@@ -110,7 +121,7 @@ const AuthorRepository = Model.makeRepository(AuthorModel, {
 **After:**
 
 ```ts
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 class AuthorModel extends Model.Class<AuthorModel>('AuthorModel')({
@@ -129,9 +140,9 @@ const AuthorRepository = Firestore.makeRepository(AuthorModel, {
 });
 ```
 
-Generic helpers that moved to `effect/unstable/schema`:
+Generic helpers that moved to `effect/schema`:
 
-| v0.x (`effect-firebase`) | v1.0 (`effect/unstable/schema`)                 |
+| v0.x (`effect-firebase`) | v1.0 (`effect/schema`)                          |
 | ------------------------ | ----------------------------------------------- |
 | `Model.Class`            | `Model.Class`                                   |
 | `Model.Generated`        | `Model.GeneratedByDb` (**renamed**)             |
@@ -294,7 +305,7 @@ import path:
 import { VariantSchema } from '@effect/experimental';
 
 // After (v4)
-import { VariantSchema } from 'effect/unstable/schema';
+import { VariantSchema } from 'effect/schema';
 ```
 
 ### 7. Repository API additions

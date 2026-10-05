@@ -42,7 +42,7 @@ npm install --save-dev @effect-firebase/mock @effect-firebase/devtools
 
 ```typescript
 import { Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));

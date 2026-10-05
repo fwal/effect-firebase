@@ -64,7 +64,7 @@ gets published (`dist/`, `README.md`, `AGENTS.md`, `MIGRATION.md`).
   `peerDependencies`. Bump both together. `@effect/atom-react` must be
   bumped in lockstep with `effect`.
 - **Model helpers split:** generic helpers (`Model.Class`, `GeneratedByDb`,
-  `Field`, `fieldEvolve`) come from `effect/unstable/schema`; anything
+  `Field`, `fieldEvolve`) come from `effect/schema`; anything
   Firestore-specific lives under the `Firestore` namespace in
   `packages/effect-firebase/src/lib/firestore/firestore.ts`. Do not
   re-export `Model` from `effect-firebase`.

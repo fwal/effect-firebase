@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { WithArrayFields, Array } from './array.js';
 import {
   ArrayUnion,

@@ -76,7 +76,7 @@ interrupted when the client disconnects, including an in-flight pull.
 ```typescript
 import { onCallStreamEffect } from '@effect-firebase/admin';
 import { Schema, Stream } from 'effect';
-import { LanguageModel } from 'effect/unstable/ai';
+import { LanguageModel } from 'effect/ai';
 
 export const chat = onCallStreamEffect(
   {
@@ -231,12 +231,12 @@ export const onPostCreated = onDocumentCreatedEffect(
 
 Defaults when `onSetupError` is omitted:
 
-| Wrapper                        | Invalid incoming data                       | Encode failure       |
-| ------------------------------ | ------------------------------------------- | -------------------- |
-| `onCallEffect`                 | `HttpsError('invalid-argument', ...)`        | `HttpsError('internal')` |
-| `onCallStreamEffect`           | `HttpsError('invalid-argument', ...)`        | `HttpsError('internal')` |
-| `onRequestEffect`              | `400 { error: 'Invalid request body' }`      | `500`                |
-| Firestore / Pub/Sub / Tasks    | logged defect                               | —                    |
+| Wrapper                     | Invalid incoming data                   | Encode failure           |
+| --------------------------- | --------------------------------------- | ------------------------ |
+| `onCallEffect`              | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
+| `onCallStreamEffect`        | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
+| `onRequestEffect`           | `400 { error: 'Invalid request body' }` | `500`                    |
+| Firestore / Pub/Sub / Tasks | logged defect                           | —                        |
 
 `onCallStreamEffect` does not expose an `onSetupError` option, so its row above is unconditional; the other wrappers let `onSetupError` override these defaults.
 

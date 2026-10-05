@@ -1,5 +1,5 @@
 import { Schema, SchemaGetter } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
 /**
@@ -75,7 +75,7 @@ export const AnyPathReference = Model.Field({
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect/unstable/schema';
+ * import { Model } from 'effect/schema';
  * import { Firestore } from 'effect-firebase';
  *
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
@@ -116,7 +116,7 @@ export const Reference = <Id extends StringBasedSchema>(
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect/unstable/schema';
+ * import { Model } from 'effect/schema';
  * import { Firestore } from 'effect-firebase';
  *
  * const AuthorId = Schema.String.pipe(Schema.brand('AuthorId'));
@@ -174,7 +174,7 @@ export const ReferenceAsInstance = <Id extends StringBasedSchema>(
  * @example
  * ```ts
  * import { Schema } from 'effect';
- * import { Model } from 'effect/unstable/schema';
+ * import { Model } from 'effect/schema';
  * import { Firestore } from 'effect-firebase';
  *
  * class PostModel extends Model.Class<PostModel>('PostModel')({

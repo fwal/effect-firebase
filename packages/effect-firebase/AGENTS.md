@@ -33,7 +33,7 @@ not exported there.
 
 ```ts
 import { Effect, Schema, Option, Stream, pipe } from 'effect';
-import { Model } from 'effect/unstable/schema'; // Model.Class, GeneratedByDb, Field, ...
+import { Model } from 'effect/schema'; // Model.Class, GeneratedByDb, Field, ...
 import {
   Firestore, //       field helpers, sentinels, makeRepository, withTransaction/withBatch
   FirestoreSchema, // Timestamp, GeoPoint, Reference schemas
@@ -61,7 +61,7 @@ on import when two meet in one file.
 
 ```ts
 import { Effect, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 export const PostId = Schema.String.pipe(Schema.brand('PostId'));
@@ -94,7 +94,7 @@ Field helpers (all under `Firestore.` unless noted):
 
 | Helper                                                   | Notes                                                                                                                                                                                                           |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/unstable/schema`. DB-generated ids vs app-generated ids.                                                                                                                                           |
+| `Model.GeneratedByDb(s)` / `Model.GeneratedByApp(s)`     | From `effect/schema`. DB-generated ids vs app-generated ids.                                                                                                                                                    |
 | `DateTimeInsert`, `DateTimeUpdate`                       | Auto server timestamps. App type is `DateTime.Utc`.                                                                                                                                                             |
 | `DateTime`, `ServerDateTime`                             | Plain timestamp; `ServerDateTime` writes server time when the key is omitted or `undefined`.                                                                                                                    |
 | `WithServerTimestamp(field)`                             | Lets insert/update accept `Firestore.serverTimestamp()` explicitly.                                                                                                                                             |
@@ -105,7 +105,7 @@ Field helpers (all under `Firestore.` unless noted):
 | `Array(s)`, `WithArrayFields(field)`                     | `Firestore.arrayUnion([...])` / `arrayRemove([...])` in update.                                                                                                                                                 |
 | `Number`, `WithIncrementField(field)`                    | `Firestore.increment(n)` in update.                                                                                                                                                                             |
 | `GeoPoint`                                               | `FirestoreSchema.GeoPoint` instance in app, `{ latitude, longitude }` in JSON.                                                                                                                                  |
-| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/unstable/schema`).                                                                                                                                               |
+| `Model.Field({ select, insert, update, json, ... })`     | Fully custom per-variant schemas (from `effect/schema`).                                                                                                                                                        |
 
 ## Create a repository
 
@@ -537,7 +537,7 @@ import { validateDocPath, validateCollectionPath } from 'effect-firebase';
 
 ## Gotchas checklist
 
-1. `Model` comes from `effect/unstable/schema`; Firestore field helpers and
+1. `Model` comes from `effect/schema`; Firestore field helpers and
    `makeRepository` come from `Firestore` in `effect-firebase`.
 2. Variants are `select`/`insert`/`update`/`json`/`jsonCreate`/`jsonUpdate`
    (not `get`/`add`).

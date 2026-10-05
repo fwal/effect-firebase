@@ -13,11 +13,11 @@ npm install effect-firebase effect
 
 ## Models
 
-Define a model with `Model.Class` from `effect/unstable/schema`; Firestore-specific field helpers come from the `Firestore` namespace. Each field declares how it behaves across variants: `select` (read), `insert` (create), `update` (partial update), and `json` / `jsonCreate` / `jsonUpdate` (serialization).
+Define a model with `Model.Class` from `effect/schema`; Firestore-specific field helpers come from the `Firestore` namespace. Each field declares how it behaves across variants: `select` (read), `insert` (create), `update` (partial update), and `json` / `jsonCreate` / `jsonUpdate` (serialization).
 
 ```typescript
 import { Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore } from 'effect-firebase';
 
 const PostId = Schema.String.pipe(Schema.brand('PostId'));

@@ -10,7 +10,7 @@ import {
   Stream,
 } from 'effect';
 import { delete as deleteField } from '../fields/delete.js';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { makeRepository } from './repository.js';
 import { AnyIdReference } from './reference.js';
 import * as FirestoreModel from './datetime.js';

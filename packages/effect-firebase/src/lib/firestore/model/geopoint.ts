@@ -1,4 +1,4 @@
-import { Model, VariantSchema } from 'effect/unstable/schema';
+import { Model, VariantSchema } from 'effect/schema';
 import * as FirestoreSchema from '../schema/schema.js';
 
 /**
@@ -15,7 +15,7 @@ import * as FirestoreSchema from '../schema/schema.js';
  *
  * @example
  * ```ts
- * import { Model } from 'effect/unstable/schema';
+ * import { Model } from 'effect/schema';
  * import { Firestore } from 'effect-firebase';
  *
  * class PlaceModel extends Model.Class<PlaceModel>('PlaceModel')({

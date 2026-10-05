@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Option, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Firestore, FirestoreSchema, FirestoreService } from 'effect-firebase';
 import { MockController } from './controller.js';
 import { layer } from './layer.js';

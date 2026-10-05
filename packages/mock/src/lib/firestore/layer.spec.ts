@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DateTime, Effect, Fiber, Option, Schema, Stream } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import {
   Firestore,
   FirestoreError,

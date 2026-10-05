@@ -1,5 +1,5 @@
 import type { Stream } from 'effect';
-import { AsyncResult, Atom, AtomRegistry } from 'effect/unstable/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 
 /**
  * The value exposed by a paginated query atom.

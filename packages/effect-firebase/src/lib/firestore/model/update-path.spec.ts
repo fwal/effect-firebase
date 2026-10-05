@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Option, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import {
   MAX_FIELD_PATH_DEPTH,
   flattenForMerge,

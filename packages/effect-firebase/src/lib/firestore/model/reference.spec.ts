@@ -8,7 +8,7 @@ import {
   ReferencePath,
   ReferenceOptional,
 } from './reference.js';
-import { Model } from 'effect/unstable/schema';
+import { Model } from 'effect/schema';
 import { Reference as SchemaReference } from '../schema/reference.js';
 
 describe('Model.AnyIdReference', () => {
