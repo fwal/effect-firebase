@@ -2,9 +2,6 @@
 
 Core library for Effect Firebase. Provides Firestore schemas, a model/repository pattern, and a type-safe query builder. Works with both the Admin and Client SDKs via a platform-agnostic `FirestoreService` interface.
 
-> [!WARNING]
-> Under heavy development. APIs may change.
-
 ## Installation
 
 ```bash

@@ -2,9 +2,6 @@
 
 Firebase Admin SDK integration for Effect Firebase. Provides a `FirestoreService` implementation and Effect wrappers for Cloud Functions triggers.
 
-> [!WARNING]
-> Under heavy development. APIs may change.
-
 ## Installation
 
 ```bash
