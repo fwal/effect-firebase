@@ -131,7 +131,7 @@ import { Query } from 'effect-firebase';
 repo.query(Query.where('status', '==', 'published'));
 repo.query(Query.orderBy('createdAt', 'desc'));
 repo.query(Query.limit(20));
-repo.query(Query.startAfter(lastCreatedAt));
+repo.query(Query.and(Query.orderBy('createdAt', 'desc'), Query.startAfter(lastCreatedAt)));
 
 // Cursor pagination with a document ID tiebreaker, so pages never skip
 // or repeat documents when the order field has duplicate values
