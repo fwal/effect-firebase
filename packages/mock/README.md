@@ -21,7 +21,7 @@ npm install --save-dev @effect-firebase/mock
 Provide `layer` in place of the real Admin or Client layer:
 
 ```typescript
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { layer as mockFirestore } from '@effect-firebase/mock';
 
 await Effect.runPromise(
@@ -34,12 +34,12 @@ await Effect.runPromise(
       status: 'draft',
     });
     const post = yield* repo.getById(postId);
-    expect(post.title).toBe('Test');
-  }).pipe(Effect.provide(PostRepository), Effect.provide(mockFirestore())),
+    expect(Option.getOrThrow(post).title).toBe('Test');
+  }).pipe(Effect.provide(mockFirestore())),
 );
 ```
 
-Each `Effect.provide(layer())` call gets a fresh in-memory store, so tests are isolated by default.
+Repositories built with `Firestore.makeRepository` are effects that only need `FirestoreService`, so providing the mock layer once covers all of them. Each `Effect.provide(layer())` call gets a fresh in-memory store, so tests are isolated by default.
 
 ## Fixtures
 
@@ -107,11 +107,21 @@ Effect.gen(function* () {
   yield* controller.setState(MockState.All, 'loading');
 
   // Other controls:
+  yield* controller.clearState('posts'); // drop a per-collection override
   yield* controller.setLatency('300 millis');
   yield* controller.seed(morePosts);
+  yield* controller.setDoc('posts/raw', { title: 'Raw' }); // bypasses states and latency
+  yield* controller.removeDoc('posts/raw');
   yield* controller.reset;
+
+  // Inspect:
+  const states = yield* controller.states;
+  const docs = yield* controller.docs; // all docs keyed by full path
+  // controller.changes is a Stream<StoreSnapshot> of every store change
 });
 ```
+
+`MockState` also exports `data`, `empty` and `loading` constants; `MockState.error` takes a Firestore error code or a full `FirestoreError`. Fixtures passed to `layer`/`make` and `controller.seed` must use models whose schemas need no extra encoding services.
 
 States can also be set up front:
 
@@ -158,26 +168,37 @@ Notes on semantics:
 
 ## Multiple repositories
 
+Provide one mock layer with fixtures for every collection; each repository reads from the same store:
+
 ```typescript
-const testLayer = Layer.mergeAll(PostRepository, UserRepository).pipe(
-  Layer.provideMerge(layer({ fixtures: [posts, users] })),
-);
+const program = Effect.gen(function* () {
+  const posts = yield* PostRepository;
+  const users = yield* UserRepository;
+  // ...
+}).pipe(Effect.provide(layer({ fixtures: [posts, users] })));
 ```
 
 ## Error handling
 
+A missing document is `Option.none()`, not a failure. Use the `error` state to exercise failure paths:
+
 ```typescript
 await Effect.runPromise(
   Effect.gen(function* () {
+    const controller = yield* MockController;
+    yield* controller.setState('posts', 'error');
     const repo = yield* PostRepository;
-    yield* repo.getById('nonexistent');
+    return yield* repo.query(Query.limit(10));
   }).pipe(
-    Effect.provide(PostRepository),
     Effect.provide(layer()),
-    Effect.catchTag('NoSuchElementError', () => Effect.succeed('not found')),
+    Effect.catchTag('FirestoreError', (e) => Effect.succeed(e.code)), // 'unavailable'
   ),
 );
 ```
+
+## Stubbing individual methods
+
+For a plain test double without the in-memory store, `MockFirestoreService(overrides)` returns a `FirestoreService` layer built from the methods you pass; any method you leave out throws "not implemented" when called.
 
 ## NaN field values
 

@@ -30,7 +30,7 @@ const program = Effect.gen(function* () {
     ),
   );
   return posts;
-}).pipe(Effect.provide(PostRepository), Effect.provide(Client.layer({ app })));
+}).pipe(Effect.provide(Client.layer({ app })));
 
 Effect.runPromise(program).then(console.log);
 ```
@@ -42,6 +42,10 @@ Client.layer(); // uses the default initialized Firebase app
 Client.layer({ app }); // uses the provided app
 Client.layer({ firestore }); // uses a Firestore instance directly
 ```
+
+`Client.layer()` throws when no default app has been initialized. Passing both `app` and `firestore` throws as well.
+
+Repositories are effects that only need `FirestoreService`, so `yield* PostRepository` works once `Client.layer` is provided.
 
 ## License
 

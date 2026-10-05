@@ -6,7 +6,7 @@ Firebase Admin SDK integration for Effect Firebase. Provides a `FirestoreService
 
 ```bash
 npm install @effect-firebase/admin effect-firebase effect
-npm install firebase-admin firebase-functions
+npm install firebase-admin firebase-functions express
 ```
 
 ## Setup
@@ -20,7 +20,9 @@ import { Admin, FunctionsRuntime } from '@effect-firebase/admin';
 const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 ```
 
-`Admin.layer` accepts `{ app }`, `{ firestore }`, or no arguments (uses/initializes the default app). It provides `FirestoreService` and wires up Cloud Logging.
+`Admin.layer` accepts `{ app }`, `{ firestore }`, or no arguments (uses/initializes the default app). It provides `FirestoreService` and wires up Cloud Logging. `FunctionsRuntime.Default(app?)` is a shorthand for `make(Admin.layer(...))`. `make` disposes the runtime on `SIGINT`/`SIGTERM`.
+
+Repositories are effects that only need `FirestoreService`, so `yield* PostRepository` inside a handler works without providing anything else.
 
 ## Cloud Functions
 
@@ -28,12 +30,13 @@ const runtime = FunctionsRuntime.make(Admin.layer({ app: initializeApp() }));
 
 ```typescript
 import { onRequestEffect } from '@effect-firebase/admin';
+import { Query } from 'effect-firebase';
 
 export const myFunction = onRequestEffect({ runtime }, (request, response) =>
   Effect.gen(function* () {
     const repo = yield* PostRepository;
-    response.json({ posts: yield* repo.query() });
-  }).pipe(Effect.provide(PostRepository)),
+    response.json({ posts: yield* repo.query(Query.limit(20)) });
+  }),
 );
 ```
 
@@ -53,14 +56,16 @@ export const createPost = onCallEffect(
       const repo = yield* PostRepository;
       const postId = yield* repo.add({ ...input, status: 'draft' });
       return { postId };
-    }).pipe(Effect.provide(PostRepository)),
+    }),
 );
 ```
 
 When `inputSchema` and `outputSchema` are provided, decoding and encoding are handled automatically.
 
-The handler's `context` exposes `auth`, `app`, `rawRequest`, `acceptsStreaming` and, when the
-client called `httpsCallable(...).stream()`, the `response` object for manual `sendChunk` calls.
+When `inputSchema` is set, the handler receives `(input, context)`; `context` exposes `auth`, `app`, `rawRequest`, `instanceIdToken`, `acceptsStreaming` and, when the
+client called `httpsCallable(...).stream()`, the `response` object for manual `sendChunk` calls. Without `inputSchema`, the handler receives the raw `(request, response)`.
+
+`onRequestEffect` takes the same approach: with `bodySchema` the handler receives `(body, request, response)`; with `responseSchema` it returns the value to encode and send (status `successStatus`, default `200`).
 
 ### Streaming callable (`onCall` + `sendChunk`)
 
@@ -126,7 +131,10 @@ await runCallable(chat, { prompt: 'hi' }); // non-streaming client, final `data`
 // full control over auth/app/rawRequest
 streamCallable(
   chat,
-  makeCallableRequest({ prompt: 'hi' }, { auth: { uid: 'u1', token } }),
+  makeCallableRequest(
+    { prompt: 'hi' },
+    { auth: { uid: 'u1', token, rawToken: 'test-token' } },
+  ),
 );
 ```
 
@@ -145,6 +153,8 @@ export const onPostCreated = onDocumentCreatedEffect(
   (post) => Effect.log(`Created: ${post.id}`),
 );
 ```
+
+Firestore trigger handlers must return `Effect<void, never, R>`: handle or log every failure yourself. `onDocumentUpdatedEffect` passes a `TypedChange<A>` (`{ before, after }`), `onDocumentWrittenEffect` a `TypedWrittenChange<A>` (`{ before: Option<A>, after: Option<A> }`). Each trigger also has a `...WithAuthContextEffect` variant (e.g. `onDocumentCreatedWithAuthContextEffect`) whose handler receives `(event, data)`.
 
 ### Pub/Sub (`onMessagePublished`)
 
@@ -190,7 +200,8 @@ declare. When that fails — the caller sent data that does not match `inputSche
 document does not match `schema` — the wrapper raises a `FunctionSetupError` carrying
 the `phase` that failed (`decode-input`, `encode-output`, `decode-body`,
 `encode-response`, `decode-document`, `decode-message`, `decode-task`) and the
-underlying `SchemaError` as `cause`.
+underlying failure as `cause` (usually a `SchemaError`; a plain `Error` when a Pub/Sub
+payload is not valid JSON). `FunctionSetupError` and `isFunctionSetupError` are exported.
 
 Pass `onSetupError` to recover instead of taking the default:
 
@@ -228,12 +239,13 @@ export const onPostCreated = onDocumentCreatedEffect(
 
 Defaults when `onSetupError` is omitted:
 
-| Wrapper                     | Invalid incoming data                   | Encode failure           |
-| --------------------------- | --------------------------------------- | ------------------------ |
-| `onCallEffect`              | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
-| `onCallStreamEffect`        | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
-| `onRequestEffect`           | `400 { error: 'Invalid request body' }` | `500`                    |
-| Firestore / Pub/Sub / Tasks | logged defect                           | —                        |
+| Wrapper              | Invalid incoming data                   | Encode failure           |
+| -------------------- | --------------------------------------- | ------------------------ |
+| `onCallEffect`       | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
+| `onCallStreamEffect` | `HttpsError('invalid-argument', ...)`   | `HttpsError('internal')` |
+| `onRequestEffect`    | `400 { error: 'Invalid request body' }` | `500`                    |
+| Firestore / Pub/Sub  | logged defect (no retry)                | —                        |
+| Tasks                | logged defect, rethrown (retried)       | —                        |
 
 `onCallStreamEffect` does not expose an `onSetupError` option, so its row above is unconditional; the other wrappers let `onSetupError` override these defaults.
 
@@ -247,10 +259,14 @@ distinguishable.
 
 ### Expected rejections and defect logging
 
-An error that escapes a function is logged as a defect unless it is an expected
-rejection: an `HttpsError`, or any error annotated with Effect's `ErrorReporter.ignore`
-(the convention `HttpApiError.BadRequest` and friends use). Annotate your own errors to
-keep them out of the defect logs while still failing the call:
+In `onCallEffect`, `onCallStreamEffect` and `onRequestEffect`, an error that escapes the
+handler is logged as a defect unless it is an expected rejection: an `HttpsError`, or any
+error annotated with Effect's `ErrorReporter.ignore` (the convention
+`HttpApiError.BadRequest` and friends use). `onRequestEffect` still responds `500`; only
+the log line is skipped. Trigger wrappers (Firestore, Pub/Sub, Tasks, Schedule) log every
+escaping error. Task and scheduled handlers rethrow after logging, so their retry
+configuration applies. Annotate your own errors to keep them out of the defect logs while
+still failing the call:
 
 ```typescript
 import { Data, ErrorReporter } from 'effect';
@@ -270,9 +286,10 @@ class RejectedError extends Data.TaggedError('RejectedError')<{
 Effect.gen(function* () {
   yield* Effect.log('info message');
   yield* Effect.logError('error message');
-  yield* Effect.logDebug('debug message');
 }).pipe(Effect.provide(Admin.layer({ app: initializeApp() })));
 ```
+
+The logger is also available on its own as the `Logger.cloudConsole` layer.
 
 ## Troubleshooting
 
