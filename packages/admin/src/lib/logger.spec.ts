@@ -176,7 +176,11 @@ describe('Logger.cloudConsole', () => {
   it.effect('keeps the payload a plain object for reserved keys', () =>
     Effect.gen(function* () {
       yield* Effect.logInfo('hello').pipe(
-        Effect.annotateLogs({ constructor: 'Example', ['__proto__']: 'x' }),
+        Effect.annotateLogs({
+          constructor: 'Example',
+          _constructor: 'legacy',
+          ['__proto__']: 'x',
+        }),
       );
       const payload = args(infoSpy)[1] as Record<string, unknown>;
       // firebase-functions' entryFromArgs only uses the trailing argument as
@@ -184,6 +188,7 @@ describe('Logger.cloudConsole', () => {
       expect(payload.constructor).toBe(Object);
       expect(Object.getPrototypeOf(payload)).toBe(Object.prototype);
       expect(payload['_constructor']).toBe('Example');
+      expect(payload['__constructor']).toBe('legacy');
       expect(Object.getOwnPropertyDescriptor(payload, '__proto__')?.value).toBe(
         'x',
       );

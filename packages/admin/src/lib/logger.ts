@@ -40,17 +40,22 @@ const toSafeJson = (value: unknown): unknown => {
 };
 
 /**
- * Sets a JSON-safe payload field. `constructor` is renamed because
- * `firebase-functions` only treats the trailing argument as `jsonPayload`
- * while `payload.constructor === Object`; `defineProperty` keeps a
+ * Sets a JSON-safe payload field. `constructor` is escaped to
+ * `_constructor` because `firebase-functions` only treats the trailing
+ * argument as `jsonPayload` while `payload.constructor === Object`. Keys that
+ * already look escaped (`_constructor`, `__constructor`, ...) get one more
+ * underscore, so no two keys collide; `defineProperty` keeps a
  * `__proto__` key an ordinary field.
  */
+const escapeKey = (key: string): string =>
+  /^_*constructor$/.test(key) ? `_${key}` : key;
+
 const setField = (
   payload: Record<string, unknown>,
   key: string,
   value: unknown,
 ): void => {
-  Object.defineProperty(payload, key === 'constructor' ? '_constructor' : key, {
+  Object.defineProperty(payload, escapeKey(key), {
     value: toSafeJson(value),
     enumerable: true,
     writable: true,
