@@ -8,6 +8,7 @@ import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { FunctionSetupError } from './setup-error.js';
+import { isExpectedRejection } from './report.js';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
@@ -120,10 +121,14 @@ export function onMessagePublishedEffect<R>(
 
     await run(options.runtime, effect as Effect.Effect<void, never, R>).catch(
       (error) => {
-        logger.error('Defect in onMessagePublished', {
-          inner: error,
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        // Expected rejections (an HttpsError, or any error annotated with
+        // ErrorReporter.ignore) are not logged as defects.
+        if (!isExpectedRejection(error)) {
+          logger.error('Defect in onMessagePublished', {
+            inner: error,
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        }
       },
     );
   });

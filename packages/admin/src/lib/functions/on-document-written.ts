@@ -15,6 +15,7 @@ import { logger } from 'firebase-functions';
 import { decodeDocumentData } from './decode-document-data.js';
 import { FunctionSetupError } from './setup-error.js';
 import { recoverSetupError } from './recover-setup-error.js';
+import { isExpectedRejection } from './report.js';
 
 interface DocumentWrittenEffectOptions<
   R,
@@ -92,9 +93,7 @@ export function onDocumentWrittenEffect<
           ? decodeDocumentData(data, docId, schema, options.idField).pipe(
               Effect.map((decoded) => Option.some(decoded)),
             )
-          : Effect.succeed(
-              Option.none<Schema.Schema.Type<typeof schema>>(),
-            );
+          : Effect.succeed(Option.none<Schema.Schema.Type<typeof schema>>());
 
       // Recovery covers decoding only; a handler failure stays its own error.
       return yield* Effect.all([
@@ -116,10 +115,14 @@ export function onDocumentWrittenEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
-      logger.error('Defect in onDocumentWritten', {
-        inner: error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      // Expected rejections (an HttpsError, or any error annotated with
+      // ErrorReporter.ignore) are not logged as defects.
+      if (!isExpectedRejection(error)) {
+        logger.error('Defect in onDocumentWritten', {
+          inner: error,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     });
   });
 }
@@ -167,9 +170,7 @@ export function onDocumentWrittenWithAuthContextEffect<
           ? decodeDocumentData(data, docId, schema, options.idField).pipe(
               Effect.map((decoded) => Option.some(decoded)),
             )
-          : Effect.succeed(
-              Option.none<Schema.Schema.Type<typeof schema>>(),
-            );
+          : Effect.succeed(Option.none<Schema.Schema.Type<typeof schema>>());
 
       // Recovery covers decoding only; a handler failure stays its own error.
       return yield* Effect.all([
@@ -191,10 +192,14 @@ export function onDocumentWrittenWithAuthContextEffect<
       options.runtime,
       effect as Effect.Effect<void, never, R | S['DecodingServices']>,
     ).catch((error) => {
-      logger.error('Defect in onDocumentWrittenWithAuthContext', {
-        inner: error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      // Expected rejections (an HttpsError, or any error annotated with
+      // ErrorReporter.ignore) are not logged as defects.
+      if (!isExpectedRejection(error)) {
+        logger.error('Defect in onDocumentWrittenWithAuthContext', {
+          inner: error,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     });
   });
 }
