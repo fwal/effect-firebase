@@ -332,7 +332,8 @@ both as plain pass-through.
 import { initializeApp } from 'firebase-admin/app';
 import { Admin } from '@effect-firebase/admin';
 const adminLayer = Admin.layer({ app: initializeApp() }); // or { firestore }, or () for default app
-// Admin.layer also installs a Cloud Logging Effect logger.
+// Admin.layer also installs a Cloud Logging Effect logger (annotations, log spans
+// and causes land in jsonPayload).
 
 // Browser
 import { initializeApp } from 'firebase/app';
