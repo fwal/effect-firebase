@@ -1144,21 +1144,26 @@ describe('Repository', () => {
         });
       });
 
-      it('does not double-stamp when the caller passes updatedAt: undefined', async () => {
+      it('rejects an explicit updatedAt: undefined instead of double-stamping', async () => {
+        // The repository rejects an explicit `{ field: undefined }` before
+        // encoding (AGENTS.md gotcha #11), so a `DateTimeUpdate` field passed
+        // `undefined` fails with a `SchemaError` naming the field rather than
+        // being encoded to a `ServerTimestamp`. The re-stamp only applies to a
+        // field the caller omitted, not one passed as `undefined`.
         const updateMock = vi.fn(() => Effect.succeed(undefined));
         const repo = await Effect.runPromise(
           makeStampedRepo({ update: updateMock }),
         );
-        await Effect.runPromise(
+        const error = await failureOf(
           repo.update(PostId.make('post-1'), {
             title: 'Updated',
             updatedAt: undefined,
           }),
         );
 
-        const payload = payloadOf(updateMock);
-        expect(Object.keys(payload).sort()).toEqual(['title', 'updatedAt']);
-        expect(payload.updatedAt).toBeInstanceOf(ServerTimestamp);
+        expect(error._tag).toBe('SchemaError');
+        expect(String(error)).toContain('updatedAt');
+        expect(updateMock).not.toHaveBeenCalled();
       });
 
       it('preserves an explicitly passed DateTime.Utc for updatedAt', async () => {
