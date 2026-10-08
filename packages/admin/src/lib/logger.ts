@@ -40,6 +40,44 @@ const toSafeJson = (value: unknown): unknown => {
 };
 
 /**
+ * Sets a JSON-safe payload field. `constructor` is renamed because
+ * `firebase-functions` only treats the trailing argument as `jsonPayload`
+ * while `payload.constructor === Object`; `defineProperty` keeps a
+ * `__proto__` key an ordinary field.
+ */
+const setField = (
+  payload: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void => {
+  Object.defineProperty(payload, key === 'constructor' ? '_constructor' : key, {
+    value: toSafeJson(value),
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+};
+
+/**
+ * Copies every field of `source` into the payload, reading each one inside a
+ * guard so a throwing getter cannot make the logger throw.
+ */
+const assignSafe = (
+  payload: Record<string, unknown>,
+  source: Readonly<Record<string, unknown>>,
+): void => {
+  for (const key of Object.keys(source)) {
+    let value: unknown;
+    try {
+      value = source[key];
+    } catch {
+      value = '[Unserializable]';
+    }
+    setField(payload, key, value);
+  }
+};
+
+/**
  * The value to pass alongside the message so the failure is part of the
  * entry's `message`.
  *
@@ -109,19 +147,16 @@ const cloudConsoleLogger = Logger.make(
       for (const [label, startTime] of spans) {
         logSpans[label] = now - startTime;
       }
-      payload['logSpans'] = logSpans;
+      setField(payload, 'logSpans', logSpans);
     }
-    Object.assign(payload, annotations, explicitPayload);
+    assignSafe(payload, annotations);
+    assignSafe(payload, explicitPayload);
     if (hasCause) {
-      payload['cause'] = Cause.pretty(cause);
+      setField(payload, 'cause', Cause.pretty(cause));
       messageArray.push(failureForMessage(cause));
     }
 
-    const safePayload: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(payload)) {
-      safePayload[key] = toSafeJson(value);
-    }
-    return func(...messageArray, safePayload);
+    return func(...messageArray, payload);
   },
 );
 

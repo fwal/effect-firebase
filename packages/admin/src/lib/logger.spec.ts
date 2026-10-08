@@ -154,6 +154,42 @@ describe('Logger.cloudConsole', () => {
     }).pipe(Effect.provide(cloudConsole)),
   );
 
+  it.effect('guards throwing getters on the trailing object', () =>
+    Effect.gen(function* () {
+      const explicit: Record<string, unknown> = { ok: true };
+      Object.defineProperty(explicit, 'boom', {
+        enumerable: true,
+        get: () => {
+          throw new Error('getter exploded');
+        },
+      });
+      yield* Effect.logInfo('hello', explicit).pipe(
+        Effect.annotateLogs({ requestId: 'r1' }),
+      );
+      expect(args(infoSpy)).toEqual([
+        'hello',
+        { requestId: 'r1', ok: true, boom: '[Unserializable]' },
+      ]);
+    }).pipe(Effect.provide(cloudConsole)),
+  );
+
+  it.effect('keeps the payload a plain object for reserved keys', () =>
+    Effect.gen(function* () {
+      yield* Effect.logInfo('hello').pipe(
+        Effect.annotateLogs({ constructor: 'Example', ['__proto__']: 'x' }),
+      );
+      const payload = args(infoSpy)[1] as Record<string, unknown>;
+      // firebase-functions' entryFromArgs only uses the trailing argument as
+      // jsonPayload when this holds.
+      expect(payload.constructor).toBe(Object);
+      expect(Object.getPrototypeOf(payload)).toBe(Object.prototype);
+      expect(payload['_constructor']).toBe('Example');
+      expect(Object.getOwnPropertyDescriptor(payload, '__proto__')?.value).toBe(
+        'x',
+      );
+    }).pipe(Effect.provide(cloudConsole)),
+  );
+
   it.effect('makes non-serializable annotations JSON-safe', () =>
     Effect.gen(function* () {
       const circular: Record<string, unknown> = { name: 'loop' };
