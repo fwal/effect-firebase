@@ -68,6 +68,16 @@ const matchesWhere = (data: DocData, where: Query.Where): boolean => {
       if (value === undefined || !Array.isArray(where.value)) {
         return false;
       }
+      // Firestore excludes null (and missing) field values from `not-in`: a
+      // null field "is not null" is undefined, so the doc does not satisfy
+      // the "exists, is not null, not in list" requirement. A null comparison
+      // value makes the whole query match no documents.
+      if (value === null) {
+        return false;
+      }
+      if (where.value.some((candidate) => candidate === null)) {
+        return false;
+      }
       // `not-in` is the complement of `in` over the same scan, so a NaN field
       // value always matches (it is never considered "in" any candidate list).
       if (typeof value === 'number' && Number.isNaN(value)) {

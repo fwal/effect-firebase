@@ -117,6 +117,78 @@ describe('applyConstraints', () => {
     });
   });
 
+  describe('not-in null and missing field semantics', () => {
+    // The same null/missing fixtures as the `!=` suite above: the shape
+    // produced by `Firestore.Optional` / `OptionalNull` writing `Option.none()`
+    // as a literal `null` field. Firestore `not-in` returns documents where
+    // the field exists, is not null, and is not in the list; a null comparison
+    // value makes the whole query match no documents. Both rows were confirmed
+    // against the Firestore emulator.
+    const docs: ReadonlyArray<Snapshot> = [
+      snap('a', { status: 'active' }),
+      snap('b', { status: 'archived' }),
+      snap('c', { status: null }),
+      snap('d', { title: 'no status field' }),
+    ];
+
+    it('excludes explicit-null and missing field values from not-in clauses', () => {
+      // Real Firestore `not-in ['active']` returns docs where status exists,
+      // is not null, and is not 'active' -> only [b]. The mock previously
+      // returned [b, c] because it only guarded against missing fields.
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({
+              field: 'status',
+              op: 'not-in',
+              value: ['active'],
+            }),
+          ]),
+        ),
+      ).toEqual(['b']);
+    });
+
+    it('null in the comparison list matches NO documents', () => {
+      // Firestore: "A not-in query with null as one of the comparison values
+      // does not match any documents."
+      expect(
+        ids(
+          applyConstraints(docs, [
+            new Query.Where({
+              field: 'status',
+              op: 'not-in',
+              value: ['active', null],
+            }),
+          ]),
+        ),
+      ).toEqual([]);
+    });
+
+    it('agrees with != over the null/missing field shape', () => {
+      // `not-in [x]` and `!= x` share Firestore's null/missing exclusion, so
+      // they return the same docs over the (non-NaN) null/missing fixture.
+      for (const value of ['active', 'archived']) {
+        expect(
+          ids(
+            applyConstraints(docs, [
+              new Query.Where({
+                field: 'status',
+                op: 'not-in',
+                value: [value],
+              }),
+            ]),
+          ),
+        ).toEqual(
+          ids(
+            applyConstraints(docs, [
+              new Query.Where({ field: 'status', op: '!=', value }),
+            ]),
+          ),
+        );
+      }
+    });
+  });
+
   it('filters with range operators', () => {
     expect(
       ids(
@@ -701,6 +773,29 @@ describe('applyConstraints', () => {
           ]),
         ),
       ).toEqual(['1', '2', '3', '5']);
+    });
+
+    it('null in a not-in list dominates the NaN-always-includes rule', () => {
+      // A null comparison value makes `not-in` match no documents, overriding
+      // the NaN-always-includes rule, so even a NaN field value is excluded.
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({ field: 'views', op: 'not-in', value: [null] }),
+          ]),
+        ),
+      ).toEqual([]);
+      expect(
+        ids(
+          applyConstraints(nanPosts, [
+            new Query.Where({
+              field: 'views',
+              op: 'not-in',
+              value: [5, null],
+            }),
+          ]),
+        ),
+      ).toEqual([]);
     });
 
     it('orders NaN first ascending and last descending', () => {
