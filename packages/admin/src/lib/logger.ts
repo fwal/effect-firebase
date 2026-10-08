@@ -31,7 +31,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
  * serialize, e.g. a throwing getter, are replaced instead of throwing inside
  * the logger.
  */
-const toJsonSafe = (value: unknown): unknown => {
+const toSafeJson = (value: unknown): unknown => {
   try {
     return JSON.parse(Formatter.formatJson(value));
   } catch {
@@ -119,7 +119,7 @@ const cloudConsoleLogger = Logger.make(
 
     const safePayload: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(payload)) {
-      safePayload[key] = toJsonSafe(value);
+      safePayload[key] = toSafeJson(value);
     }
     return func(...messageArray, safePayload);
   },
