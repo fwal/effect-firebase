@@ -301,7 +301,7 @@ Effect.logError('Could not add order', cause, { partnerId }).pipe(
 
 - On a key collision, the explicit trailing object wins over annotations.
 - When the cause squashes to an `Error`, its stack is appended to `message`, so Error Reporting groups by the real error rather than by a stack synthesised inside `firebase-functions`. Other causes are appended pretty-printed.
-- Payload values are made JSON-safe: causes are pretty-printed, errors become `{ name, message, stack, ... }`, circular references become `'[Circular]'`.
+- Payload values are made JSON-safe with Effect's `Formatter.formatJson` (bigints, errors, circular references, `Redacted`); a value that still cannot be serialized is replaced by `'[Unserializable]'`.
 
 The logger is also available on its own as the `Logger.cloudConsole` layer.
 

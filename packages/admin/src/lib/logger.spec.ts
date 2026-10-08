@@ -171,10 +171,10 @@ describe('Logger.cloudConsole', () => {
       );
       const payload = args(infoSpy)[1] as Record<string, unknown>;
       expect(() => JSON.stringify(payload)).not.toThrow();
-      expect(payload['circular']).toEqual({ name: 'loop', self: '[Circular]' });
-      expect(payload['instance']).toEqual({ boom: '[Unserializable]' });
-      expect(payload['bigint']).toBe('10');
-      expect(payload['cause']).toEqual(expect.stringContaining('nested'));
+      expect(payload['circular']).toEqual({ name: 'loop' });
+      expect(payload['instance']).toBe('[Unserializable]');
+      expect(payload['bigint']).toBe('10n');
+      expect(payload['cause']).toMatchObject({ _id: 'Cause' });
       expect(payload['error']).toMatchObject({
         name: 'Error',
         message: 'annotated',

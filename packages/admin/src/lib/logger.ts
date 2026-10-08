@@ -1,4 +1,4 @@
-import { Cause, Logger, LogLevel, Match, References } from 'effect';
+import { Cause, Formatter, Logger, LogLevel, Match, References } from 'effect';
 import { logger } from 'firebase-functions';
 
 type LoggerFunction = typeof logger.debug;
@@ -26,80 +26,17 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && value.constructor === Object;
 
 /**
- * Converts an arbitrary value into something `JSON.stringify` can always
- * handle. Never throws: causes are pretty-printed, errors keep their stack,
- * circular references and failing getters are replaced by markers.
+ * Makes a payload value JSON-safe with Effect's own `Formatter.formatJson`
+ * (bigints, errors, circular references, `Redacted`). Values it still cannot
+ * serialize, e.g. a throwing getter, are replaced instead of throwing inside
+ * the logger.
  */
-const toJsonSafe = (value: unknown, ancestors: Set<object>): unknown => {
-  switch (typeof value) {
-    case 'string':
-    case 'boolean':
-    case 'undefined':
-      return value;
-    case 'number':
-      return Number.isFinite(value) ? value : String(value);
-    case 'bigint':
-    case 'symbol':
-      return value.toString();
-    case 'function':
-      return undefined;
-  }
-  if (value === null) {
-    return null;
-  }
-  const object = value as object;
-  if (ancestors.has(object)) {
-    return '[Circular]';
-  }
-  if (Cause.isCause(object)) {
-    return Cause.pretty(object);
-  }
-  ancestors.add(object);
+const toJsonSafe = (value: unknown): unknown => {
   try {
-    if (object instanceof Error) {
-      return {
-        ...(toJsonSafeRecord(object, ancestors) as object),
-        name: object.name,
-        message: object.message,
-        stack: object.stack,
-      };
-    }
-    if (
-      'toJSON' in object &&
-      typeof (object as { toJSON: unknown }).toJSON === 'function'
-    ) {
-      return toJsonSafe(
-        (object as { toJSON: () => unknown }).toJSON(),
-        ancestors,
-      );
-    }
-    if (Array.isArray(object)) {
-      return object.map((item) => toJsonSafe(item, ancestors) ?? null);
-    }
-    return toJsonSafeRecord(object, ancestors);
+    return JSON.parse(Formatter.formatJson(value));
   } catch {
     return '[Unserializable]';
-  } finally {
-    ancestors.delete(object);
   }
-};
-
-const toJsonSafeRecord = (
-  object: object,
-  ancestors: Set<object>,
-): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(object)) {
-    try {
-      result[key] = toJsonSafe(
-        (object as Record<string, unknown>)[key],
-        ancestors,
-      );
-    } catch {
-      result[key] = '[Unserializable]';
-    }
-  }
-  return result;
 };
 
 /**
@@ -180,7 +117,11 @@ const cloudConsoleLogger = Logger.make(
       messageArray.push(failureForMessage(cause));
     }
 
-    return func(...messageArray, toJsonSafeRecord(payload, new Set<object>()));
+    const safePayload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      safePayload[key] = toJsonSafe(value);
+    }
+    return func(...messageArray, safePayload);
   },
 );
 
