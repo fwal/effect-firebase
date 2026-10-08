@@ -12,8 +12,8 @@ import { logger } from 'firebase-functions';
 import { inspect } from 'node:util';
 import { cloudConsole } from './logger.js';
 
-class OrderError extends Data.TaggedError('OrderError')<{
-  readonly orderId: string;
+class ExampleError extends Data.TaggedError('ExampleError')<{
+  readonly exampleId: string;
 }> {}
 
 class Unserializable {
@@ -84,11 +84,11 @@ describe('Logger.cloudConsole', () => {
 
   it.effect('includes a failure cause and passes the real error', () =>
     Effect.gen(function* () {
-      const error = new OrderError({ orderId: 'o1' });
+      const error = new ExampleError({ exampleId: 'e1' });
       const exit = yield* Effect.exit(Effect.fail(error));
       if (exit._tag !== 'Failure') throw new Error('expected failure');
-      yield* Effect.logError('Could not add order tracking', exit.cause).pipe(
-        Effect.annotateLogs({ orderId: 'o1' }),
+      yield* Effect.logError('Could not run example', exit.cause).pipe(
+        Effect.annotateLogs({ exampleId: 'e1' }),
       );
       const [message, passedError, payload] = args(errorSpy) as [
         string,
@@ -96,15 +96,15 @@ describe('Logger.cloudConsole', () => {
         Record<string, unknown>,
       ];
       expect(args(errorSpy)).toHaveLength(3);
-      expect(message).toBe('Could not add order tracking');
+      expect(message).toBe('Could not run example');
       expect(passedError).toBeInstanceOf(Error);
       expect(passedError).toMatchObject({
-        name: 'OrderError',
+        name: 'ExampleError',
         stack: error.stack,
       });
       expect(inspect(passedError)).toBe(error.stack);
-      expect(payload['orderId']).toBe('o1');
-      expect(payload['cause']).toEqual(expect.stringContaining('OrderError'));
+      expect(payload['exampleId']).toBe('e1');
+      expect(payload['cause']).toEqual(expect.stringContaining('ExampleError'));
     }).pipe(Effect.provide(cloudConsole)),
   );
 
@@ -131,15 +131,15 @@ describe('Logger.cloudConsole', () => {
 
   it.effect('renders a non-Error failure into the message', () =>
     Effect.gen(function* () {
-      const exit = yield* Effect.exit(Effect.fail('out of stock'));
+      const exit = yield* Effect.exit(Effect.fail('example failure'));
       if (exit._tag !== 'Failure') throw new Error('expected failure');
-      yield* Effect.logError('Could not order', exit.cause);
+      yield* Effect.logError('Could not run example', exit.cause);
       const [, failure, payload] = args(errorSpy) as [
         string,
         string,
         Record<string, unknown>,
       ];
-      expect(failure).toEqual(expect.stringContaining('out of stock'));
+      expect(failure).toEqual(expect.stringContaining('example failure'));
       expect(payload['cause']).toBe(failure);
     }).pipe(Effect.provide(cloudConsole)),
   );
@@ -149,8 +149,8 @@ describe('Logger.cloudConsole', () => {
       yield* Effect.gen(function* () {
         yield* TestClock.adjust('25 millis');
         yield* Effect.logInfo('done');
-      }).pipe(Effect.withLogSpan('checkout'));
-      expect(args(infoSpy)).toEqual(['done', { logSpans: { checkout: 25 } }]);
+      }).pipe(Effect.withLogSpan('example'));
+      expect(args(infoSpy)).toEqual(['done', { logSpans: { example: 25 } }]);
     }).pipe(Effect.provide(cloudConsole)),
   );
 
