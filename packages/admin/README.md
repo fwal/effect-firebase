@@ -9,6 +9,8 @@ npm install @effect-firebase/admin effect-firebase effect
 npm install firebase-admin firebase-functions express
 ```
 
+To publish Pub/Sub messages with `PubSub.publish`, also install `@google-cloud/pubsub`.
+
 ## Setup
 
 Create a runtime from a layer and pass it to function handlers:
@@ -168,6 +170,61 @@ export const onMessage = onMessagePublishedEffect(
   (message) => Effect.log(`Received for user: ${message.userId}`),
 );
 ```
+
+`message.json` is decoded with `PubSub.messageCodec(messageSchema)`, which is
+`Schema.toCodecJson(messageSchema)`. That codec also accepts `null` where the
+schema allows `undefined`, and decodes `Date` / `DateTime` fields from ISO
+strings.
+
+#### Publishing (`PubSub`)
+
+Publish with the matching helper so the wire format always round-trips. It
+encodes with the same codec, publishes as JSON, passes `attributes` and
+`orderingKey` through, and succeeds with the message id. Failures surface as
+`PubSubPublishError { topic, phase: 'encode-message' | 'publish', cause }`.
+
+```typescript
+import { PubSub as GooglePubSub } from '@google-cloud/pubsub';
+import { Admin, FunctionsRuntime, PubSub } from '@effect-firebase/admin';
+
+const runtime = FunctionsRuntime.make(
+  Layer.merge(Admin.layer(), PubSub.layer(new GooglePubSub())),
+);
+
+const messageId =
+  yield *
+  PubSub.publish(
+    'my-topic',
+    MessageSchema,
+    { userId: 'u1' },
+    { attributes: { source: 'signup' } },
+  );
+```
+
+`PubSub.layer` takes any client shaped like `@google-cloud/pubsub`'s `PubSub`
+(`topic(name).publishMessage({ json, attributes, orderingKey })`), so it is
+easy to fake in tests. Publishing another way? Encode with the codec yourself:
+
+```typescript
+const json =
+  yield * Schema.encodeEffect(PubSub.messageCodec(MessageSchema))(message);
+await topic.publishMessage({ json });
+```
+
+Do not publish with plain `Schema.encodeEffect(MessageSchema)`.
+`JSON.stringify` drops keys whose value is `undefined`, and in Effect v4 a
+`Schema.NullishOr(X)` field requires the key, so the consumer fails with
+`Missing key`. The codec writes `null` instead (the handler then receives
+`null`, not `undefined`). Other JSON limits the codec cannot paper over: `-0`
+arrives as `0`.
+
+**Upgrading:** deploy consumers before publishers. The new consumer accepts
+everything the old one did plus the codec's encodings (`null` for
+`Schema.optional(X)`, ISO strings for `Date`), but an old consumer rejects
+those. Messages that an old publisher already sent without a required
+`NullishOr` key still fail to decode; recover them with `onSetupError`, or
+declare the field `Schema.optional(Schema.NullOr(X))` if an absent key is
+legitimate.
 
 ### Cloud Tasks (`onTaskDispatched`)
 
