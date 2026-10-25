@@ -8,6 +8,7 @@ import { CloudEvent, CloudFunction } from 'firebase-functions/v2';
 import { run, Runtime } from './run.js';
 import { logger } from 'firebase-functions';
 import { FunctionSetupError } from './setup-error.js';
+import { messageCodec } from '../pubsub.js';
 
 interface MessagePublishedEffectOptions<R> extends PubSubOptions {
   runtime: Runtime<R>;
@@ -32,7 +33,8 @@ interface MessagePublishedEffectOptionsWithSchema<
 }
 
 /**
- * Decode the message JSON data using the provided schema.
+ * Decode the message JSON data with the JSON codec of the provided schema
+ * (`PubSub.messageCodec`), the inverse of what `PubSub.publish` encodes.
  */
 function decodeMessageData<S extends Schema.Top>(
   schema: S,
@@ -53,7 +55,7 @@ function decodeMessageData<S extends Schema.Top>(
       }),
   }).pipe(
     Effect.flatMap((messageData) =>
-      Schema.decodeUnknownEffect(schema)(messageData).pipe(
+      Schema.decodeUnknownEffect(messageCodec(schema))(messageData).pipe(
         Effect.mapError(
           (cause) => new FunctionSetupError({ phase: 'decode-message', cause }),
         ),
@@ -68,6 +70,31 @@ function decodeMessageData<S extends Schema.Top>(
 
 /**
  * Create a Firebase Functions Pub/Sub trigger that runs an effect when a message is published.
+ *
+ * With `messageSchema`, `message.json` is decoded with
+ * `PubSub.messageCodec(messageSchema)` (`Schema.toCodecJson`), so `null` is
+ * accepted where the schema allows `undefined`, and `Date` / `DateTime` fields
+ * decode from ISO strings. Publish with `PubSub.publish` (or encode with the
+ * same codec) so the wire format matches.
+ *
+ * @example
+ * ```ts
+ * const UserCreated = Schema.Struct({
+ *   userId: Schema.String,
+ *   referrer: Schema.NullishOr(Schema.String),
+ * });
+ *
+ * export const onUserCreated = onMessagePublishedEffect(
+ *   { runtime, topic: 'user-created', messageSchema: UserCreated },
+ *   (message) => Effect.log(`user ${message.userId}`),
+ * );
+ *
+ * // Producer side
+ * yield* PubSub.publish('user-created', UserCreated, {
+ *   userId: 'u1',
+ *   referrer: undefined,
+ * });
+ * ```
  *
  * @param options - The options for the Pub/Sub trigger including optional message schema.
  * @param handler - The handler function that runs the effect.

@@ -29,6 +29,7 @@
     "tslib": "^2.8.1"
   },
   "devDependencies": {
+    "@google-cloud/pubsub": "catalog:",
     "effect": "catalog:",
     "effect-firebase": "workspace:*",
     "express": "catalog:",

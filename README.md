@@ -270,7 +270,7 @@ await Effect.runPromise(
 - `onCallEffect` — Callable
 - `onCallStreamEffect` — Callable that streams a `Stream` to the client via `sendChunk`
 - `onDocumentCreatedEffect`, `onDocumentUpdatedEffect`, `onDocumentDeletedEffect`, `onDocumentWrittenEffect` — Firestore triggers
-- `onMessagePublishedEffect` — Pub/Sub
+- `onMessagePublishedEffect` — Pub/Sub (publish with `PubSub.publish` so the JSON wire format round-trips)
 - `onTaskDispatchedEffect` — Cloud Tasks
 - `onScheduleEffect` — Cloud Scheduler
 
