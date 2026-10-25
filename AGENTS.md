@@ -109,3 +109,17 @@ Overview: https://effect.website/llms.txt — full docs: https://effect.website/
 Avoid point-free calls such as `Effect.map(fn)` or `flow` from
 `effect/Function`. Write `Effect.map((x) => fn(x))` instead — it keeps type
 inference and stack traces predictable.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`fwal/effect-firebase`, via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
